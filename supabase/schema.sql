@@ -1,14 +1,15 @@
 -- ============================================================
 -- ConectAr Talento — Supabase Schema
 -- Ejecutar en: Supabase Dashboard > SQL Editor
+-- Usa IF NOT EXISTS para ser seguro si ya hay tablas previas
 -- ============================================================
 
 -- ── PROFILES (extiende auth.users) ─────────────────────────
 
-create table public.profiles (
+create table if not exists public.profiles (
   id              uuid references auth.users(id) on delete cascade primary key,
-  full_name       text        not null,
-  company_name    text        not null,
+  full_name       text        not null default '',
+  company_name    text        not null default '',
   plan            text        not null default 'free'
                               check (plan in ('free','starter','pro','business','enterprise')),
   tenant_id       uuid        not null default gen_random_uuid(),
@@ -20,8 +21,18 @@ create table public.profiles (
 
 alter table public.profiles enable row level security;
 
-create policy "Ver propio perfil"     on profiles for select using (auth.uid() = id);
-create policy "Editar propio perfil"  on profiles for update using (auth.uid() = id);
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'profiles' and policyname = 'Ver propio perfil'
+  ) then
+    create policy "Ver propio perfil" on profiles for select using (auth.uid() = id);
+  end if;
+  if not exists (
+    select 1 from pg_policies where tablename = 'profiles' and policyname = 'Editar propio perfil'
+  ) then
+    create policy "Editar propio perfil" on profiles for update using (auth.uid() = id);
+  end if;
+end $$;
 
 -- Trigger: crea perfil automáticamente al registrarse
 create or replace function public.handle_new_user()
@@ -33,11 +44,13 @@ begin
     coalesce(new.raw_user_meta_data->>'full_name', ''),
     coalesce(new.raw_user_meta_data->>'company_name', ''),
     coalesce(new.raw_user_meta_data->>'plan', 'free')
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -45,7 +58,7 @@ create trigger on_auth_user_created
 
 -- ── VACANCIES ───────────────────────────────────────────────
 
-create table public.vacancies (
+create table if not exists public.vacancies (
   id           uuid        primary key default gen_random_uuid(),
   tenant_id    uuid        not null,
   title        text        not null,
@@ -67,15 +80,21 @@ create table public.vacancies (
 
 alter table public.vacancies enable row level security;
 
-create policy "Acceso a vacantes del tenant" on vacancies
-  for all using (
-    tenant_id = (select tenant_id from profiles where id = auth.uid())
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'vacancies' and policyname = 'Acceso a vacantes del tenant'
+  ) then
+    create policy "Acceso a vacantes del tenant" on vacancies
+      for all using (
+        tenant_id = (select tenant_id from profiles where id = auth.uid())
+      );
+  end if;
+end $$;
 
 
 -- ── CANDIDATES ──────────────────────────────────────────────
 
-create table public.candidates (
+create table if not exists public.candidates (
   id               uuid        primary key default gen_random_uuid(),
   tenant_id        uuid        not null,
   full_name        text        not null,
@@ -96,68 +115,86 @@ create table public.candidates (
 
 alter table public.candidates enable row level security;
 
-create policy "Acceso a candidatos del tenant" on candidates
-  for all using (
-    tenant_id = (select tenant_id from profiles where id = auth.uid())
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'candidates' and policyname = 'Acceso a candidatos del tenant'
+  ) then
+    create policy "Acceso a candidatos del tenant" on candidates
+      for all using (
+        tenant_id = (select tenant_id from profiles where id = auth.uid())
+      );
+  end if;
+end $$;
 
 
 -- ── APPLICATIONS ────────────────────────────────────────────
 
-create table public.applications (
-  id               uuid        primary key default gen_random_uuid(),
-  vacancy_id       uuid        not null references vacancies(id)  on delete cascade,
-  candidate_id     uuid        not null references candidates(id) on delete cascade,
-  status           text        not null default 'Nuevas Vacantes',
-  position_in_stage integer   not null default 0,
-  applied_at       timestamptz not null default now(),
-  updated_at       timestamptz not null default now(),
+create table if not exists public.applications (
+  id                uuid        primary key default gen_random_uuid(),
+  vacancy_id        uuid        not null references vacancies(id)  on delete cascade,
+  candidate_id      uuid        not null references candidates(id) on delete cascade,
+  status            text        not null default 'Nuevas Vacantes',
+  position_in_stage integer     not null default 0,
+  applied_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
   unique(vacancy_id, candidate_id)
 );
 
 alter table public.applications enable row level security;
 
-create policy "Acceso a applications del tenant" on applications
-  for all using (
-    exists (
-      select 1 from vacancies v
-      join profiles p on p.tenant_id = v.tenant_id
-      where v.id = applications.vacancy_id and p.id = auth.uid()
-    )
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'applications' and policyname = 'Acceso a applications del tenant'
+  ) then
+    create policy "Acceso a applications del tenant" on applications
+      for all using (
+        exists (
+          select 1 from vacancies v
+          join profiles p on p.tenant_id = v.tenant_id
+          where v.id = applications.vacancy_id and p.id = auth.uid()
+        )
+      );
+  end if;
+end $$;
 
 
 -- ── INTERVIEWS ──────────────────────────────────────────────
 
-create table public.interviews (
-  id               uuid        primary key default gen_random_uuid(),
-  candidate_id     uuid        not null references candidates(id) on delete cascade,
-  vacancy_id       uuid        not null references vacancies(id)  on delete cascade,
-  scheduled_at     timestamptz not null,
-  type             text        not null,
-  interviewer_name text        not null,
+create table if not exists public.interviews (
+  id                uuid        primary key default gen_random_uuid(),
+  candidate_id      uuid        not null references candidates(id) on delete cascade,
+  vacancy_id        uuid        not null references vacancies(id)  on delete cascade,
+  scheduled_at      timestamptz not null,
+  type              text        not null,
+  interviewer_name  text        not null,
   interviewer_email text,
-  status           text        not null default 'Programada',
-  meeting_platform text        not null default 'presencial',
-  meeting_link     text,
-  notes            text
+  status            text        not null default 'Programada',
+  meeting_platform  text        not null default 'presencial',
+  meeting_link      text,
+  notes             text
 );
 
 alter table public.interviews enable row level security;
 
-create policy "Acceso a entrevistas del tenant" on interviews
-  for all using (
-    exists (
-      select 1 from candidates c
-      join profiles p on p.tenant_id = c.tenant_id
-      where c.id = interviews.candidate_id and p.id = auth.uid()
-    )
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'interviews' and policyname = 'Acceso a entrevistas del tenant'
+  ) then
+    create policy "Acceso a entrevistas del tenant" on interviews
+      for all using (
+        exists (
+          select 1 from candidates c
+          join profiles p on p.tenant_id = c.tenant_id
+          where c.id = interviews.candidate_id and p.id = auth.uid()
+        )
+      );
+  end if;
+end $$;
 
 
 -- ── SCORECARDS ──────────────────────────────────────────────
 
-create table public.scorecards (
+create table if not exists public.scorecards (
   id               uuid    primary key default gen_random_uuid(),
   interview_id     uuid    not null unique references interviews(id) on delete cascade,
   overall_rating   integer not null check (overall_rating between 1 and 5),
@@ -174,20 +211,26 @@ create table public.scorecards (
 
 alter table public.scorecards enable row level security;
 
-create policy "Acceso a scorecards del tenant" on scorecards
-  for all using (
-    exists (
-      select 1 from interviews i
-      join candidates c on c.id = i.candidate_id
-      join profiles p on p.tenant_id = c.tenant_id
-      where i.id = scorecards.interview_id and p.id = auth.uid()
-    )
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'scorecards' and policyname = 'Acceso a scorecards del tenant'
+  ) then
+    create policy "Acceso a scorecards del tenant" on scorecards
+      for all using (
+        exists (
+          select 1 from interviews i
+          join candidates c on c.id = i.candidate_id
+          join profiles p on p.tenant_id = c.tenant_id
+          where i.id = scorecards.interview_id and p.id = auth.uid()
+        )
+      );
+  end if;
+end $$;
 
 
 -- ── MESSAGE TEMPLATES ───────────────────────────────────────
 
-create table public.message_templates (
+create table if not exists public.message_templates (
   id          uuid        primary key default gen_random_uuid(),
   tenant_id   uuid        not null,
   name        text        not null,
@@ -202,31 +245,43 @@ create table public.message_templates (
 
 alter table public.message_templates enable row level security;
 
-create policy "Acceso a templates del tenant o globales" on message_templates
-  for all using (
-    is_default = true
-    or tenant_id = (select tenant_id from profiles where id = auth.uid())
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'message_templates' and policyname = 'Acceso a templates del tenant o globales'
+  ) then
+    create policy "Acceso a templates del tenant o globales" on message_templates
+      for all using (
+        is_default = true
+        or tenant_id = (select tenant_id from profiles where id = auth.uid())
+      );
+  end if;
+end $$;
 
 
 -- ── INTEGRATIONS ────────────────────────────────────────────
 
-create table public.integrations (
-  id           uuid        primary key default gen_random_uuid(),
-  tenant_id    uuid        not null,
-  platform     text        not null,
-  account_name text        not null,
+create table if not exists public.integrations (
+  id            uuid        primary key default gen_random_uuid(),
+  tenant_id     uuid        not null,
+  platform      text        not null,
+  account_name  text        not null,
   account_email text,
-  status       text        not null default 'pending',
-  expires_at   timestamptz,
-  metadata     jsonb,
-  created_at   timestamptz not null default now(),
+  status        text        not null default 'pending',
+  expires_at    timestamptz,
+  metadata      jsonb,
+  created_at    timestamptz not null default now(),
   unique(tenant_id, platform)
 );
 
 alter table public.integrations enable row level security;
 
-create policy "Acceso a integraciones del tenant" on integrations
-  for all using (
-    tenant_id = (select tenant_id from profiles where id = auth.uid())
-  );
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'integrations' and policyname = 'Acceso a integraciones del tenant'
+  ) then
+    create policy "Acceso a integraciones del tenant" on integrations
+      for all using (
+        tenant_id = (select tenant_id from profiles where id = auth.uid())
+      );
+  end if;
+end $$;
