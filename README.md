@@ -102,6 +102,30 @@ npm run build
 npm run start
 ```
 
+### Flujo fijo de publicacion
+
+Trabajar siempre desde esta carpeta:
+
+```bash
+E:\ConectAr Talento\conectar-talento
+```
+
+Opcion manual:
+
+```bash
+git add .
+git commit -m "feat: tu cambio"
+git push origin main
+```
+
+Opcion rapida con script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-main.ps1 "feat: tu cambio"
+```
+
+Despues del `git push`, GitHub recibe el commit y Vercel dispara el deploy automatico desde `main`.
+
 ---
 
 ## 📱 Credenciales de prueba
