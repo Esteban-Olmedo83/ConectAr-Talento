@@ -7,7 +7,7 @@ import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { User } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 
 const features = [
   {
@@ -32,6 +32,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
+  // Show error from OAuth callback if present in URL
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'auth_callback_failed') {
+      setError('Error al iniciar sesión con Google. Por favor intentá de nuevo.')
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -42,37 +50,38 @@ export default function LoginPage() {
     }
 
     setIsLoading(true)
-    // Simulate async auth
-    await new Promise((res) => setTimeout(res, 800))
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
-    const user: User = {
-      id: '1',
-      email,
-      fullName: 'Usuario Demo',
-      plan: 'free',
-      tenantId: '1',
-      companyName: 'Mi Empresa',
-      createdAt: new Date().toISOString(),
+    if (authError) {
+      setError(
+        authError.message === 'Invalid login credentials'
+          ? 'Email o contraseña incorrectos.'
+          : authError.message
+      )
+      setIsLoading(false)
+      return
     }
 
-    localStorage.setItem('ct_user', JSON.stringify(user))
     router.push('/pipeline')
+    router.refresh()
   }
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
-    await new Promise((res) => setTimeout(res, 600))
-    const user: User = {
-      id: '1',
-      email: 'demo@conectartalento.com',
-      fullName: 'Usuario Demo',
-      plan: 'free',
-      tenantId: '1',
-      companyName: 'Mi Empresa',
-      createdAt: new Date().toISOString(),
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (authError) {
+      setError(authError.message)
+      setIsLoading(false)
     }
-    localStorage.setItem('ct_user', JSON.stringify(user))
-    router.push('/pipeline')
+    // On success the browser is redirected to Google — no need to push here
   }
 
   return (
@@ -151,7 +160,6 @@ export default function LoginPage() {
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
-            {/* Google icon SVG */}
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
