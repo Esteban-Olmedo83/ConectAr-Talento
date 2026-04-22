@@ -152,7 +152,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/login" className="text-white/90 hover:text-white text-sm px-3 py-1.5 transition-colors">Iniciar sesión</Link>
-            <Link href="/register" className="bg-white text-indigo-600 hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Empezar gratis</Link>
+            <Link href="/signup" className="bg-white text-indigo-600 hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Empezar gratis</Link>
           </div>
         </nav>
 
@@ -176,7 +176,7 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 mb-10">
-            <Link href="/register" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-8 py-3.5 rounded-xl text-base shadow-xl transition-all">
+            <Link href="/signup" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-8 py-3.5 rounded-xl text-base shadow-xl transition-all">
               Empezar gratis <ArrowRight className="h-4 w-4" />
             </Link>
             <a href="#features" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-3.5 rounded-xl text-base transition-all">
@@ -279,7 +279,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <Link
-                  href="/register"
+                  href="/signup"
                   className={`w-full text-center py-2.5 rounded-xl font-semibold text-sm transition-colors ${
                     plan.dark
                       ? 'bg-white text-indigo-600 hover:bg-indigo-50'
@@ -327,7 +327,7 @@ export default function LandingPage() {
             Sin tarjeta de crédito. Sin configuración compleja. En 5 minutos estás reclutando con IA.
           </p>
           <Link
-            href="/register"
+            href="/signup"
             className="inline-flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-10 py-4 rounded-xl text-base shadow-2xl transition-all"
           >
             Empezar gratis ahora <ArrowRight className="h-4 w-4" />
