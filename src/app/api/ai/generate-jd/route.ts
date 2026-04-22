@@ -27,6 +27,9 @@ interface GeminiResponse {
   error?: { message: string }
 }
 
+const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+
 function buildJdPrompt(input: GenerateJdRequest): string {
   const salaryInfo = input.salaryRange ? `\nRango salarial: ${input.salaryRange}` : ''
   const levelInfo = input.level ? `\nNivel de seniority: ${input.level}` : ''
@@ -109,22 +112,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const prompt = buildJdPrompt(body)
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          },
-        }),
-      }
-    )
+    const geminiRes = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        },
+      }),
+    })
 
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text()

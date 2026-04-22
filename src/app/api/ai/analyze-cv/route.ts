@@ -29,6 +29,9 @@ interface GeminiResponse {
   error?: { message: string }
 }
 
+const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+
 function buildPrompt(cvText: string, vacancyRequirements?: string[]): string {
   const requirementsSection =
     vacancyRequirements && vacancyRequirements.length > 0
@@ -103,22 +106,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const prompt = buildPrompt(cvText, vacancyRequirements)
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-        }),
-      }
-    )
+    const geminiRes = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+      }),
+    })
 
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text()
