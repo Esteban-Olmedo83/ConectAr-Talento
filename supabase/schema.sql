@@ -285,3 +285,39 @@ do $$ begin
       );
   end if;
 end $$;
+
+
+-- ── SECURITY EVENTS (auditoría de seguridad) ────────────────
+-- Ejecutar este bloque si ya corriste el schema anterior
+
+create table if not exists public.security_events (
+  id          uuid        primary key default gen_random_uuid(),
+  user_id     uuid        not null references auth.users(id) on delete cascade,
+  event_type  text        not null,
+  -- Tipos: password_changed | password_reset_requested | password_reset_completed
+  --        login | logout | signup | account_deleted
+  ip_address  text,
+  user_agent  text,
+  metadata    jsonb,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.security_events enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'security_events' and policyname = 'Ver propios eventos'
+  ) then
+    create policy "Ver propios eventos" on security_events
+      for select using (auth.uid() = user_id);
+  end if;
+  if not exists (
+    select 1 from pg_policies where tablename = 'security_events' and policyname = 'Registrar propios eventos'
+  ) then
+    create policy "Registrar propios eventos" on security_events
+      for insert with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists security_events_user_id_idx on security_events(user_id);
+create index if not exists security_events_created_at_idx on security_events(created_at desc);

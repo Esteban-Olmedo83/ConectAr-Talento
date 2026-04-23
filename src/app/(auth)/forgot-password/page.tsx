@@ -2,126 +2,215 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Loader2, ArrowLeft, Mail } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Loader2, ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 
+type Step = 'email' | 'code'
+
 export default function ForgotPasswordPage() {
+  const router = useRouter()
+  const [step, setStep] = React.useState<Step>('email')
   const [email, setEmail] = React.useState('')
+  const [code, setCode] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState('')
-  const [sent, setSent] = React.useState(false)
+  const [resendCooldown, setResendCooldown] = React.useState(0)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Countdown para reenviar código
+  React.useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
+
+  const sendCode = async (targetEmail: string) => {
+    setIsLoading(true)
+    setError('')
+    const supabase = createClient()
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: targetEmail,
+      options: { shouldCreateUser: false },
+    })
+
+    setIsLoading(false)
+
+    if (otpError) {
+      // No revelar si el email existe o no
+      setError('No pudimos procesar la solicitud. Verificá el email ingresado.')
+      return false
+    }
+
+    setResendCooldown(60)
+    return true
+  }
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) {
+      setError('Por favor ingresá tu email.')
+      return
+    }
+    const ok = await sendCode(email.trim())
+    if (ok) setStep('code')
+  }
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (!email.trim()) {
-      setError('Por favor ingresá tu email.')
+    if (code.length !== 6) {
+      setError('El código debe tener 6 dígitos.')
       return
     }
 
     setIsLoading(true)
     const supabase = createClient()
 
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'email',
     })
 
     setIsLoading(false)
 
-    if (authError) {
-      setError(authError.message)
+    if (verifyError) {
+      setError('Código incorrecto o expirado. Intentá de nuevo.')
       return
     }
 
-    setSent(true)
+    // Código verificado — sesión activa — ir a nueva contraseña
+    router.push('/reset-password')
   }
 
-  if (sent) {
+  // ── PASO 1: ingresar email ─────────────────────────────────
+  if (step === 'email') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mx-auto">
-            <Mail className="h-8 w-8 text-indigo-600" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">Revisá tu email</h1>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Te enviamos un link para restablecer tu contraseña a{' '}
-              <span className="font-medium text-foreground">{email}</span>.
-              Revisá también la carpeta de spam.
-            </p>
-          </div>
+        <div className="w-full max-w-md space-y-6">
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al inicio de sesión
           </Link>
+
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-foreground">¿Olvidaste tu contraseña?</h1>
+            <p className="text-muted-foreground text-sm">
+              Te enviamos un código de 6 dígitos a tu email para verificar tu identidad.
+            </p>
+          </div>
+
+          <form onSubmit={handleEmailSubmit} className="space-y-4" noValidate>
+            {error && (
+              <div role="alert" className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="tu@empresa.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Enviando código...</>
+              ) : (
+                <><Mail className="h-4 w-4" /> Enviar código de verificación</>
+              )}
+            </Button>
+          </form>
         </div>
       </div>
     )
   }
 
+  // ── PASO 2: ingresar código ────────────────────────────────
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md space-y-6">
-
-        <Link
-          href="/login"
+        <button
+          onClick={() => { setStep('email'); setCode(''); setError('') }}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Volver al inicio de sesión
-        </Link>
+          Cambiar email
+        </button>
 
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground">Olvidaste tu contraseña?</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheck className="h-5 w-5 text-indigo-500" />
+            <h1 className="text-2xl font-bold text-foreground">Verificá tu identidad</h1>
+          </div>
           <p className="text-muted-foreground text-sm">
-            Ingresá tu email y te mandamos un link para restablecerla.
+            Ingresá el código de 6 dígitos que enviamos a{' '}
+            <span className="font-medium text-foreground">{email}</span>.
+            Revisá también la carpeta de spam.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <form onSubmit={handleCodeSubmit} className="space-y-4" noValidate>
           {error && (
-            <div
-              role="alert"
-              className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive"
-            >
+            <div role="alert" className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
-
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="code">Código de verificación</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="tu@empresa.com"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="code"
+              type="text"
+              inputMode="numeric"
+              placeholder="123456"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
               disabled={isLoading}
               autoFocus
+              className="text-center text-2xl tracking-[0.5em] font-mono"
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || code.length !== 6}>
             {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Enviando...
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin" /> Verificando...</>
             ) : (
-              'Enviar link de recuperación'
+              'Verificar código'
             )}
           </Button>
         </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          ¿No te llegó?{' '}
+          {resendCooldown > 0 ? (
+            <span className="text-muted-foreground">Reenviar en {resendCooldown}s</span>
+          ) : (
+            <button
+              onClick={() => sendCode(email)}
+              disabled={isLoading}
+              className="text-primary hover:underline disabled:opacity-50"
+            >
+              Reenviar código
+            </button>
+          )}
+        </p>
       </div>
     </div>
   )
