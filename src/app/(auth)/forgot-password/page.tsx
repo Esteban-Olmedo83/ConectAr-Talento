@@ -63,8 +63,8 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setError('')
 
-    if (code.length !== 6) {
-      setError('El código debe tener 6 dígitos.')
+    if (code.length !== 8) {
+      setError('El código debe tener 8 dígitos.')
       return
     }
 
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-foreground">¿Olvidaste tu contraseña?</h1>
             <p className="text-muted-foreground text-sm">
-              Te enviamos un código de 6 dígitos a tu email para verificar tu identidad.
+              Te enviamos un código de 8 dígitos a tu email para verificar tu identidad.
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export default function ForgotPasswordPage() {
             <h1 className="text-2xl font-bold text-foreground">Verificá tu identidad</h1>
           </div>
           <p className="text-muted-foreground text-sm">
-            Ingresá el código de 6 dígitos que enviamos a{' '}
+            Ingresá el código de 8 dígitos que enviamos a{' '}
             <span className="font-medium text-foreground">{email}</span>.
             Revisá también la carpeta de spam.
           </p>
@@ -177,10 +177,10 @@ export default function ForgotPasswordPage() {
               id="code"
               type="text"
               inputMode="numeric"
-              placeholder="123456"
-              maxLength={6}
+              placeholder="12345678"
+              maxLength={8}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
               required
               disabled={isLoading}
               autoFocus
@@ -188,7 +188,7 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading || code.length !== 6}>
+          <Button type="submit" className="w-full" disabled={isLoading || code.length !== 8}>
             {isLoading ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Verificando...</>
             ) : (
