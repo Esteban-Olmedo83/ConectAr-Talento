@@ -141,7 +141,7 @@ export default function LandingPage() {
         <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-indigo-400/20 blur-3xl pointer-events-none" />
 
         {/* nav */}
-        <nav className="absolute top-0 inset-x-0 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
+        <nav className="absolute top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
           <BrandLogo onDark href="/" size="md" iconSize={30} />
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-white/80 hover:text-white text-sm transition-colors">Funciones</a>
