@@ -12,6 +12,7 @@ import {
   Star,
   ChevronRight,
 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand'
 
 /* ─── features data ─────────────────────────────────────────── */
 const FEATURES = [
@@ -140,19 +141,16 @@ export default function LandingPage() {
         <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-indigo-400/20 blur-3xl pointer-events-none" />
 
         {/* nav */}
-        <nav className="absolute top-0 inset-x-0 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm">CT</div>
-            <span className="text-white font-semibold text-lg">ConectAr Talento</span>
-          </div>
+        <nav className="absolute top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
+          <BrandLogo onDark href="/" size="md" iconSize={30} />
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-white/80 hover:text-white text-sm transition-colors">Funciones</a>
             <a href="#pricing" className="text-white/80 hover:text-white text-sm transition-colors">Precios</a>
             <a href="#" className="text-white/80 hover:text-white text-sm transition-colors">Blog</a>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="text-white/90 hover:text-white text-sm px-3 py-1.5 transition-colors">Iniciar sesión</Link>
-            <Link href="/register" className="bg-white text-indigo-600 hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Empezar gratis</Link>
+            <Link href="/login" className="text-white/90 hover:text-white text-sm font-medium px-4 py-1.5 rounded-lg border border-white/30 hover:border-white/60 transition-colors">Iniciar sesión</Link>
+            <Link href="/signup" className="bg-white text-indigo-600 hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Empezar gratis</Link>
           </div>
         </nav>
 
@@ -176,12 +174,12 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 mb-10">
-            <Link href="/register" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-8 py-3.5 rounded-xl text-base shadow-xl transition-all">
+            <Link href="/signup" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-8 py-3.5 rounded-xl text-base shadow-xl transition-all">
               Empezar gratis <ArrowRight className="h-4 w-4" />
             </Link>
-            <a href="#features" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-3.5 rounded-xl text-base transition-all">
-              Ver demo <ChevronRight className="h-4 w-4" />
-            </a>
+            <Link href="/login" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-3.5 rounded-xl text-base transition-all">
+              Iniciar sesión <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-white/70 text-sm">
@@ -279,7 +277,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <Link
-                  href="/register"
+                  href="/signup"
                   className={`w-full text-center py-2.5 rounded-xl font-semibold text-sm transition-colors ${
                     plan.dark
                       ? 'bg-white text-indigo-600 hover:bg-indigo-50'
@@ -327,7 +325,7 @@ export default function LandingPage() {
             Sin tarjeta de crédito. Sin configuración compleja. En 5 minutos estás reclutando con IA.
           </p>
           <Link
-            href="/register"
+            href="/signup"
             className="inline-flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-10 py-4 rounded-xl text-base shadow-2xl transition-all"
           >
             Empezar gratis ahora <ArrowRight className="h-4 w-4" />
@@ -340,9 +338,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">CT</div>
-                <span className="text-white font-semibold">ConectAr Talento</span>
+              <div className="mb-3">
+                <BrandLogo onDark href="/" size="sm" iconSize={24} />
               </div>
               <p className="text-sm leading-relaxed">El talento que buscás, conectado en un solo lugar.</p>
             </div>

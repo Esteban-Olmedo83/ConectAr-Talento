@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import type { User, UserPlan } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import type { UserPlan } from '@/types'
+import { BrandLogo } from '@/components/brand'
 
 const plans: {
   id: UserPlan
@@ -68,6 +70,7 @@ export default function SignupPage() {
   const [selectedPlan, setSelectedPlan] = React.useState<UserPlan>('free')
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [success, setSuccess] = React.useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,32 +86,60 @@ export default function SignupPage() {
     }
 
     setIsLoading(true)
-    await new Promise((res) => setTimeout(res, 800))
+    const supabase = createClient()
 
-    const user: User = {
-      id: Math.random().toString(36).slice(2),
+    const { error: authError } = await supabase.auth.signUp({
       email,
-      fullName,
-      plan: selectedPlan,
-      tenantId: Math.random().toString(36).slice(2),
-      companyName: company,
-      createdAt: new Date().toISOString(),
+      password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+          company_name: company.trim(),
+          plan: selectedPlan,
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (authError) {
+      setError(
+        authError.message === 'User already registered'
+          ? 'Ya existe una cuenta con ese email. Intentá iniciar sesión.'
+          : authError.message
+      )
+      setIsLoading(false)
+      return
     }
 
-    localStorage.setItem('ct_user', JSON.stringify(user))
-    router.push('/pipeline')
+    // Supabase sends a confirmation email by default.
+    // If email confirmation is disabled in the project settings, the user is
+    // logged in automatically and we redirect to /pipeline.
+    setSuccess(true)
+    setTimeout(() => router.push('/pipeline'), 2000)
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+        <div className="text-center space-y-4 px-6">
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
+            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground">¡Cuenta creada!</h2>
+          <p className="text-muted-foreground max-w-sm">
+            Revisá tu email para confirmar tu cuenta. Si la confirmación está
+            desactivada, serás redirigido automáticamente.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-background dark:to-indigo-950/10 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 text-white font-bold text-sm">
-            CT
-          </div>
-          <span className="font-semibold text-foreground">ConectAr Talento</span>
-        </Link>
+        <BrandLogo onDark={false} href="/" size="md" iconSize={28} />
         <p className="text-sm text-muted-foreground">
           Ya tenes cuenta?{' '}
           <Link href="/login" className="text-primary font-medium hover:underline">

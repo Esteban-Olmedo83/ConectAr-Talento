@@ -30,6 +30,7 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
           .eq('id', session.user.id)
           .single()
 
+        // Si no existe el perfil (el trigger no disparó), lo creamos ahora
         if (!profile) {
           const meta = session.user.user_metadata ?? {}
           const { data: newProfile } = await supabase
@@ -46,6 +47,7 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
         }
 
         if (!profile) {
+          // Perfil no se pudo crear — sesión inválida
           await supabase.auth.signOut()
           router.replace('/login')
           return

@@ -6,6 +6,7 @@ import { Menu, Bell, Search } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import type { User } from '@/types'
 
 interface AppLayoutProps {
@@ -19,11 +20,11 @@ export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
 
-  const handleLogout = React.useCallback(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ct_user')
-    }
+  const handleLogout = React.useCallback(async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push('/login')
+    router.refresh()
   }, [router])
 
   return (
