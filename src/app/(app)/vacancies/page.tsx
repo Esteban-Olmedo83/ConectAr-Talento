@@ -11,15 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/supabase/data-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Vacancy, VacancyModality, VacancyPriority } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
-
-const TENANT_ID = 'demo'
-const getTenantId = () => {
-  try { const r = localStorage.getItem('ct_user'); if (r) return JSON.parse(r).tenantId ?? TENANT_ID } catch {}
-  return TENANT_ID
-}
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; cls: string }> = {
   Alta: { label: 'Alta', cls: 'bg-red-100 text-red-700 border-red-200' },
@@ -42,7 +37,8 @@ function VacancyFormDialog({
   vacancy?: Vacancy
   onSave: (v: Vacancy) => void
 }) {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const user = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState({
     title: vacancy?.title ?? '',
     department: vacancy?.department ?? '',
@@ -103,9 +99,8 @@ function VacancyFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const tenantId = getTenantId()
     const input = {
-      tenantId,
+      tenantId: user.tenantId,
       title: form.title,
       department: form.department,
       status: 'Nuevas Vacantes' as const,
@@ -337,14 +332,14 @@ export default function VacanciesPage() {
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
 
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const user = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
-    const tid = getTenantId()
-    const res = await provider.getVacancies(tid)
+    const res = await provider.getVacancies(user.tenantId)
     setVacancies(res.data ?? [])
     setLoading(false)
-  }, [provider])
+  }, [provider, user.tenantId])
 
   React.useEffect(() => { load() }, [load])
 

@@ -18,7 +18,6 @@ import {
   Globe,
 } from 'lucide-react'
 
-/* LinkedIn pseudo-icon since lucide-react doesn't export Linkedin */
 function LinkedInIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -26,32 +25,10 @@ function LinkedInIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+
+import { SupabaseProvider } from '@/lib/supabase/data-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
-import { generateId } from '@/lib/utils'
-
-/* ─── helpers ────────────────────────────────────────────────── */
-function getTenantId(): string {
-  if (typeof window === 'undefined') return 'default'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'default'
-    return JSON.parse(raw).tenantId ?? 'default'
-  } catch {
-    return 'default'
-  }
-}
-
-function getUserPlan(): string {
-  if (typeof window === 'undefined') return 'free'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'free'
-    return JSON.parse(raw).plan ?? 'free'
-  } catch {
-    return 'free'
-  }
-}
 
 const PLAN_LIMITS: Record<string, number> = {
   free: 1,
@@ -61,7 +38,6 @@ const PLAN_LIMITS: Record<string, number> = {
   enterprise: 999,
 }
 
-/* ─── status config ──────────────────────────────────────────── */
 const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }> = {
   connected: { label: 'Conectado', icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: 'text-green-600 bg-green-100' },
   expired: { label: 'Expirado', icon: <AlertCircle className="h-3.5 w-3.5" />, color: 'text-amber-600 bg-amber-100' },
@@ -69,7 +45,6 @@ const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.Reac
   pending: { label: 'Pendiente', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, color: 'text-blue-600 bg-blue-100' },
 }
 
-/* ─── ConnectedAccountRow ────────────────────────────────────── */
 function ConnectedAccountRow({
   integration,
   onRemove,
@@ -117,7 +92,6 @@ function ConnectedAccountRow({
   )
 }
 
-/* ─── OAuthConnectModal ──────────────────────────────────────── */
 function OAuthConnectModal({
   platform,
   title,
@@ -193,7 +167,6 @@ function OAuthConnectModal({
   )
 }
 
-/* ─── section config ─────────────────────────────────────────── */
 type ModalConfig = {
   platform: IntegrationPlatform
   title: string
@@ -278,42 +251,52 @@ const JOB_BOARDS: { platform: IntegrationPlatform; name: string; countries: stri
   { platform: 'infojobs', name: 'InfoJobs', countries: 'AR/ES', color: '#36B37E', available: false },
 ]
 
-/* ─── main page ──────────────────────────────────────────────── */
 export default function IntegrationsPage() {
+  const user = useUser()
   const [integrations, setIntegrations] = React.useState<Integration[]>([])
+  const [loading, setLoading] = React.useState(true)
   const [activeModal, setActiveModal] = React.useState<string | null>(null)
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   React.useEffect(() => {
-    const tenantId = getTenantId()
-    const all = provider.getIntegrationsSync() ?? []
-    setIntegrations(all.filter((i: Integration) => i.tenantId === tenantId))
-  }, [provider])
+    async function load() {
+      const result = await provider.getIntegrations(user.tenantId)
+      if (!result.error) setIntegrations(result.data ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [provider, user.tenantId])
 
   function getByPlatform(platform: IntegrationPlatform) {
     return integrations.filter((i) => i.platform === platform)
   }
 
-  function handleConnect(platform: IntegrationPlatform, data: Record<string, string>) {
-    const tenantId = getTenantId()
-    const integration: Integration = {
-      id: generateId(),
-      tenantId,
+  async function handleConnect(platform: IntegrationPlatform, data: Record<string, string>) {
+    const result = await provider.saveIntegration({
+      tenantId: user.tenantId,
       platform,
       accountName: data.accountName ?? data.accountEmail ?? platform,
       accountEmail: data.accountEmail ?? data.username,
       status: 'connected',
-      createdAt: new Date().toISOString(),
       metadata: data,
+    })
+    if (!result.error && result.data) {
+      setIntegrations((prev) => {
+        const idx = prev.findIndex((i) => i.platform === platform)
+        if (idx !== -1) {
+          const updated = [...prev]
+          updated[idx] = result.data!
+          return updated
+        }
+        return [...prev, result.data!]
+      })
     }
-    provider.createIntegration(integration)
-    setIntegrations((prev) => [...prev, integration])
     setActiveModal(null)
   }
 
-  function handleRemove(id: string) {
+  async function handleRemove(id: string) {
     if (!confirm('¿Desconectar esta integración?')) return
-    provider.deleteIntegration(id)
+    await provider.deleteIntegration(id)
     setIntegrations((prev) => prev.filter((i) => i.id !== id))
   }
 
@@ -323,15 +306,13 @@ export default function IntegrationsPage() {
     )
   }
 
-  const plan = getUserPlan()
+  const plan = user.plan
   const limit = PLAN_LIMITS[plan] ?? 1
 
   function canConnect(platform: IntegrationPlatform) {
-    const existing = getByPlatform(platform)
-    return existing.length < limit
+    return getByPlatform(platform).length < limit
   }
 
-  /* ── section component ── */
   function Section({
     icon,
     title,
@@ -382,9 +363,26 @@ export default function IntegrationsPage() {
 
   const activeConfig = activeModal ? OAUTH_CONFIGS[activeModal] : null
 
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+          <div className="h-6 w-48 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="flex-1 px-6 py-5 space-y-5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-card border border-border rounded-xl p-5 animate-pulse">
+              <div className="h-9 w-9 rounded-lg bg-muted mb-4" />
+              <div className="h-4 w-32 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Integraciones</h1>
@@ -399,17 +397,12 @@ export default function IntegrationsPage() {
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-        {/* 1. Redes Profesionales */}
         <Section icon={<LinkedInIcon className="h-5 w-5 text-blue-600" />} title="Redes Profesionales" subtitle={`LinkedIn · hasta ${limit} cuenta${limit > 1 ? 's' : ''}`}>
           <div className="space-y-2">
             {getByPlatform('linkedin').map((i) => (
               <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
             ))}
-            <ConnectButton
-              label="Conectar LinkedIn"
-              platformKey="linkedin"
-              disabled={!canConnect('linkedin')}
-            />
+            <ConnectButton label="Conectar LinkedIn" platformKey="linkedin" disabled={!canConnect('linkedin')} />
             {!canConnect('linkedin') && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Lock className="h-3 w-3" /> Límite alcanzado. Subí de plan para agregar más cuentas.
@@ -418,7 +411,6 @@ export default function IntegrationsPage() {
           </div>
         </Section>
 
-        {/* 2. Email Corporativo */}
         <Section icon={<Mail className="h-5 w-5 text-gray-500" />} title="Email Corporativo" subtitle={`Gmail, Outlook, SMTP · hasta ${limit} cuenta${limit > 1 ? 's' : ''}`}>
           <div className="space-y-3">
             {(['gmail', 'outlook', 'smtp'] as IntegrationPlatform[]).map((p) => {
@@ -429,28 +421,19 @@ export default function IntegrationsPage() {
                   {accounts.map((i) => (
                     <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
                   ))}
-                  <ConnectButton
-                    label={`Conectar ${labels[p]}`}
-                    platformKey={p}
-                    disabled={!canConnect(p)}
-                  />
+                  <ConnectButton label={`Conectar ${labels[p]}`} platformKey={p} disabled={!canConnect(p)} />
                 </div>
               )
             })}
           </div>
         </Section>
 
-        {/* 3. WhatsApp Business */}
         <Section icon={<MessageCircle className="h-5 w-5 text-green-600" />} title="WhatsApp Business" subtitle={`Meta Cloud API · hasta ${limit} número${limit > 1 ? 's' : ''}`}>
           <div className="space-y-2">
             {getByPlatform('whatsapp').map((i) => (
               <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
             ))}
-            <ConnectButton
-              label="Conectar WhatsApp Business"
-              platformKey="whatsapp"
-              disabled={!canConnect('whatsapp')}
-            />
+            <ConnectButton label="Conectar WhatsApp Business" platformKey="whatsapp" disabled={!canConnect('whatsapp')} />
             <div className="text-xs text-muted-foreground bg-muted rounded-lg p-3 space-y-1">
               <p className="font-medium text-foreground">¿Cómo obtener el Phone Number ID?</p>
               <p>1. Creá una app en <span className="text-primary">developers.facebook.com</span></p>
@@ -460,10 +443,8 @@ export default function IntegrationsPage() {
           </div>
         </Section>
 
-        {/* 4. Videollamadas */}
         <Section icon={<Video className="h-5 w-5 text-purple-600" />} title="Plataformas de Videollamadas" subtitle="Crear reuniones automáticamente al agendar entrevistas">
           <div className="space-y-3">
-            {/* Zoom */}
             <div>
               <p className="text-xs font-medium text-foreground mb-2">Zoom</p>
               {getByPlatform('zoom').map((i) => (
@@ -472,7 +453,6 @@ export default function IntegrationsPage() {
               <ConnectButton label="Conectar Zoom" platformKey="zoom" disabled={!canConnect('zoom')} />
             </div>
 
-            {/* Google Meet */}
             <div className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-foreground">Google Meet</p>
@@ -489,7 +469,6 @@ export default function IntegrationsPage() {
               )}
             </div>
 
-            {/* Teams */}
             <div className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-foreground">Microsoft Teams</p>
@@ -508,15 +487,12 @@ export default function IntegrationsPage() {
           </div>
         </Section>
 
-        {/* 5. Job Boards LATAM */}
         <Section icon={<Briefcase className="h-5 w-5 text-indigo-600" />} title="Job Boards LATAM" subtitle="Publicá vacantes en múltiples portales con un click">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {JOB_BOARDS.map((jb) => {
-              const connected = getByPlatform(jb.platform)
-              const isConnected = connected.length > 0
+              const isConnected = getByPlatform(jb.platform).length > 0
               return (
                 <div key={jb.platform} className="border border-border rounded-xl p-3 flex flex-col items-center gap-2 text-center hover:shadow-sm transition-shadow">
-                  {/* logo placeholder */}
                   <div
                     className="h-10 w-full rounded-lg flex items-center justify-center text-white text-xs font-bold"
                     style={{ backgroundColor: jb.color }}
@@ -533,9 +509,7 @@ export default function IntegrationsPage() {
                     </span>
                   ) : jb.available ? (
                     <button
-                      onClick={() =>
-                        setActiveModal(`jobboard_${jb.platform}`)
-                      }
+                      onClick={() => setActiveModal(`jobboard_${jb.platform}`)}
                       className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-lg transition-colors"
                     >
                       Conectar
@@ -551,7 +525,6 @@ export default function IntegrationsPage() {
           </div>
         </Section>
 
-        {/* upgrade banner for free */}
         {plan === 'free' && (
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-5 text-white">
             <div className="flex items-start justify-between gap-4">
@@ -569,7 +542,6 @@ export default function IntegrationsPage() {
         )}
       </div>
 
-      {/* modals */}
       {activeModal && activeConfig && (
         <OAuthConnectModal
           {...activeConfig}
@@ -578,7 +550,6 @@ export default function IntegrationsPage() {
         />
       )}
 
-      {/* job board connect modal */}
       {activeModal?.startsWith('jobboard_') && !activeConfig && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">

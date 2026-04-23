@@ -23,22 +23,12 @@ function LinkedInIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/supabase/data-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { MessageTemplate, TemplateChannel, TemplateCategory } from '@/types'
 import { generateId } from '@/lib/utils'
 
 /* ─── helpers ────────────────────────────────────────────────── */
-function getTenantId(): string {
-  if (typeof window === 'undefined') return 'default'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'default'
-    return JSON.parse(raw).tenantId ?? 'default'
-  } catch {
-    return 'default'
-  }
-}
-
 function extractVariables(body: string): string[] {
   const matches = body.match(/\{\{(\w+)\}\}/g) ?? []
   return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')))]
@@ -290,7 +280,8 @@ function EditorModal({
   onSave: (t: MessageTemplate) => void
   onClose: () => void
 }) {
-  const tenantId = getTenantId()
+  const user = useUser()
+  const tenantId = user.tenantId
   const [name, setName] = React.useState(initial?.name ?? '')
   const [channel, setChannel] = React.useState<TemplateChannel>(initial?.channel ?? 'email')
   const [category, setCategory] = React.useState<TemplateCategory>(initial?.category ?? 'welcome')
@@ -487,61 +478,64 @@ function EditorModal({
 
 /* ─── main page ──────────────────────────────────────────────── */
 export default function TemplatesPage() {
+  const user = useUser()
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [filterChannel, setFilterChannel] = React.useState<TemplateChannel | 'all'>('all')
   const [sendTarget, setSendTarget] = React.useState<MessageTemplate | null>(null)
   const [editTarget, setEditTarget] = React.useState<Partial<MessageTemplate> | null | 'new'>(null)
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   /* load + seed */
   React.useEffect(() => {
-    const tenantId = getTenantId()
-    const existing = provider.getTemplatesSync() ?? []
+    async function load() {
+      const result = await provider.getTemplates(user.tenantId)
+      const existing = result.data ?? []
 
-    if (existing.length === 0) {
-      const seeded: MessageTemplate[] = DEFAULT_TEMPLATES.map((t, i) => ({
-        ...t,
-        id: `default-tpl-${i}`,
-        tenantId,
-        createdAt: new Date().toISOString(),
-      }))
-      seeded.forEach((t) => provider.createTemplateObj(t))
-      setTemplates(seeded)
-    } else {
-      setTemplates(existing.filter((t: MessageTemplate) => t.tenantId === tenantId))
+      if (existing.length === 0) {
+        const seeded: MessageTemplate[] = []
+        for (const t of DEFAULT_TEMPLATES) {
+          const res = await provider.createTemplate({ ...t, tenantId: user.tenantId })
+          if (res.data) seeded.push(res.data)
+        }
+        setTemplates(seeded)
+      } else {
+        setTemplates(existing)
+      }
     }
-  }, [provider])
+    load()
+  }, [provider, user.tenantId])
 
   const filtered = filterChannel === 'all' ? templates : templates.filter((t) => t.channel === filterChannel)
 
-  function handleSave(t: MessageTemplate) {
+  async function handleSave(t: MessageTemplate) {
     if (templates.find((x) => x.id === t.id)) {
-      provider.updateTemplateObj(t)
-      setTemplates((prev) => prev.map((x) => (x.id === t.id ? t : x)))
+      const res = await provider.updateTemplate(t.id, {
+        name: t.name, channel: t.channel, category: t.category,
+        subject: t.subject, body: t.body, variables: t.variables, isDefault: t.isDefault,
+      })
+      if (res.data) setTemplates((prev) => prev.map((x) => (x.id === t.id ? res.data! : x)))
     } else {
-      provider.createTemplateObj(t)
-      setTemplates((prev) => [...prev, t])
+      const res = await provider.createTemplate({
+        tenantId: user.tenantId, name: t.name, channel: t.channel, category: t.category,
+        subject: t.subject, body: t.body, variables: t.variables, isDefault: t.isDefault,
+      })
+      if (res.data) setTemplates((prev) => [...prev, res.data!])
     }
     setEditTarget(null)
   }
 
-  function handleDuplicate(t: MessageTemplate) {
-    const tenantId = getTenantId()
-    const copy: MessageTemplate = {
-      ...t,
-      id: generateId(),
-      tenantId,
-      name: `${t.name} (copia)`,
-      isDefault: false,
-      createdAt: new Date().toISOString(),
-    }
-    provider.createTemplateObj(copy)
-    setTemplates((prev) => [...prev, copy])
+  async function handleDuplicate(t: MessageTemplate) {
+    const res = await provider.createTemplate({
+      tenantId: user.tenantId, name: `${t.name} (copia)`, channel: t.channel,
+      category: t.category, subject: t.subject, body: t.body,
+      variables: t.variables, isDefault: false,
+    })
+    if (res.data) setTemplates((prev) => [...prev, res.data!])
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (!confirm('¿Eliminás este template?')) return
-    provider.deleteTemplate(id)
+    await provider.deleteTemplate(id)
     setTemplates((prev) => prev.filter((t) => t.id !== id))
   }
 

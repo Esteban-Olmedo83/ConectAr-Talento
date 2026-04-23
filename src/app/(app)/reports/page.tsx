@@ -27,20 +27,9 @@ import {
   ChevronDown,
   FileText,
 } from 'lucide-react'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/supabase/data-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Vacancy, Candidate, Application, Interview } from '@/types'
-
-/* ─── helpers ────────────────────────────────────────────────── */
-function getTenantId(): string {
-  if (typeof window === 'undefined') return 'default'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'default'
-    return JSON.parse(raw).tenantId ?? 'default'
-  } catch {
-    return 'default'
-  }
-}
 
 const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
 
@@ -179,19 +168,24 @@ export default function ReportsPage() {
   const [applications, setApplications] = React.useState<Application[]>([])
   const [interviews, setInterviews] = React.useState<Interview[]>([])
   const [exporting, setExporting] = React.useState(false)
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const user = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   React.useEffect(() => {
-    const tenantId = getTenantId()
-    const vs = provider.getVacanciesSync().filter((v: Vacancy) => v.tenantId === tenantId)
-    const cs = provider.getCandidatesSync().filter((c: Candidate) => c.tenantId === tenantId)
-    const apps = provider.getApplicationsSync()
-    const ivs = provider.getInterviewsSync()
-    setVacancies(vs)
-    setCandidates(cs)
-    setApplications(apps)
-    setInterviews(ivs)
-  }, [provider])
+    async function load() {
+      const [vsResult, csResult, appsResult, ivsResult] = await Promise.all([
+        provider.getVacancies(user.tenantId),
+        provider.getCandidates(user.tenantId),
+        provider.getApplications(),
+        provider.getInterviews(),
+      ])
+      setVacancies(vsResult.data ?? [])
+      setCandidates(csResult.data ?? [])
+      setApplications(appsResult.data ?? [])
+      setInterviews(ivsResult.data ?? [])
+    }
+    load()
+  }, [provider, user.tenantId])
 
   const dateFrom = getDateFrom(range)
 
