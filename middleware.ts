@@ -13,6 +13,9 @@ const PROTECTED_PATHS = [
 
 const AUTH_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password']
 
+// Estas rutas requieren sesión activa pero no son parte de la app protegida
+const PASSWORD_RESET_PATHS = ['/reset-password']
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -51,9 +54,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthPage) {
+  const isPasswordReset = PASSWORD_RESET_PATHS.some((p) => pathname.startsWith(p))
+
+  // Redirige usuarios autenticados fuera de las páginas de auth,
+  // EXCEPTO /reset-password que requiere sesión activa para funcionar
+  if (user && isAuthPage && !isPasswordReset) {
     const url = request.nextUrl.clone()
     url.pathname = '/pipeline'
+    return NextResponse.redirect(url)
+  }
+
+  // Si alguien entra a /reset-password sin sesión, lo manda al forgot-password
+  if (!user && isPasswordReset) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/forgot-password'
     return NextResponse.redirect(url)
   }
 
