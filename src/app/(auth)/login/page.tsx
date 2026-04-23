@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { BrandLogo } from '@/components/brand'
 
 const features = [
   {
@@ -76,11 +77,8 @@ export default function LoginPage() {
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
 
         {/* Top: logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur font-bold text-white text-lg">
-            CT
-          </div>
-          <span className="text-white font-semibold text-lg">ConectAr Talento</span>
+        <div className="relative">
+          <BrandLogo onDark href="/" size="md" iconSize={32} />
         </div>
 
         {/* Center: tagline + features */}
@@ -120,11 +118,8 @@ export default function LoginPage() {
       {/* RIGHT PANEL — login form */}
       <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12 bg-background">
         {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-500 font-bold text-white text-base">
-            CT
-          </div>
-          <span className="font-semibold text-foreground">ConectAr Talento</span>
+        <div className="lg:hidden mb-8">
+          <BrandLogo onDark={false} href="/" size="md" iconSize={28} />
         </div>
 
         <div className="w-full max-w-md space-y-6">

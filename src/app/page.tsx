@@ -12,6 +12,7 @@ import {
   Star,
   ChevronRight,
 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand'
 
 /* ─── features data ─────────────────────────────────────────── */
 const FEATURES = [
@@ -141,10 +142,7 @@ export default function LandingPage() {
 
         {/* nav */}
         <nav className="absolute top-0 inset-x-0 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm">CT</div>
-            <span className="text-white font-semibold text-lg">ConectAr Talento</span>
-          </div>
+          <BrandLogo onDark href="/" size="md" iconSize={30} />
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-white/80 hover:text-white text-sm transition-colors">Funciones</a>
             <a href="#pricing" className="text-white/80 hover:text-white text-sm transition-colors">Precios</a>
@@ -340,9 +338,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">CT</div>
-                <span className="text-white font-semibold">ConectAr Talento</span>
+              <div className="mb-3">
+                <BrandLogo onDark href="/" size="sm" iconSize={24} />
               </div>
               <p className="text-sm leading-relaxed">El talento que buscás, conectado en un solo lugar.</p>
             </div>

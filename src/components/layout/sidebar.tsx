@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import type { User } from '@/types'
+import { BrandLogo } from '@/components/brand'
 
 // Nav items definition
 const navItems = [
@@ -92,20 +93,8 @@ export function Sidebar({
             isCollapsed ? 'justify-center' : 'justify-between'
           )}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 font-bold text-white text-sm">
-              CT
-            </div>
-            {!isCollapsed && (
-              <div className="min-w-0">
-                <span className="block text-sm font-semibold text-white leading-tight truncate">
-                  ConectAr Talento
-                </span>
-                <span className="block text-xs text-white/50 leading-tight truncate">
-                  ATS Platform
-                </span>
-              </div>
-            )}
+          <div className="flex items-center min-w-0">
+            <BrandLogo onDark href="/" iconSize={28} size="sm" iconOnly={isCollapsed} />
           </div>
           <button
             onClick={onToggleCollapse}

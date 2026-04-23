@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { UserPlan } from '@/types'
+import { BrandLogo } from '@/components/brand'
 
 const plans: {
   id: UserPlan
@@ -138,12 +139,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-background dark:to-indigo-950/10 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500 text-white font-bold text-sm">
-            CT
-          </div>
-          <span className="font-semibold text-foreground">ConectAr Talento</span>
-        </Link>
+        <BrandLogo onDark={false} href="/" size="md" iconSize={28} />
         <p className="text-sm text-muted-foreground">
           Ya tenes cuenta?{' '}
           <Link href="/login" className="text-primary font-medium hover:underline">

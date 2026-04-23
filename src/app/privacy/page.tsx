@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { BrandLogo } from '@/components/brand'
 
 export const metadata = { title: 'Política de privacidad — ConectAr Talento' }
 
