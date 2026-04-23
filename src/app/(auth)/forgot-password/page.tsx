@@ -40,8 +40,15 @@ export default function ForgotPasswordPage() {
     setIsLoading(false)
 
     if (otpError) {
-      // No revelar si el email existe o no
-      setError('No pudimos procesar la solicitud. Verificá el email ingresado.')
+      console.error('[OTP error]', otpError.status, otpError.message)
+      const msg = otpError.message?.toLowerCase() ?? ''
+      if (otpError.status === 429 || msg.includes('rate') || msg.includes('too many')) {
+        setError('Demasiados intentos. Esperá unos minutos antes de volver a intentarlo.')
+      } else if (msg.includes('email not confirmed') || msg.includes('not found') || msg.includes('user not found')) {
+        setError('No encontramos una cuenta con ese email.')
+      } else {
+        setError(`Error al enviar el código: ${otpError.message}`)
+      }
       return false
     }
 
