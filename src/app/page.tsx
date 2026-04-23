@@ -151,7 +151,7 @@ export default function LandingPage() {
             <a href="#" className="text-white/80 hover:text-white text-sm transition-colors">Blog</a>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="text-white/90 hover:text-white text-sm px-3 py-1.5 transition-colors">Iniciar sesión</Link>
+            <Link href="/login" className="text-white/90 hover:text-white text-sm font-medium px-4 py-1.5 rounded-lg border border-white/30 hover:border-white/60 transition-colors">Iniciar sesión</Link>
             <Link href="/signup" className="bg-white text-indigo-600 hover:bg-white/90 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Empezar gratis</Link>
           </div>
         </nav>
@@ -179,9 +179,9 @@ export default function LandingPage() {
             <Link href="/signup" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-white/95 font-bold px-8 py-3.5 rounded-xl text-base shadow-xl transition-all">
               Empezar gratis <ArrowRight className="h-4 w-4" />
             </Link>
-            <a href="#features" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-3.5 rounded-xl text-base transition-all">
-              Ver demo <ChevronRight className="h-4 w-4" />
-            </a>
+            <Link href="/login" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium px-8 py-3.5 rounded-xl text-base transition-all">
+              Iniciar sesión <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-white/70 text-sm">
