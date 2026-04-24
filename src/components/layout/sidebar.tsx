@@ -23,7 +23,7 @@ import { BrandLogo } from '@/components/brand'
 
 // Nav items definition
 const navItems = [
-  { label: 'Pipeline', href: '/pipeline', icon: LayoutDashboard },
+  { label: 'Procesos', href: '/pipeline', icon: LayoutDashboard },
   { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
   { label: 'Candidatos', href: '/candidates', icon: Users },
   { label: 'Entrevistas', href: '/interviews', icon: Calendar },

@@ -368,7 +368,7 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Pipeline de Reclutamiento</h1>
+          <h1 className="text-xl font-bold text-foreground">Procesos de reclutamiento</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {total} candidato{total !== 1 ? 's' : ''} en proceso
           </p>
