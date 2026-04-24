@@ -42,7 +42,7 @@ export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
       {/* Main content area */}
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Top header bar */}
-        <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b bg-background shrink-0">
+        <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b border-white/[0.07] bg-background shrink-0">
           <div className="flex items-center gap-3">
             {/* Hamburger for mobile */}
             <Button

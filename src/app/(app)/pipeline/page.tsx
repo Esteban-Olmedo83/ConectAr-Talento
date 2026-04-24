@@ -85,11 +85,11 @@ const STAGES: VacancyStatus[] = [
 ]
 
 const STAGE_COLORS: Record<VacancyStatus, string> = {
-  'Nuevas Vacantes': 'bg-slate-100 border-slate-200',
-  'En Proceso': 'bg-blue-50 border-blue-200',
-  'Entrevistas': 'bg-violet-50 border-violet-200',
-  'Oferta Enviada': 'bg-amber-50 border-amber-200',
-  'Contratado': 'bg-emerald-50 border-emerald-200',
+  'Nuevas Vacantes': 'bg-slate-800/40 border-slate-700/40',
+  'En Proceso': 'bg-blue-900/20 border-blue-700/30',
+  'Entrevistas': 'bg-violet-900/20 border-violet-700/30',
+  'Oferta Enviada': 'bg-amber-900/20 border-amber-700/30',
+  'Contratado': 'bg-emerald-900/20 border-emerald-700/30',
 }
 
 const STAGE_HEADER_COLORS: Record<VacancyStatus, string> = {
@@ -109,10 +109,10 @@ interface HydratedApplication extends Application {
 function ScorePill({ score }: { score?: number }) {
   if (score === undefined || score === null) return null
   const color =
-    score >= 85 ? 'bg-emerald-100 text-emerald-700' :
-    score >= 70 ? 'bg-green-100 text-green-700' :
-    score >= 50 ? 'bg-yellow-100 text-yellow-700' :
-    'bg-red-100 text-red-700'
+    score >= 85 ? 'bg-emerald-500/20 text-emerald-300' :
+    score >= 70 ? 'bg-green-500/20 text-green-300' :
+    score >= 50 ? 'bg-yellow-500/20 text-yellow-300' :
+    'bg-red-500/20 text-red-300'
   return (
     <span className={cn('text-xs font-semibold px-1.5 py-0.5 rounded-full', color)}>
       {score}
@@ -122,15 +122,15 @@ function ScorePill({ score }: { score?: number }) {
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
 const SOURCE_COLORS: Record<string, string> = {
-  LinkedIn: 'bg-blue-100 text-blue-700',
-  Portal: 'bg-indigo-100 text-indigo-700',
-  Referido: 'bg-purple-100 text-purple-700',
-  Indeed: 'bg-orange-100 text-orange-700',
-  Computrabajo: 'bg-red-100 text-red-700',
-  ZonaJobs: 'bg-teal-100 text-teal-700',
-  WhatsApp: 'bg-green-100 text-green-700',
-  Manual: 'bg-gray-100 text-gray-700',
-  Bumeran: 'bg-sky-100 text-sky-700',
+  LinkedIn: 'bg-blue-500/15 text-blue-300',
+  Portal: 'bg-indigo-500/15 text-indigo-300',
+  Referido: 'bg-purple-500/15 text-purple-300',
+  Indeed: 'bg-orange-500/15 text-orange-300',
+  Computrabajo: 'bg-red-500/15 text-red-300',
+  ZonaJobs: 'bg-teal-500/15 text-teal-300',
+  WhatsApp: 'bg-green-500/15 text-green-300',
+  Manual: 'bg-gray-500/15 text-gray-400',
+  Bumeran: 'bg-sky-500/15 text-sky-300',
 }
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
@@ -148,12 +148,12 @@ function CandidateCard({ app, isDragging }: CardProps) {
   return (
     <div
       className={cn(
-        'bg-white rounded-lg border border-border p-3 shadow-sm cursor-grab select-none',
+        'bg-card rounded-lg border border-border p-3 shadow-sm cursor-grab select-none',
         isDragging && 'opacity-50 shadow-lg rotate-1'
       )}
     >
       <div className="flex items-start gap-2">
-        <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
+        <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs font-bold">
           {getInitials(c.fullName)}
         </div>
         <div className="flex-1 min-w-0">
@@ -166,7 +166,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
       </div>
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
         <div className="flex items-center gap-1">
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', SOURCE_COLORS[c.source] ?? 'bg-gray-100 text-gray-700')}>
+          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', SOURCE_COLORS[c.source] ?? 'bg-gray-500/15 text-gray-400')}>
             {c.source}
           </span>
           <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
@@ -175,7 +175,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
           </span>
         </div>
         <div className="flex gap-1">
-          <button className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium">Ver</button>
+          <button className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium">Ver</button>
           <button className="text-[10px] text-muted-foreground hover:text-foreground font-medium">
             <Calendar className="h-3 w-3" />
           </button>
@@ -213,7 +213,7 @@ function Lane({
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-inherit">
         <span className={cn('w-2 h-2 rounded-full', STAGE_HEADER_COLORS[stage])} />
         <span className="text-xs font-semibold text-foreground flex-1">{stage}</span>
-        <span className="text-xs font-bold text-muted-foreground bg-white/60 rounded-full px-2 py-0.5">
+        <span className="text-xs font-bold text-muted-foreground bg-white/10 rounded-full px-2 py-0.5">
           {apps.length}
         </span>
       </div>
@@ -221,7 +221,7 @@ function Lane({
         <div className="flex flex-col gap-2 p-2 flex-1 min-h-[120px]">
           {apps.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-              <div className="w-8 h-8 rounded-full bg-white/60 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground">Sin candidatos</p>
@@ -241,11 +241,11 @@ function Skeleton() {
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {STAGES.map(s => (
-        <div key={s} className="min-w-[260px] w-[260px] rounded-xl border border-border bg-slate-50 animate-pulse">
-          <div className="h-10 border-b border-border bg-slate-100 rounded-t-xl" />
+        <div key={s} className="min-w-[260px] w-[260px] rounded-xl border border-border bg-card animate-pulse">
+          <div className="h-10 border-b border-border bg-muted rounded-t-xl" />
           <div className="p-2 flex flex-col gap-2">
             {[0, 1, 2].map(i => (
-              <div key={i} className="h-16 rounded-lg bg-slate-200" />
+              <div key={i} className="h-16 rounded-lg bg-muted" />
             ))}
           </div>
         </div>

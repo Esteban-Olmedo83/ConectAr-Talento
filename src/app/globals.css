@@ -31,48 +31,29 @@
 }
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 224 71.4% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
-  --primary: 231 93% 58%;
-  --primary-foreground: 210 20% 98%;
-  --secondary: 220 14.3% 95.9%;
-  --secondary-foreground: 220.9 39.3% 11%;
-  --muted: 220 14.3% 95.9%;
-  --muted-foreground: 220 8.9% 46.1%;
-  --accent: 220 14.3% 95.9%;
-  --accent-foreground: 220.9 39.3% 11%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 20% 98%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 231 93% 58%;
-  --radius: 0.5rem;
-  --sidebar-bg: 224 71.4% 4.1%;
-  --sidebar-fg: 210 20% 98%;
-}
-
-.dark {
-  --background: 224 71.4% 4.1%;
-  --foreground: 210 20% 98%;
-  --card: 224 71.4% 6%;
-  --card-foreground: 210 20% 98%;
-  --primary: 231 93% 65%;
-  --primary-foreground: 224 71.4% 4.1%;
-  --secondary: 215 27.9% 16.9%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 215 27.9% 16.9%;
-  --muted-foreground: 217.9 10.6% 64.9%;
-  --accent: 215 27.9% 16.9%;
-  --accent-foreground: 210 20% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 20% 98%;
-  --border: 215 27.9% 16.9%;
-  --input: 215 27.9% 16.9%;
-  --ring: 231 93% 65%;
+  /* Dark theme matching Informes aesthetic */
+  --background: 240 36% 4%;         /* #07070f */
+  --foreground: 240 100% 97%;       /* #eeeeff */
+  --card: 240 27% 8%;               /* #0f0f1a */
+  --card-foreground: 240 100% 97%;
+  --popover: 240 27% 8%;
+  --popover-foreground: 240 100% 97%;
+  --primary: 244 100% 69%;          /* #6c63ff */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 22% 13%;
+  --secondary-foreground: 240 20% 75%;
+  --muted: 240 20% 11%;
+  --muted-foreground: 240 20% 65%;  /* #9494b8 */
+  --accent: 244 50% 18%;
+  --accent-foreground: 240 100% 97%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 18% 15%;
+  --input: 240 22% 13%;
+  --ring: 244 100% 69%;
+  --radius: 0.875rem;               /* 14px matching Informes cards */
+  --sidebar-bg: 240 45% 3%;
+  --sidebar-fg: 240 100% 97%;
 }
 
 *,
