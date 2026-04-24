@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ToastProvider } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
+import { useSessionTimeout } from '@/lib/hooks/useSessionTimeout'
 import type { User } from '@/types'
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
+
+  useSessionTimeout()
 
   React.useEffect(() => {
     const supabase = createClient()

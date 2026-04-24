@@ -33,6 +33,17 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        router.push('/pipeline')
+      }
+    }
+    checkAuth()
+  }, [router])
+
   // Show error from OAuth callback if present in URL
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
