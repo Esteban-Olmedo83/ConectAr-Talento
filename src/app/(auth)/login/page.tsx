@@ -16,7 +16,7 @@ const features = [
     description: 'Puntuacion automatica y deteccion de skills con inteligencia artificial.',
   },
   {
-    title: 'Pipeline visual Kanban',
+    title: 'Procesos de reclutamiento',
     description: 'Gestioná candidatos con drag & drop en tiempo real.',
   },
   {
