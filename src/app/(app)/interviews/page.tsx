@@ -25,16 +25,16 @@ const getTenantId = () => {
 }
 
 const TYPE_COLORS: Record<InterviewType, string> = {
-  'Técnica': 'bg-blue-100 text-blue-700',
-  'RRHH': 'bg-violet-100 text-violet-700',
-  'Con Hiring Manager': 'bg-orange-100 text-orange-700',
-  'Cultural': 'bg-emerald-100 text-emerald-700',
+  'Técnica': 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  'RRHH': 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+  'Con Hiring Manager': 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  'Cultural': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
 }
 
 const STATUS_CONFIG: Record<InterviewStatus, { icon: React.ElementType; cls: string; label: string }> = {
-  Programada: { icon: Clock, cls: 'text-amber-600 bg-amber-50', label: 'Programada' },
-  Completada: { icon: CheckCircle2, cls: 'text-emerald-600 bg-emerald-50', label: 'Completada' },
-  Cancelada: { icon: XCircle, cls: 'text-red-600 bg-red-50', label: 'Cancelada' },
+  Programada: { icon: Clock, cls: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10', label: 'Programada' },
+  Completada: { icon: CheckCircle2, cls: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10', label: 'Completada' },
+  Cancelada: { icon: XCircle, cls: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10', label: 'Cancelada' },
 }
 
 const PLATFORM_LABELS: Record<MeetingPlatform, string> = {
@@ -301,9 +301,9 @@ function ScorecardModal({
                 <button key={r} onClick={() => setRecommendation(r)}
                   className={cn('flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-colors',
                     recommendation === r
-                      ? r === 'Avanzar' ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                        : r === 'Rechazar' ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-amber-500 bg-amber-50 text-amber-700'
+                      ? r === 'Avanzar' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                        : r === 'Rechazar' ? 'border-red-500 bg-red-500/10 text-red-300'
+                        : 'border-amber-500 bg-amber-500/10 text-amber-300'
                       : 'border-border text-muted-foreground hover:border-muted-foreground')}>
                   {r}
                 </button>
@@ -316,7 +316,7 @@ function ScorecardModal({
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-muted-foreground">Resumen generado por IA</label>
               <Button type="button" variant="outline" size="sm" onClick={generateAiReport} disabled={generating}
-                className="text-xs gap-1 h-6 px-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                className="text-xs gap-1 h-6 px-2 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10">
                 {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                 {generating ? 'Generando...' : '✨ Generar con IA'}
               </Button>
@@ -360,10 +360,10 @@ function InterviewCard({
 
   return (
     <>
-      <Card className={cn('transition-shadow hover:shadow-md', isUpcoming && 'border-amber-300 bg-amber-50/30')}>
+      <Card className={cn('transition-shadow hover:shadow-md', isUpcoming && 'border-amber-500/40 bg-amber-500/5')}>
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm shrink-0">
               {candidate?.fullName.slice(0, 2).toUpperCase() ?? '??'}
             </div>
             <div className="flex-1 min-w-0">
@@ -508,9 +508,9 @@ export default function InterviewsPage() {
 
       {/* Urgent banner */}
       {urgentes.length > 0 && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-800 font-medium">
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
             ⏰ {urgentes.length} entrevista{urgentes.length > 1 ? 's' : ''} en las próximas 48hs
           </p>
         </div>
@@ -525,14 +525,14 @@ export default function InterviewsPage() {
             className={cn(
               'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === t.id
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-indigo-400 text-indigo-400'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             {t.label}
             {t.count > 0 && (
               <span className={cn('ml-1.5 text-xs px-1.5 py-0.5 rounded-full',
-                activeTab === t.id ? 'bg-indigo-100 text-indigo-700' : 'bg-muted text-muted-foreground')}>
+                activeTab === t.id ? 'bg-indigo-500/15 text-indigo-300' : 'bg-muted text-muted-foreground')}>
                 {t.count}
               </span>
             )}

@@ -6,9 +6,11 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
   LineChart, Line, AreaChart, Area, Legend,
 } from 'recharts'
-import { Download, ChevronDown, FileText } from 'lucide-react'
+import { Download, ChevronDown } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { LocalStorageProvider } from '@/lib/providers/data-provider'
 import { cn, getInitials } from '@/lib/utils'
+import { useLang } from '@/lib/i18n'
 import type { Vacancy, Candidate, Application, Interview } from '@/types'
 
 /* ─── helpers ───────────────────────────────────────────────── */
@@ -39,16 +41,7 @@ function getDateFrom(range: DateRange): Date {
   return new Date(now.getFullYear(), 0, 1)
 }
 
-/* ─── dark chart theme ──────────────────────────────────────── */
-const GRID_STROKE  = 'rgba(255,255,255,0.06)'
-const AXIS_COLOR   = 'rgba(255,255,255,0.35)'
-const TOOLTIP_STYLE = {
-  background: '#1e1e30',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 10,
-  fontSize: 12,
-  color: '#eeeeff',
-}
+/* chart theme resolved at runtime inside the component */
 
 /* ─── Sparkline ─────────────────────────────────────────────── */
 function Sparkline({ color, heights }: { color: string; heights: number[] }) {
@@ -72,7 +65,7 @@ function KpiCard({ icon, label, value, trend, trendUp, color, accentColor, spark
 }) {
   return (
     <div style={{
-      background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.07)',
+      background: 'var(--color-card)', border: '1px solid var(--color-border)',
       borderRadius: 14, padding: 18, position:'relative', overflow:'hidden',
     }}>
       <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background: accentColor, borderRadius:'14px 14px 0 0' }} />
@@ -90,8 +83,8 @@ function KpiCard({ icon, label, value, trend, trendUp, color, accentColor, spark
           }}>{trend}</div>
         )}
       </div>
-      <div style={{ fontFamily:"'Nunito',sans-serif", fontSize:28, fontWeight:900, color: accentColor, lineHeight:1, marginBottom:4 }}>{value}</div>
-      <div style={{ fontSize:12, color:'#9494b8' }}>{label}</div>
+      <div style={{ fontSize:28, fontWeight:900, color: accentColor, lineHeight:1, marginBottom:4 }}>{value}</div>
+      <div style={{ fontSize:12, color:'var(--color-muted-foreground)' }}>{label}</div>
       <Sparkline color={accentColor} heights={sparks} />
     </div>
   )
@@ -102,11 +95,11 @@ function Card({ title, subtitle, children, action }: {
   title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode
 }) {
   return (
-    <div style={{ background:'#0f0f1a', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, overflow:'hidden' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+    <div style={{ background:'var(--color-card)', border:'1px solid var(--color-border)', borderRadius:14, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid var(--color-border)' }}>
         <div>
-          <div style={{ fontFamily:"'Nunito',sans-serif", fontSize:14, fontWeight:800, color:'#eeeeff' }}>{title}</div>
-          {subtitle && <div style={{ fontSize:11, color:'#9494b8', marginTop:2 }}>{subtitle}</div>}
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--color-foreground)' }}>{title}</div>
+          {subtitle && <div style={{ fontSize:11, color:'var(--color-muted-foreground)', marginTop:2 }}>{subtitle}</div>}
         </div>
         {action}
       </div>
@@ -116,7 +109,7 @@ function Card({ title, subtitle, children, action }: {
 }
 
 /* ─── InsightCard ───────────────────────────────────────────── */
-function InsightCard({ text }: { text: string }) {
+function InsightCard({ title, text }: { title: string; text: string }) {
   return (
     <div style={{
       background:'linear-gradient(135deg, rgba(108,99,255,0.12) 0%, rgba(167,139,250,0.08) 100%)',
@@ -128,8 +121,8 @@ function InsightCard({ text }: { text: string }) {
         display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0,
       }}>✦</div>
       <div>
-        <div style={{ fontSize:13, fontWeight:700, color:'#a78bfa', marginBottom:4 }}>Insight IA · Período actual</div>
-        <div style={{ fontSize:13, color:'rgba(240,238,255,0.7)', lineHeight:1.6 }} dangerouslySetInnerHTML={{ __html: text }} />
+        <div style={{ fontSize:13, fontWeight:700, color:'#a78bfa', marginBottom:4 }}>{title}</div>
+        <div style={{ fontSize:13, color:'var(--color-muted-foreground)', lineHeight:1.6 }} dangerouslySetInnerHTML={{ __html: text }} />
       </div>
     </div>
   )
@@ -174,6 +167,19 @@ async function exportPDF(kpis: Record<string, string | number>, range: string) {
 
 /* ─── Main Page ─────────────────────────────────────────────── */
 export default function ReportsPage() {
+  const { resolvedTheme } = useTheme()
+  const { t } = useLang()
+  const isDark = resolvedTheme === 'dark'
+
+  const GRID_STROKE    = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'
+  const AXIS_COLOR     = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.45)'
+  const TOOLTIP_STYLE  = {
+    background: isDark ? '#1e1e30' : '#ffffff',
+    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+    borderRadius: 10, fontSize: 12,
+    color: isDark ? '#eeeeff' : '#1a1a2e',
+  }
+
   const [range, setRange]           = React.useState<DateRange>('month')
   const [vacancies, setVacancies]   = React.useState<Vacancy[]>([])
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
@@ -291,7 +297,7 @@ export default function ReportsPage() {
     ? `Tenés <strong style="color:white">${stalled.length} candidato${stalled.length !== 1 ? 's' : ''} en "Entrevistas"</strong> con más de 5 días sin movimiento. <strong style="color:white">${best.fullName}</strong> (score ${best.atsScore ?? '—'}) lidera el ranking de ${best.vacancyTitle}. <strong style="color:white">Recomendación:</strong> avanzar a Oferta esta semana para no perder el talento.`
     : `Cargá candidatos y vacantes para recibir insights automáticos con IA sobre el estado de tu pipeline.`
 
-  const rangeLabels: Record<DateRange,string> = { month:'Este mes', quarter:'Últimos 3 meses', year:'Este año' }
+  const rangeLabels: Record<DateRange,string> = { month: t.reports.month, quarter: t.reports.quarter, year: t.reports.year }
 
   const scoreColor = (s?: number) =>
     !s ? '#6b7280' : s >= 85 ? '#34d399' : s >= 70 ? '#a78bfa' : s >= 50 ? '#fbbf24' : '#fb7185'
@@ -308,46 +314,46 @@ export default function ReportsPage() {
   }
 
   return (
-    <div style={{ background:'#07070f', minHeight:'100%', display:'flex', flexDirection:'column' }}>
+    <div style={{ background:'var(--color-background)', minHeight:'100%', display:'flex', flexDirection:'column' }}>
 
       {/* Header */}
       <div style={{
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'16px 28px', borderBottom:'1px solid rgba(255,255,255,0.07)',
-        background:'rgba(7,7,15,0.9)', backdropFilter:'blur(12px)',
+        padding:'16px 28px', borderBottom:'1px solid var(--color-border)',
+        background:'var(--color-background)', backdropFilter:'blur(12px)',
         position:'sticky', top:0, zIndex:10,
       }}>
         <div>
-          <h1 style={{ fontFamily:"'Nunito',sans-serif", fontSize:20, fontWeight:800, color:'#eeeeff' }}>
-            Informes de Reclutamiento
+          <h1 style={{ fontSize:20, fontWeight:700, color:'var(--color-foreground)' }}>
+            {t.reports.title}
           </h1>
-          <p style={{ fontSize:12, color:'#9494b8', marginTop:2 }}>Métricas y analytics del proceso de selección</p>
+          <p style={{ fontSize:12, color:'var(--color-muted-foreground)', marginTop:2 }}>{t.reports.subtitle}</p>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ position:'relative' }}>
             <select value={range} onChange={e => setRange(e.target.value as DateRange)} style={{
-              appearance:'none', background:'#161625', border:'1px solid rgba(255,255,255,0.1)',
+              appearance:'none', background:'var(--color-input)', border:'1px solid var(--color-border)',
               borderRadius:8, paddingLeft:12, paddingRight:32, paddingTop:8, paddingBottom:8,
-              fontSize:13, color:'#eeeeff', cursor:'pointer', outline:'none',
+              fontSize:13, color:'var(--color-foreground)', cursor:'pointer', outline:'none',
             }}>
-              <option value="month">Este mes</option>
-              <option value="quarter">Últimos 3 meses</option>
-              <option value="year">Este año</option>
+              <option value="month">{t.reports.month}</option>
+              <option value="quarter">{t.reports.quarter}</option>
+              <option value="year">{t.reports.year}</option>
             </select>
-            <ChevronDown style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:14, height:14, color:'#9494b8', pointerEvents:'none' }} />
+            <ChevronDown style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:14, height:14, color:'var(--color-muted-foreground)', pointerEvents:'none' }} />
           </div>
           <button
             onClick={async () => { setExporting(true); try { await exportPDF(kpis, rangeLabels[range]) } finally { setExporting(false) } }}
             disabled={exporting}
             style={{
               display:'flex', alignItems:'center', gap:8,
-              background:'#6c63ff', color:'white', border:'none',
+              background:'var(--color-primary)', color:'var(--color-primary-foreground)', border:'none',
               borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700,
               cursor:'pointer', opacity: exporting ? 0.7 : 1,
             }}
           >
             <Download style={{ width:14, height:14 }} />
-            {exporting ? 'Generando…' : 'Exportar PDF'}
+            {exporting ? t.reports.exporting : t.reports.export}
           </button>
         </div>
       </div>
@@ -356,26 +362,26 @@ export default function ReportsPage() {
 
         {/* KPIs */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14 }}>
-          <KpiCard icon="👥" label="Total Postulaciones" value={totalApps}
+          <KpiCard icon="👥" label={t.reports.kpiApps} value={totalApps}
             trend="↑ 12%" trendUp accentColor="#6c63ff" color=""
             sparks={[35,55,40,70,60,85,100]} />
-          <KpiCard icon="⚡" label="Tiempo Promedio (días)" value={`${avgDays}d`}
+          <KpiCard icon="⚡" label={t.reports.kpiDays} value={`${avgDays}d`}
             trend="↓ 0.8d" trendUp accentColor="#fbbf24" color=""
             sparks={[100,90,95,75,70,60,50]} />
-          <KpiCard icon="⭐" label="Score ATS Promedio" value={`${avgScore}%`}
+          <KpiCard icon="⭐" label={t.reports.kpiScore} value={`${avgScore}%`}
             trend="↑ 5pts" trendUp accentColor="#34d399" color=""
             sparks={[55,60,58,70,75,80,100]} />
-          <KpiCard icon="🎯" label="Tasa de Conversión" value={conversionRate}
+          <KpiCard icon="🎯" label={t.reports.kpiConversion} value={conversionRate}
             trend="↑ 2%" trendUp accentColor="#a78bfa" color=""
             sparks={[30,50,45,65,55,80,100]} />
         </div>
 
         {/* AI Insight */}
-        <InsightCard text={insightHTML} />
+        <InsightCard title={t.reports.insightTitle} text={insightHTML} />
 
         {/* Funnel + Sources */}
         <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr', gap:14 }}>
-          <Card title="Embudo de Contratación" subtitle="Conversión por etapa">
+          <Card title={t.reports.chartFunnel} subtitle={t.reports.chartFunnelSub}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={funnelDisplay} layout="vertical" margin={{ left:0, right:16, top:0, bottom:0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} />
@@ -391,7 +397,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="Fuentes de Candidatos" subtitle="Origen de candidatos">
+          <Card title={t.reports.chartSources} subtitle={t.reports.chartSourcesSub}>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={sourceDisplay} cx="50%" cy="45%" innerRadius={48} outerRadius={80}
@@ -401,7 +407,7 @@ export default function ReportsPage() {
                   ))}
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Legend iconSize={8} iconType="circle" formatter={(v) => <span style={{ fontSize:11, color:'#9494b8' }}>{v}</span>} />
+                <Legend iconSize={8} iconType="circle" formatter={(v) => <span style={{ fontSize:11, color:'var(--color-muted-foreground)' }}>{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
           </Card>
@@ -409,7 +415,7 @@ export default function ReportsPage() {
 
         {/* Score by vacancy + Interviews per week */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          <Card title="Score ATS por Vacante" subtitle="Promedio por búsqueda activa">
+          <Card title={t.reports.chartScores} subtitle={t.reports.chartScoresSub}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={scoreDisplay} margin={{ bottom:24 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_STROKE} />
@@ -425,7 +431,7 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="Entrevistas por Semana" subtitle="Últimas 8 semanas">
+          <Card title={t.reports.chartInterviews} subtitle={t.reports.chartInterviewsSub}>
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={weeksDisplay}>
                 <defs>
@@ -446,7 +452,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Vacantes evolution */}
-        <Card title="Vacantes Abiertas vs Cerradas" subtitle="Evolución mensual">
+        <Card title={t.reports.chartVacancies} subtitle={t.reports.chartVacanciesSub}>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={monthlyData}>
               <defs>
@@ -461,7 +467,7 @@ export default function ReportsPage() {
               <XAxis dataKey="mes" tick={{ fontSize:11, fill:AXIS_COLOR }} />
               <YAxis tick={{ fontSize:11, fill:AXIS_COLOR }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend iconSize={8} iconType="circle" formatter={(v) => <span style={{ fontSize:11, color:'#9494b8' }}>{v}</span>} />
+              <Legend iconSize={8} iconType="circle" formatter={(v) => <span style={{ fontSize:11, color:'var(--color-muted-foreground)' }}>{v}</span>} />
               <Area type="monotone" dataKey="abiertas" name="Abiertas" stroke="#6c63ff" strokeWidth={2.5} fill="url(#aGrad)" />
               <Area type="monotone" dataKey="cerradas" name="Cerradas" stroke="#34d399" strokeWidth={2.5} fill="url(#cGrad)" />
             </AreaChart>
@@ -470,7 +476,7 @@ export default function ReportsPage() {
 
         {/* Top Candidates */}
         {topCandidates.length > 0 && (
-          <Card title="Top Candidatos" subtitle="Mayor score ATS del período">
+          <Card title={t.reports.topCandidates} subtitle={t.reports.topCandidatesSub}>
             <div>
               {topCandidates.map((c, i) => {
                 const sc = scoreColor(c.atsScore)
@@ -479,7 +485,7 @@ export default function ReportsPage() {
                   <div key={c.id} style={{
                     display:'flex', alignItems:'center', gap:14,
                     padding:'10px 0',
-                    borderBottom: i < topCandidates.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                    borderBottom: i < topCandidates.length - 1 ? '1px solid var(--color-border)' : 'none',
                   }}>
                     <div style={{
                       width:34, height:34, borderRadius:10,
@@ -488,14 +494,14 @@ export default function ReportsPage() {
                       fontSize:11, fontWeight:800, flexShrink:0,
                     }}>{getInitials(c.fullName)}</div>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontWeight:600, color:'#eeeeff' }}>{c.fullName}</div>
-                      <div style={{ fontSize:11, color:'#9494b8' }}>{c.vacancyTitle}</div>
-                      <div style={{ marginTop:4, height:3, background:'rgba(255,255,255,0.07)', borderRadius:2, width:120, overflow:'hidden' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--color-foreground)' }}>{c.fullName}</div>
+                      <div style={{ fontSize:11, color:'var(--color-muted-foreground)' }}>{c.vacancyTitle}</div>
+                      <div style={{ marginTop:4, height:3, background:'var(--color-border)', borderRadius:2, width:120, overflow:'hidden' }}>
                         <div style={{ height:'100%', width:`${c.atsScore ?? 0}%`, background:sc, borderRadius:2 }} />
                       </div>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontFamily:"'Nunito',sans-serif", fontSize:18, fontWeight:900, color:sc }}>{c.atsScore ?? '—'}</div>
+                      <div style={{ fontSize:18, fontWeight:900, color:sc }}>{c.atsScore ?? '—'}</div>
                       <div style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:5, marginTop:2, background:st.bg, color:st.color }}>
                         {c.stage.replace('Nuevas Vacantes','Nuevas').replace('Oferta Enviada','Oferta')}
                       </div>

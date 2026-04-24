@@ -22,9 +22,9 @@ const getTenantId = () => {
 }
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; cls: string }> = {
-  Alta: { label: 'Alta', cls: 'bg-red-100 text-red-700 border-red-200' },
-  Media: { label: 'Media', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-  Baja: { label: 'Baja', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+  Alta: { label: 'Alta', cls: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/25' },
+  Media: { label: 'Media', cls: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25' },
+  Baja: { label: 'Baja', cls: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-500/15 dark:text-gray-400 dark:border-gray-500/25' },
 }
 
 const MODALITY_ICONS: Record<VacancyModality, React.ElementType> = {
@@ -137,20 +137,20 @@ function VacancyFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* Rubro + Perfil selector */}
-          <div className="grid grid-cols-2 gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+          <div className="grid grid-cols-2 gap-3 p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
             <div>
-              <label className={cn(labelCls, 'text-indigo-700')}>Rubro</label>
+              <label className={cn(labelCls, 'text-indigo-700 dark:text-indigo-300')}>Rubro</label>
               <select value={form.rubro} onChange={e => setForm(f => ({...f, rubro: e.target.value, perfil: ''}))}
-                className={cn(inputCls, 'border-indigo-200')}>
+                className={cn(inputCls, 'border-indigo-500/30')}>
                 <option value="">Seleccioná un rubro</option>
                 {rubros.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
-              <label className={cn(labelCls, 'text-indigo-700')}>Perfil (auto-completa skills)</label>
+              <label className={cn(labelCls, 'text-indigo-300')}>Perfil (auto-completa skills)</label>
               <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
                 disabled={!form.rubro}
-                className={cn(inputCls, 'border-indigo-200 disabled:opacity-50')}>
+                className={cn(inputCls, 'border-indigo-500/30 disabled:opacity-50')}>
                 <option value="">Seleccioná un perfil</option>
                 {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.perfil} · {p.nivel}</option>)}
               </select>
@@ -218,7 +218,7 @@ function VacancyFormDialog({
             <div className="flex items-center justify-between mb-1">
               <label className={labelCls}>Descripción del puesto</label>
               <Button type="button" variant="outline" size="sm" onClick={generateDescription} disabled={!form.title || generating}
-                className="text-xs gap-1 h-6 px-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                className="text-xs gap-1 h-6 px-2 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10">
                 {generating ? '⏳ Generando...' : '✨ Generar con IA'}
               </Button>
             </div>
@@ -288,13 +288,13 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           )}
         </div>
 
-        <div className="text-xs font-semibold text-emerald-700 mb-3">{salaryStr}</div>
+        <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-3">{salaryStr}</div>
 
         {/* Skills */}
         {vacancy.requirements.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {vacancy.requirements.slice(0, 3).map(s => (
-              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full">{s}</span>
+              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 rounded-full">{s}</span>
             ))}
             {vacancy.requirements.length > 3 && (
               <span className="text-[10px] text-muted-foreground">+{vacancy.requirements.length - 3}</span>
@@ -439,7 +439,7 @@ export default function VacanciesPage() {
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mb-4">
             <Briefcase className="h-8 w-8 text-indigo-400" />
           </div>
           <h3 className="font-semibold text-foreground mb-1">

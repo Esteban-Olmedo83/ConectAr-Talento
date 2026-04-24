@@ -143,20 +143,20 @@ const CHANNEL_CONFIG: Record<TemplateChannel, { label: string; icon: React.React
   linkedin: {
     label: 'LinkedIn',
     icon: <LinkedInIcon className="h-3.5 w-3.5" />,
-    color: 'text-blue-700',
-    bg: 'bg-blue-100',
+    color: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-blue-100 dark:bg-blue-500/15',
   },
   email: {
     label: 'Email',
     icon: <Mail className="h-3.5 w-3.5" />,
-    color: 'text-gray-600',
-    bg: 'bg-gray-100',
+    color: 'text-gray-600 dark:text-gray-400',
+    bg: 'bg-gray-100 dark:bg-gray-500/15',
   },
   whatsapp: {
     label: 'WhatsApp',
     icon: <MessageCircle className="h-3.5 w-3.5" />,
-    color: 'text-green-700',
-    bg: 'bg-green-100',
+    color: 'text-green-700 dark:text-green-300',
+    bg: 'bg-green-100 dark:bg-green-500/15',
   },
 }
 
@@ -431,7 +431,7 @@ function EditorModal({
                 <button
                   onClick={handleImprove}
                   disabled={improving || !body.trim()}
-                  className="flex items-center gap-1.5 text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
                 >
                   {improving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                   Mejorar con IA
@@ -616,7 +616,7 @@ export default function TemplatesPage() {
                       </span>
                     </div>
                     {t.isDefault && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
                         Default
                       </span>
                     )}
@@ -669,7 +669,7 @@ export default function TemplatesPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(t.id)}
-                      className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
