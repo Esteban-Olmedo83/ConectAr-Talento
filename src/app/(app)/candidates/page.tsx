@@ -24,10 +24,10 @@ const getTenantId = () => {
 function ScoreBadge({ score }: { score?: number }) {
   if (score === undefined) return <span className="text-xs text-muted-foreground">—</span>
   const cls =
-    score >= 85 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' :
-    score >= 70 ? 'bg-green-500/15 text-green-300 border-green-500/25' :
-    score >= 50 ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25' :
-    'bg-red-500/15 text-red-300 border-red-500/25'
+    score >= 85 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25' :
+    score >= 70 ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/25' :
+    score >= 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-300 dark:border-yellow-500/25' :
+    'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/25'
   const label = score >= 85 ? 'Excelente' : score >= 70 ? 'Bueno' : score >= 50 ? 'Regular' : 'Bajo'
   return (
     <div className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold', cls)}>
@@ -38,15 +38,15 @@ function ScoreBadge({ score }: { score?: number }) {
 }
 
 const SOURCE_CHIP: Record<string, string> = {
-  LinkedIn: 'bg-blue-500/15 text-blue-300',
-  Portal: 'bg-indigo-500/15 text-indigo-300',
-  Referido: 'bg-purple-500/15 text-purple-300',
-  Indeed: 'bg-orange-500/15 text-orange-300',
-  WhatsApp: 'bg-green-500/15 text-green-300',
-  Manual: 'bg-gray-500/15 text-gray-400',
-  Computrabajo: 'bg-red-500/15 text-red-300',
-  ZonaJobs: 'bg-teal-500/15 text-teal-300',
-  Bumeran: 'bg-sky-500/15 text-sky-300',
+  LinkedIn: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  Portal: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
+  Referido: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300',
+  Indeed: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  WhatsApp: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300',
+  Manual: 'bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-400',
+  Computrabajo: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+  ZonaJobs: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300',
+  Bumeran: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -272,15 +272,15 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
         onClick={() => inputRef.current?.click()}
         className={cn(
           'border-2 border-dashed rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-colors mb-4',
-          isDragging ? 'border-indigo-500 bg-indigo-500/10' : 'border-border hover:border-indigo-500/50 hover:bg-indigo-500/5'
+          isDragging ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'border-border hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/5'
         )}
       >
         <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) analyzeFile(f) }} />
-        <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-          {status === 'analyzing' ? <Loader2 className="h-5 w-5 text-indigo-400 animate-spin" /> :
-           status === 'done' ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> :
-           <Upload className="h-5 w-5 text-indigo-400" />}
+        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
+          {status === 'analyzing' ? <Loader2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400 animate-spin" /> :
+           status === 'done' ? <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /> :
+           <Upload className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">
@@ -473,7 +473,7 @@ export default function CandidatesPage() {
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 text-xs font-bold shrink-0">
                         {getInitials(c.fullName)}
                       </div>
                       <div>
@@ -525,7 +525,7 @@ export default function CandidatesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm">
                       {getInitials(c.fullName)}
                     </div>
                     <div>

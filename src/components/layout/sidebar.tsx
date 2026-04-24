@@ -18,19 +18,9 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { useLang } from '@/lib/i18n'
 import type { User } from '@/types'
 import { BrandLogo } from '@/components/brand'
-
-// Nav items definition
-const navItems = [
-  { label: 'Procesos', href: '/pipeline', icon: LayoutDashboard },
-  { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
-  { label: 'Candidatos', href: '/candidates', icon: Users },
-  { label: 'Entrevistas', href: '/interviews', icon: Calendar },
-  { label: 'Templates', href: '/templates', icon: FileText },
-  { label: 'Integraciones', href: '/integrations', icon: Plug },
-  { label: 'Informes', href: '/reports', icon: BarChart3 },
-]
 
 const planLabels: Record<string, string> = {
   free: 'Free',
@@ -64,10 +54,20 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useLang()
+
+  const navItems = [
+    { key: 'pipeline' as const, href: '/pipeline', icon: LayoutDashboard },
+    { key: 'vacancies' as const, href: '/vacancies', icon: Briefcase },
+    { key: 'candidates' as const, href: '/candidates', icon: Users },
+    { key: 'interviews' as const, href: '/interviews', icon: Calendar },
+    { key: 'templates' as const, href: '/templates', icon: FileText },
+    { key: 'integrations' as const, href: '/integrations', icon: Plug },
+    { key: 'reports' as const, href: '/reports', icon: BarChart3 },
+  ]
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/50 lg:hidden"
@@ -86,7 +86,7 @@ export function Sidebar({
         )}
         aria-label="Navegacion principal"
       >
-        {/* Logo area */}
+        {/* Logo */}
         <div
           className={cn(
             'flex items-center h-16 border-b border-white/10 px-4 shrink-0',
@@ -98,28 +98,19 @@ export function Sidebar({
           </div>
           <button
             onClick={onToggleCollapse}
-            className={cn(
-              'hidden lg:flex items-center justify-center w-6 h-6 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0'
-            )}
+            className="hidden lg:flex items-center justify-center w-6 h-6 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
             aria-label={isCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
           >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
 
         {/* Navigation */}
-        <nav
-          className="flex-1 overflow-y-auto py-4 px-2 space-y-1"
-          aria-label="Menu"
-        >
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1" aria-label="Menu">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive =
-              pathname === item.href || pathname?.startsWith(item.href + '/')
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            const label = t.nav[item.key]
             return (
               <Link
                 key={item.href}
@@ -128,31 +119,27 @@ export function Sidebar({
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors group',
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-white/60 hover:bg-white/10 hover:text-white',
                   isCollapsed && 'justify-center px-2'
                 )}
                 aria-current={isActive ? 'page' : undefined}
-                title={isCollapsed ? item.label : undefined}
+                title={isCollapsed ? label : undefined}
               >
                 <Icon
                   className={cn(
                     'shrink-0 h-5 w-5',
-                    isActive
-                      ? 'text-white'
-                      : 'text-white/60 group-hover:text-white'
+                    isActive ? 'text-primary-foreground' : 'text-white/60 group-hover:text-white'
                   )}
                   aria-hidden="true"
                 />
-                {!isCollapsed && (
-                  <span className="truncate">{item.label}</span>
-                )}
+                {!isCollapsed && <span className="truncate">{label}</span>}
               </Link>
             )
           })}
         </nav>
 
-        {/* Bottom user section */}
+        {/* Bottom section */}
         <div className="shrink-0 border-t border-white/10 p-3 space-y-1">
           <Link
             href="/settings"
@@ -161,27 +148,20 @@ export function Sidebar({
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors',
               isCollapsed && 'justify-center px-2'
             )}
-            title={isCollapsed ? 'Configuracion' : undefined}
+            title={isCollapsed ? t.nav.settings : undefined}
           >
             <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!isCollapsed && <span>Configuracion</span>}
+            {!isCollapsed && <span>{t.nav.settings}</span>}
           </Link>
 
           {user && (
-            <div
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg',
-                isCollapsed ? 'justify-center' : ''
-              )}
-            >
-              <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500 text-white text-xs font-bold">
+            <div className={cn('flex items-center gap-3 px-3 py-2 rounded-lg', isCollapsed && 'justify-center')}>
+              <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 {getInitials(user.fullName)}
               </div>
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate leading-tight">
-                    {user.fullName}
-                  </p>
+                  <p className="text-sm font-medium text-white truncate leading-tight">{user.fullName}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <Badge
                       variant={user.plan === 'pro' || user.plan === 'business' ? 'default' : 'secondary'}
@@ -201,11 +181,11 @@ export function Sidebar({
               'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-red-400 transition-colors',
               isCollapsed && 'justify-center px-2'
             )}
-            aria-label="Cerrar sesion"
-            title={isCollapsed ? 'Cerrar sesion' : undefined}
+            aria-label={t.nav.logout}
+            title={isCollapsed ? t.nav.logout : undefined}
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!isCollapsed && <span>Cerrar sesion</span>}
+            {!isCollapsed && <span>{t.nav.logout}</span>}
           </button>
         </div>
       </aside>

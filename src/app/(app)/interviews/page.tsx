@@ -25,16 +25,16 @@ const getTenantId = () => {
 }
 
 const TYPE_COLORS: Record<InterviewType, string> = {
-  'Técnica': 'bg-blue-500/15 text-blue-300',
-  'RRHH': 'bg-violet-500/15 text-violet-300',
-  'Con Hiring Manager': 'bg-orange-500/15 text-orange-300',
-  'Cultural': 'bg-emerald-500/15 text-emerald-300',
+  'Técnica': 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  'RRHH': 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+  'Con Hiring Manager': 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  'Cultural': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
 }
 
 const STATUS_CONFIG: Record<InterviewStatus, { icon: React.ElementType; cls: string; label: string }> = {
-  Programada: { icon: Clock, cls: 'text-amber-400 bg-amber-500/10', label: 'Programada' },
-  Completada: { icon: CheckCircle2, cls: 'text-emerald-400 bg-emerald-500/10', label: 'Completada' },
-  Cancelada: { icon: XCircle, cls: 'text-red-400 bg-red-500/10', label: 'Cancelada' },
+  Programada: { icon: Clock, cls: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10', label: 'Programada' },
+  Completada: { icon: CheckCircle2, cls: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10', label: 'Completada' },
+  Cancelada: { icon: XCircle, cls: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10', label: 'Cancelada' },
 }
 
 const PLATFORM_LABELS: Record<MeetingPlatform, string> = {
@@ -363,7 +363,7 @@ function InterviewCard({
       <Card className={cn('transition-shadow hover:shadow-md', isUpcoming && 'border-amber-500/40 bg-amber-500/5')}>
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm shrink-0">
               {candidate?.fullName.slice(0, 2).toUpperCase() ?? '??'}
             </div>
             <div className="flex-1 min-w-0">
@@ -508,9 +508,9 @@ export default function InterviewsPage() {
 
       {/* Urgent banner */}
       {urgentes.length > 0 && (
-        <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
-          <p className="text-sm text-amber-300 font-medium">
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
             ⏰ {urgentes.length} entrevista{urgentes.length > 1 ? 's' : ''} en las próximas 48hs
           </p>
         </div>

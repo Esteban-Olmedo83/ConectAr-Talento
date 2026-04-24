@@ -85,11 +85,11 @@ const STAGES: VacancyStatus[] = [
 ]
 
 const STAGE_COLORS: Record<VacancyStatus, string> = {
-  'Nuevas Vacantes': 'bg-slate-800/40 border-slate-700/40',
-  'En Proceso': 'bg-blue-900/20 border-blue-700/30',
-  'Entrevistas': 'bg-violet-900/20 border-violet-700/30',
-  'Oferta Enviada': 'bg-amber-900/20 border-amber-700/30',
-  'Contratado': 'bg-emerald-900/20 border-emerald-700/30',
+  'Nuevas Vacantes': 'bg-slate-100 border-slate-200 dark:bg-slate-800/40 dark:border-slate-700/40',
+  'En Proceso': 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700/30',
+  'Entrevistas': 'bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-700/30',
+  'Oferta Enviada': 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700/30',
+  'Contratado': 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700/30',
 }
 
 const STAGE_HEADER_COLORS: Record<VacancyStatus, string> = {
@@ -109,10 +109,10 @@ interface HydratedApplication extends Application {
 function ScorePill({ score }: { score?: number }) {
   if (score === undefined || score === null) return null
   const color =
-    score >= 85 ? 'bg-emerald-500/20 text-emerald-300' :
-    score >= 70 ? 'bg-green-500/20 text-green-300' :
-    score >= 50 ? 'bg-yellow-500/20 text-yellow-300' :
-    'bg-red-500/20 text-red-300'
+    score >= 85 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' :
+    score >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' :
+    score >= 50 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300' :
+    'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
   return (
     <span className={cn('text-xs font-semibold px-1.5 py-0.5 rounded-full', color)}>
       {score}
@@ -122,15 +122,15 @@ function ScorePill({ score }: { score?: number }) {
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
 const SOURCE_COLORS: Record<string, string> = {
-  LinkedIn: 'bg-blue-500/15 text-blue-300',
-  Portal: 'bg-indigo-500/15 text-indigo-300',
-  Referido: 'bg-purple-500/15 text-purple-300',
-  Indeed: 'bg-orange-500/15 text-orange-300',
-  Computrabajo: 'bg-red-500/15 text-red-300',
-  ZonaJobs: 'bg-teal-500/15 text-teal-300',
-  WhatsApp: 'bg-green-500/15 text-green-300',
-  Manual: 'bg-gray-500/15 text-gray-400',
-  Bumeran: 'bg-sky-500/15 text-sky-300',
+  LinkedIn: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  Portal: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
+  Referido: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300',
+  Indeed: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  Computrabajo: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+  ZonaJobs: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300',
+  WhatsApp: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300',
+  Manual: 'bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-400',
+  Bumeran: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
 }
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
@@ -148,12 +148,12 @@ function CandidateCard({ app, isDragging }: CardProps) {
   return (
     <div
       className={cn(
-        'bg-card rounded-lg border border-border p-3 shadow-sm cursor-grab select-none',
+        'bg-white dark:bg-card rounded-lg border border-border p-3 shadow-sm cursor-grab select-none',
         isDragging && 'opacity-50 shadow-lg rotate-1'
       )}
     >
       <div className="flex items-start gap-2">
-        <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs font-bold">
+        <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 text-xs font-bold">
           {getInitials(c.fullName)}
         </div>
         <div className="flex-1 min-w-0">

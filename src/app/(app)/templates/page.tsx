@@ -143,20 +143,20 @@ const CHANNEL_CONFIG: Record<TemplateChannel, { label: string; icon: React.React
   linkedin: {
     label: 'LinkedIn',
     icon: <LinkedInIcon className="h-3.5 w-3.5" />,
-    color: 'text-blue-300',
-    bg: 'bg-blue-500/15',
+    color: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-blue-100 dark:bg-blue-500/15',
   },
   email: {
     label: 'Email',
     icon: <Mail className="h-3.5 w-3.5" />,
-    color: 'text-gray-400',
-    bg: 'bg-gray-500/15',
+    color: 'text-gray-600 dark:text-gray-400',
+    bg: 'bg-gray-100 dark:bg-gray-500/15',
   },
   whatsapp: {
     label: 'WhatsApp',
     icon: <MessageCircle className="h-3.5 w-3.5" />,
-    color: 'text-green-300',
-    bg: 'bg-green-500/15',
+    color: 'text-green-700 dark:text-green-300',
+    bg: 'bg-green-100 dark:bg-green-500/15',
   },
 }
 
@@ -616,7 +616,7 @@ export default function TemplatesPage() {
                       </span>
                     </div>
                     {t.isDefault && (
-                      <span className="text-xs bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
                         Default
                       </span>
                     )}
