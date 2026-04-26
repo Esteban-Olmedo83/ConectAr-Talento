@@ -1,0 +1,174 @@
+/* ─── Responsive Design - Week 4 ────────────────────────────────── */
+
+/* ─── Touch Targets: 44px minimum (Apple HIG, Android Material) ───── */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Small visual, large tap target */
+.icon-button-large-tap {
+  position: relative;
+}
+
+.icon-button-large-tap::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  pointer-events: auto;
+}
+
+/* ─── Safe Area Insets (for notched devices) ──────────────────────── */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ─── Viewport Height Fix for Mobile (soft keyboard) ─────────────── */
+/* Use dvh (dynamic viewport height) instead of vh to account for address bar */
+.full-viewport {
+  height: 100dvh;
+}
+
+/* ─── Pointer Media Queries ────────────────────────────────────── */
+/* Use @media (hover: hover) to detect hover capability */
+@media (hover: hover) {
+  /* Hover effects only on devices with hover capability */
+  button:not(:disabled):hover {
+    /* Defined per component */
+  }
+}
+
+/* Use @media (any-hover: none) to disable hover effects on touch devices */
+@media (any-hover: none) {
+  /* Remove hover visual feedback on touch devices */
+  button:hover {
+    background-color: inherit;
+  }
+}
+
+/* ─── Responsive Density ──────────────────────────────────────────── */
+/* Reduce spacing/density on small screens for better UX */
+@media (max-width: 640px) {
+  /* Tighter spacing on mobile */
+  .responsive-gap-sm {
+    gap: var(--space-xs);
+  }
+
+  .responsive-p-sm {
+    padding: var(--space-sm);
+  }
+
+  /* Stack form fields vertically on mobile */
+  .responsive-grid-form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) {
+  /* More spacious on larger screens */
+  .responsive-gap-sm {
+    gap: var(--space-md);
+  }
+
+  .responsive-p-sm {
+    padding: var(--space-md);
+  }
+
+  .responsive-grid-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+  }
+}
+
+/* ─── Typography Responsiveness ────────────────────────────────── */
+/* Fixed scale instead of fluid - better for product UI */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 641px) {
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  h3 {
+    font-size: 20px;
+  }
+}
+
+/* ─── Container Queries (Component Responsiveness) ──────────────── */
+/* Better than viewport queries - components adapt to their container */
+.card-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 400px) {
+  /* Card layout changes based on its container, not viewport */
+  .card-responsive {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-md);
+  }
+}
+
+@container (max-width: 399px) {
+  .card-responsive {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+}
+
+/* ─── Overflow Handling ────────────────────────────────────────────── */
+/* Prevent text overflow on mobile */
+.overflow-hidden-responsive {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .overflow-hidden-responsive {
+    white-space: normal;
+    overflow: visible;
+  }
+}
