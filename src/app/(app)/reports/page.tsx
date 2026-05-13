@@ -2,35 +2,77 @@
 
 import * as React from 'react'
 import {
-  BarChart,
+  Area,
+  AreaChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  Legend,
 } from 'recharts'
 import {
-  Users,
-  Clock,
-  TrendingUp,
-  Target,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
   Download,
-  ChevronDown,
   FileText,
+  Filter,
+  Target,
+  TrendingUp,
+  Users,
 } from 'lucide-react'
 import { LocalStorageProvider } from '@/lib/providers/data-provider'
-import type { Vacancy, Candidate, Application, Interview } from '@/types'
+import type { Application, Candidate, Interview, Vacancy } from '@/types'
 
-/* ─── helpers ────────────────────────────────────────────────── */
+type DateRange = 'month' | 'quarter' | 'year'
+
+type SourceRow = { name: string; value: number }
+
+type FunnelRow = { stage: string; total: number }
+
+type ScoreRow = { name: string; score: number }
+
+type WeekRow = { week: string; entrevistas: number }
+
+type MonthlyRow = { mes: string; abiertas: number; cerradas: number }
+
+const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+
+const FALLBACK_FUNNEL: FunnelRow[] = [
+  { stage: 'Nuevas', total: 45 },
+  { stage: 'En Proceso', total: 28 },
+  { stage: 'Entrevistas', total: 14 },
+  { stage: 'Oferta', total: 6 },
+  { stage: 'Contratado', total: 3 },
+]
+
+const FALLBACK_SOURCES: SourceRow[] = [
+  { name: 'LinkedIn', value: 42 },
+  { name: 'Portal', value: 28 },
+  { name: 'Referido', value: 18 },
+  { name: 'Indeed', value: 12 },
+]
+
+const SOURCE_COLORS: Record<string, string> = {
+  LinkedIn: '#2563eb',
+  Portal: '#1f4a8b',
+  Referido: '#0f766e',
+  Indeed: '#0ea5e9',
+  Computrabajo: '#f59e0b',
+  ZonaJobs: '#14b8a6',
+  Bumeran: '#4f46e5',
+  Manual: '#6b7280',
+  WhatsApp: '#22c55e',
+}
+
 function getTenantId(): string {
   if (typeof window === 'undefined') return 'default'
   try {
@@ -42,24 +84,6 @@ function getTenantId(): string {
   }
 }
 
-const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
-
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6']
-
-const SOURCE_COLORS: Record<string, string> = {
-  LinkedIn: '#0A66C2',
-  Portal: '#6366f1',
-  Referido: '#10b981',
-  Indeed: '#2164F3',
-  Computrabajo: '#E8003D',
-  ZonaJobs: '#FF6B00',
-  Bumeran: '#0066CC',
-  Manual: '#6b7280',
-  WhatsApp: '#25D366',
-}
-
-type DateRange = 'month' | 'quarter' | 'year'
-
 function getDateFrom(range: DateRange): Date {
   const now = new Date()
   if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -67,449 +91,645 @@ function getDateFrom(range: DateRange): Date {
   return new Date(now.getFullYear(), 0, 1)
 }
 
-/* ─── KpiCard ────────────────────────────────────────────────── */
+function normalizeStage(stage: string): string {
+  return stage.replace('Nuevas ', '').replace('Enviada', '').trim()
+}
+
+function rangeLabel(range: DateRange): string {
+  if (range === 'month') return 'Este mes'
+  if (range === 'quarter') return 'Ultimos 3 meses'
+  return 'Este ano'
+}
+
 function KpiCard({
   icon,
-  label,
+  title,
   value,
-  sub,
-  color,
+  detail,
 }: {
   icon: React.ReactNode
-  label: string
+  title: string
   value: string | number
-  sub?: string
-  color: string
+  detail: string
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
-      <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
+    <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-accent/12 text-accent">
         {icon}
       </div>
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold text-foreground leading-tight">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-      </div>
-    </div>
+      <p className="type-caption text-text-secondary">{title}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">{value}</p>
+      <p className="mt-1 text-xs text-text-secondary">{detail}</p>
+    </article>
   )
 }
 
-/* ─── ChartCard ──────────────────────────────────────────────── */
-function ChartCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
+function ChartCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
   return (
-    <div className={`bg-card border border-border rounded-xl p-5 ${className}`}>
-      <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>
+    <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+        <p className="mt-1 text-xs text-text-secondary">{subtitle}</p>
+      </div>
       {children}
-    </div>
+    </article>
   )
 }
 
-/* ─── PDF Export ─────────────────────────────────────────────── */
-async function exportPDF(kpis: Record<string, string | number>, range: string) {
+function buildExecutiveSummary({
+  totalApps,
+  hired,
+  conversion,
+  avgScore,
+  avgDays,
+}: {
+  totalApps: number
+  hired: number
+  conversion: string
+  avgScore: string
+  avgDays: number | string
+}) {
+  const scoreNumber = Number(avgScore.replace('%', '')) || 0
+  const scoreStatus = scoreNumber >= 75 ? 'alto' : scoreNumber >= 60 ? 'estable' : 'por mejorar'
+  return `Durante el periodo seleccionado se registraron ${totalApps} postulaciones y ${hired} contrataciones. La conversion general fue de ${conversion}, con un score ATS ${scoreStatus} (${avgScore}) y un tiempo promedio de cobertura de ${avgDays} dias.`
+}
+
+async function exportExecutivePdf({
+  periodLabel,
+  kpis,
+  summary,
+  funnel,
+  topSources,
+  topVacancies,
+  recommendations,
+}: {
+  periodLabel: string
+  kpis: Array<{ label: string; value: string | number }>
+  summary: string
+  funnel: FunnelRow[]
+  topSources: SourceRow[]
+  topVacancies: ScoreRow[]
+  recommendations: string[]
+}) {
   const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageW = doc.internal.pageSize.getWidth()
 
-  // Header
-  doc.setFillColor(99, 102, 241)
-  doc.rect(0, 0, pageW, 35, 'F')
+  doc.setFillColor(14, 32, 62)
+  doc.rect(0, 0, pageW, 34, 'F')
   doc.setTextColor(255, 255, 255)
-  doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text('ConectAr Talento', 15, 15)
-  doc.setFontSize(12)
+  doc.setFontSize(18)
+  doc.text('ConectAr Talento', 14, 14)
+  doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
-  doc.text('Informe Ejecutivo de Reclutamiento', 15, 24)
+  doc.text('Informe Ejecutivo de Reclutamiento', 14, 22)
   doc.setFontSize(9)
-  doc.text(`Período: ${range} · Generado: ${new Date().toLocaleDateString('es-AR')}`, 15, 31)
+  doc.text(`Periodo: ${periodLabel}  |  Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 29)
 
-  // KPIs
-  doc.setTextColor(50, 50, 50)
-  doc.setFontSize(14)
+  doc.setTextColor(20, 20, 20)
   doc.setFont('helvetica', 'bold')
-  doc.text('Métricas Principales', 15, 50)
+  doc.setFontSize(12)
+  doc.text('Resumen Ejecutivo', 14, 45)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text(doc.splitTextToSize(summary, 180), 14, 51)
 
-  const kpiList = Object.entries(kpis)
-  let y = 60
-  kpiList.forEach(([k, v], i) => {
-    if (i > 0 && i % 2 === 0) y += 20
-    const x = i % 2 === 0 ? 15 : pageW / 2 + 5
-    doc.setFillColor(245, 247, 255)
-    doc.rect(x, y - 6, 85, 16, 'F')
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text(k, x + 3, y)
-    doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('KPIs Principales', 14, 70)
+  let y = 78
+  kpis.forEach((kpi, i) => {
+    const col = i % 2
+    const row = Math.floor(i / 2)
+    const x = col === 0 ? 14 : 108
+    const boxY = y + row * 18
+    doc.setFillColor(245, 248, 255)
+    doc.rect(x, boxY - 5, 88, 14, 'F')
+    doc.setFontSize(8)
+    doc.setTextColor(90, 98, 115)
+    doc.text(kpi.label, x + 3, boxY)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(50, 50, 50)
-    doc.text(String(v), x + 3, y + 8)
+    doc.setFontSize(12)
+    doc.setTextColor(20, 20, 20)
+    doc.text(String(kpi.value), x + 3, boxY + 6)
+    doc.setFont('helvetica', 'normal')
   })
 
-  // Conclusion
-  y += 40
-  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(50, 50, 50)
-  doc.text('Análisis del Período', 15, y)
-  y += 8
-  doc.setFontSize(9)
+  doc.setFontSize(11)
+  doc.setTextColor(20, 20, 20)
+  doc.text('Embudo de Contratacion', 14, 120)
   doc.setFont('helvetica', 'normal')
-  doc.setTextColor(80, 80, 80)
-  const text = `Este informe resume las métricas de reclutamiento del período seleccionado. Con ${kpis['Total Postulaciones']} postulaciones registradas y un score ATS promedio de ${kpis['Score ATS Promedio']}, el proceso de selección muestra un desempeño ${Number(String(kpis['Score ATS Promedio']).replace('%','')) > 70 ? 'excelente' : 'en desarrollo'}. La tasa de conversión del ${kpis['Tasa de Conversión']} indica oportunidades de mejora en las etapas intermedias del pipeline.`
-  const lines = doc.splitTextToSize(text, pageW - 30)
-  doc.text(lines, 15, y)
+  doc.setFontSize(9)
+  funnel.slice(0, 5).forEach((row, i) => {
+    doc.text(`${row.stage}: ${row.total}`, 18, 127 + i * 6)
+  })
 
-  // Footer
-  doc.setFillColor(245, 245, 250)
-  doc.rect(0, 280, pageW, 17, 'F')
+  doc.text('Top Fuentes', 108, 120)
+  topSources.slice(0, 5).forEach((row, i) => {
+    doc.text(`${row.name}: ${row.value}`, 112, 127 + i * 6)
+  })
+
+  doc.addPage()
+  doc.setFillColor(248, 250, 252)
+  doc.rect(0, 0, pageW, 297, 'F')
+  doc.setTextColor(20, 20, 20)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.text('Detalle Operativo', 14, 20)
+
+  doc.setFontSize(10)
+  doc.text('Vacantes con mejor score ATS', 14, 30)
+  doc.setFont('helvetica', 'normal')
+  topVacancies.slice(0, 8).forEach((row, i) => {
+    doc.text(`${i + 1}. ${row.name} - ${row.score}%`, 18, 37 + i * 6)
+  })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('Acciones recomendadas', 14, 95)
+  doc.setFont('helvetica', 'normal')
+  recommendations.forEach((line, i) => {
+    doc.text(`- ${line}`, 18, 102 + i * 8)
+  })
+
+  doc.setDrawColor(210, 220, 235)
+  doc.line(14, 272, pageW - 14, 272)
   doc.setFontSize(8)
-  doc.setTextColor(150, 150, 150)
-  doc.text('ConectAr Talento · "El talento que buscás, conectado en un solo lugar."', pageW / 2, 290, { align: 'center' })
+  doc.setTextColor(90, 98, 115)
+  doc.text('ConectAr Talento - Executive Clean Report', pageW / 2, 278, { align: 'center' })
 
-  doc.save(`informe-reclutamiento-${new Date().toISOString().slice(0, 10)}.pdf`)
+  doc.save(`informe-ejecutivo-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
 
-/* ─── main page ──────────────────────────────────────────────── */
 export default function ReportsPage() {
+  const provider = React.useMemo(() => new LocalStorageProvider(), [])
   const [range, setRange] = React.useState<DateRange>('month')
+  const [selectedSource, setSelectedSource] = React.useState('all')
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
   const [interviews, setInterviews] = React.useState<Interview[]>([])
   const [exporting, setExporting] = React.useState(false)
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
 
   React.useEffect(() => {
     const tenantId = getTenantId()
-    const vs = provider.getVacanciesSync().filter((v: Vacancy) => v.tenantId === tenantId)
-    const cs = provider.getCandidatesSync().filter((c: Candidate) => c.tenantId === tenantId)
-    const apps = provider.getApplicationsSync()
-    const ivs = provider.getInterviewsSync()
-    setVacancies(vs)
-    setCandidates(cs)
-    setApplications(apps)
-    setInterviews(ivs)
+    const v = provider.getVacanciesSync().filter((item: Vacancy) => item.tenantId === tenantId)
+    const c = provider.getCandidatesSync().filter((item: Candidate) => item.tenantId === tenantId)
+    setVacancies(v)
+    setCandidates(c)
+    setApplications(provider.getApplicationsSync())
+    setInterviews(provider.getInterviewsSync())
   }, [provider])
 
   const dateFrom = getDateFrom(range)
+  const sourceOptions = React.useMemo(
+    () => ['all', ...Array.from(new Set(candidates.map((c) => c.source))).sort()],
+    [candidates]
+  )
 
-  /* filter by range */
-  const filteredApps = applications.filter((a) => new Date(a.appliedAt) >= dateFrom)
-  const filteredIvs = interviews.filter((i) => new Date(i.scheduledAt) >= dateFrom)
+  const filteredCandidates = React.useMemo(
+    () =>
+      selectedSource === 'all'
+        ? candidates
+        : candidates.filter((candidate) => candidate.source === selectedSource),
+    [candidates, selectedSource]
+  )
 
-  /* funnel */
-  const funnelData = STAGE_ORDER.map((stage) => ({
-    name: stage.replace('Nuevas ', '').replace('Con ', ''),
-    candidatos: filteredApps.filter((a) => a.status === stage).length,
-  }))
+  const candidateIdSet = React.useMemo(
+    () => new Set(filteredCandidates.map((candidate) => candidate.id)),
+    [filteredCandidates]
+  )
 
-  /* sources */
-  const sourceCounts: Record<string, number> = {}
-  candidates.forEach((c) => {
-    sourceCounts[c.source] = (sourceCounts[c.source] ?? 0) + 1
-  })
-  const sourceData = Object.entries(sourceCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
+  const filteredApplications = React.useMemo(
+    () =>
+      applications.filter(
+        (application) =>
+          candidateIdSet.has(application.candidateId) && new Date(application.appliedAt) >= dateFrom
+      ),
+    [applications, candidateIdSet, dateFrom]
+  )
 
-  /* ATS score by vacancy */
-  const scoreByVacancy = vacancies.slice(0, 8).map((v) => {
-    const vApps = filteredApps.filter((a) => a.vacancyId === v.id)
-    const withScore = vApps.filter((a) => {
-      const cand = candidates.find((c) => c.id === a.candidateId)
-      return cand?.atsScore !== undefined
+  const filteredInterviews = React.useMemo(
+    () => interviews.filter((interview) => new Date(interview.scheduledAt) >= dateFrom),
+    [interviews, dateFrom]
+  )
+
+  const funnelData = React.useMemo<FunnelRow[]>(
+    () =>
+      STAGE_ORDER.map((stage) => ({
+        stage: normalizeStage(stage),
+        total: filteredApplications.filter((application) => application.status === stage).length,
+      })),
+    [filteredApplications]
+  )
+
+  const sourceData = React.useMemo<SourceRow[]>(() => {
+    const counts: Record<string, number> = {}
+    filteredCandidates.forEach((candidate) => {
+      counts[candidate.source] = (counts[candidate.source] ?? 0) + 1
     })
-    const avg =
-      withScore.length > 0
-        ? Math.round(
-            withScore.reduce((sum, a) => {
-              const cand = candidates.find((c) => c.id === a.candidateId)
-              return sum + (cand?.atsScore ?? 0)
-            }, 0) / withScore.length
-          )
-        : 0
-    return { name: v.title.slice(0, 20), score: avg }
-  })
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [filteredCandidates])
 
-  /* interviews per week (last 8 weeks) */
-  const weeks: { week: string; entrevistas: number }[] = []
-  for (let w = 7; w >= 0; w--) {
-    const from = new Date()
-    from.setDate(from.getDate() - w * 7)
-    from.setHours(0, 0, 0, 0)
-    const to = new Date(from)
-    to.setDate(to.getDate() + 7)
-    const count = filteredIvs.filter((i) => {
-      const d = new Date(i.scheduledAt)
-      return d >= from && d < to
-    }).length
-    weeks.push({
-      week: `S${8 - w}`,
-      entrevistas: count,
-    })
-  }
-
-  /* vacancies open vs closed per month */
-  const now = new Date()
-  const monthlyData = Array.from({ length: 6 }, (_, i) => {
-    const month = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-    const label = month.toLocaleDateString('es-AR', { month: 'short' })
-    const open = vacancies.filter((v) => {
-      const created = new Date(v.createdAt)
-      return created <= month && (v.status !== 'Contratado')
-    }).length
-    const closed = vacancies.filter((v) => {
-      const created = new Date(v.createdAt)
-      return created <= month && v.status === 'Contratado'
-    }).length
-    return { mes: label, abiertas: open, cerradas: closed }
-  })
-
-  /* KPIs */
-  const totalApps = filteredApps.length
-  const hired = filteredApps.filter((a) => a.status === 'Contratado').length
-  const conversionRate = totalApps > 0 ? `${Math.round((hired / totalApps) * 100)}%` : '0%'
-  const scoresArr = candidates.map((c) => c.atsScore).filter((s): s is number => s !== undefined)
-  const avgScore = scoresArr.length > 0 ? `${Math.round(scoresArr.reduce((a, b) => a + b, 0) / scoresArr.length)}` : 'N/A'
-  const avgDays =
-    vacancies.filter((v) => v.status === 'Contratado').length > 0
-      ? Math.round(
-          vacancies
-            .filter((v) => v.status === 'Contratado')
-            .reduce((sum, v) => {
-              const days = Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000)
-              return sum + Math.min(days, 60)
-            }, 0) / vacancies.filter((v) => v.status === 'Contratado').length
+  const scoreByVacancy = React.useMemo<ScoreRow[]>(() => {
+    return vacancies.slice(0, 8).map((vacancy) => {
+      const vacancyApps = filteredApplications.filter((application) => application.vacancyId === vacancy.id)
+      const scores = vacancyApps
+        .map((application) =>
+          filteredCandidates.find((candidate) => candidate.id === application.candidateId)?.atsScore
         )
-      : 0
+        .filter((score): score is number => typeof score === 'number')
+      const avg = scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : 0
+      return { name: vacancy.title.slice(0, 22), score: avg }
+    })
+  }, [filteredApplications, filteredCandidates, vacancies])
 
-  const kpis = {
-    'Total Postulaciones': totalApps,
-    'Tiempo Promedio (días)': avgDays || 'N/D',
-    'Score ATS Promedio': avgScore !== 'N/A' ? `${avgScore}%` : 'N/A',
-    'Tasa de Conversión': conversionRate,
-  }
+  const interviewsPerWeek = React.useMemo<WeekRow[]>(() => {
+    const rows: WeekRow[] = []
+    for (let weekOffset = 7; weekOffset >= 0; weekOffset -= 1) {
+      const from = new Date()
+      from.setDate(from.getDate() - weekOffset * 7)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(from)
+      to.setDate(to.getDate() + 7)
+      const count = filteredInterviews.filter((item) => {
+        const date = new Date(item.scheduledAt)
+        return date >= from && date < to
+      }).length
+      rows.push({ week: `S${8 - weekOffset}`, entrevistas: count })
+    }
+    return rows
+  }, [filteredInterviews])
 
-  const rangeLabels: Record<DateRange, string> = {
-    month: 'Este mes',
-    quarter: 'Últimos 3 meses',
-    year: 'Este año',
-  }
+  const monthlyData = React.useMemo<MonthlyRow[]>(() => {
+    const now = new Date()
+    return Array.from({ length: 6 }, (_, idx) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1)
+      const label = month.toLocaleDateString('es-AR', { month: 'short' })
+      const abiertas = vacancies.filter(
+        (vacancy) => new Date(vacancy.createdAt) <= month && vacancy.status !== 'Contratado'
+      ).length
+      const cerradas = vacancies.filter(
+        (vacancy) => new Date(vacancy.createdAt) <= month && vacancy.status === 'Contratado'
+      ).length
+      return { mes: label, abiertas, cerradas }
+    })
+  }, [vacancies])
 
-  async function handleExport() {
+  const totalApps = filteredApplications.length
+  const hired = filteredApplications.filter((application) => application.status === 'Contratado').length
+  const conversion = totalApps > 0 ? `${Math.round((hired / totalApps) * 100)}%` : '0%'
+  const scoreArray = filteredCandidates
+    .map((candidate) => candidate.atsScore)
+    .filter((score): score is number => typeof score === 'number')
+  const avgScore =
+    scoreArray.length > 0
+      ? `${Math.round(scoreArray.reduce((acc, score) => acc + score, 0) / scoreArray.length)}%`
+      : 'N/A'
+
+  const avgDays = React.useMemo(() => {
+    const closedVacancies = vacancies.filter((vacancy) => vacancy.status === 'Contratado')
+    if (!closedVacancies.length) return 'N/D'
+    const sum = closedVacancies.reduce((acc, vacancy) => {
+      const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
+      return acc + Math.min(days, 90)
+    }, 0)
+    return Math.round(sum / closedVacancies.length)
+  }, [vacancies])
+
+  const summary = buildExecutiveSummary({
+    totalApps,
+    hired,
+    conversion,
+    avgScore: avgScore === 'N/A' ? '0%' : avgScore,
+    avgDays,
+  })
+
+  const recommendations = React.useMemo(() => {
+    const list: string[] = []
+    const conversionNumber = Number(conversion.replace('%', '')) || 0
+    const scoreNumber = Number(avgScore.replace('%', '')) || 0
+
+    if (conversionNumber < 10) list.push('Reforzar screening inicial para mejorar conversion en etapas intermedias.')
+    if (scoreNumber < 70) list.push('Ajustar criterios ATS por vacante y redefinir skills obligatorias.')
+    if (typeof avgDays === 'number' && avgDays > 30) {
+      list.push('Reducir el tiempo de cobertura acelerando entrevistas tecnicas.')
+    }
+    if (!list.length) list.push('Mantener el ritmo actual y escalar fuentes que ya muestran mejor calidad.')
+    list.push('Revisar semanalmente el funnel por recruiter y detectar cuellos de botella.')
+    return list.slice(0, 3)
+  }, [avgDays, avgScore, conversion])
+
+  const isEmpty = totalApps === 0 && filteredCandidates.length === 0 && vacancies.length === 0
+
+  async function onExportPdf() {
     setExporting(true)
     try {
-      await exportPDF(kpis, rangeLabels[range])
+      await exportExecutivePdf({
+        periodLabel: rangeLabel(range),
+        kpis: [
+          { label: 'Total Postulaciones', value: totalApps },
+          { label: 'Tiempo Promedio (dias)', value: avgDays },
+          { label: 'Score ATS Promedio', value: avgScore },
+          { label: 'Tasa de Conversion', value: conversion },
+        ],
+        summary,
+        funnel: funnelData.some((item) => item.total > 0) ? funnelData : FALLBACK_FUNNEL,
+        topSources: sourceData.length ? sourceData : FALLBACK_SOURCES,
+        topVacancies: scoreByVacancy.filter((item) => item.score > 0),
+        recommendations,
+      })
     } finally {
       setExporting(false)
     }
   }
 
-  const isEmpty = totalApps === 0 && candidates.length === 0 && vacancies.length === 0
-
   return (
-    <div className="flex flex-col h-full">
-      {/* header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Informes de Reclutamiento</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Métricas y analytics del proceso de selección</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* date range */}
-          <div className="relative">
-            <select
-              value={range}
-              onChange={(e) => setRange(e.target.value as DateRange)}
-              className="appearance-none bg-muted border border-border rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="month">Este mes</option>
-              <option value="quarter">Últimos 3 meses</option>
-              <option value="year">Este año</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          </div>
-
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-70"
-          >
-            <Download className="h-4 w-4" />
-            {exporting ? 'Generando…' : 'Exportar PDF'}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-        {isEmpty && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 text-sm">
-            <FileText className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+    <div className="mx-auto flex h-full w-full max-w-[1680px] flex-col gap-5 px-4 py-4 md:px-6 md:py-6">
+      <header className="rounded-[var(--radius-xl)] border border-border bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--surface-muted))_100%)] p-6 shadow-[var(--shadow-md)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <span className="inline-flex rounded-full border border-border bg-background px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
+              Executive Clean
+            </span>
             <div>
-              <p className="font-medium text-amber-800">Sin datos para este período</p>
-              <p className="text-amber-700 mt-0.5">Agregá vacantes y candidatos para ver métricas reales. Los gráficos mostrarán datos de demostración.</p>
+              <h1 className="type-h2 text-text-primary">Informes de Reclutamiento</h1>
+              <p className="mt-1 type-body text-text-secondary">
+                Resumen ejecutivo, rendimiento del pipeline y acciones recomendadas.
+              </p>
             </div>
           </div>
-        )}
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            icon={<Users className="h-5 w-5 text-indigo-600" />}
-            label="Total Postulaciones"
-            value={totalApps || 142}
-            sub={`${rangeLabels[range]}`}
-            color="bg-indigo-100"
-          />
-          <KpiCard
-            icon={<Clock className="h-5 w-5 text-amber-600" />}
-            label="Tiempo Promedio (días)"
-            value={avgDays || 24}
-            sub="hasta contratación"
-            color="bg-amber-100"
-          />
-          <KpiCard
-            icon={<Target className="h-5 w-5 text-purple-600" />}
-            label="Score ATS Promedio"
-            value={avgScore !== 'N/A' ? `${avgScore}%` : '74%'}
-            sub="de todos los candidatos"
-            color="bg-purple-100"
-          />
-          <KpiCard
-            icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-            label="Tasa de Conversión"
-            value={conversionRate !== '0%' ? conversionRate : '8%'}
-            sub="postulación → contratado"
-            color="bg-green-100"
-          />
-        </div>
-
-        {/* Row 1: Funnel + Sources */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <ChartCard title="Embudo de Contratación">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={funnelData.some((d) => d.candidatos > 0) ? funnelData : [
-                { name: 'Nuevas', candidatos: 45 },
-                { name: 'En Proceso', candidatos: 28 },
-                { name: 'Entrevistas', candidatos: 14 },
-                { name: 'Oferta', candidatos: 6 },
-                { name: 'Contratado', candidatos: 3 },
-              ]} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                />
-                <Bar dataKey="candidatos" fill="#6366f1" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Fuentes de Candidatos">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={sourceData.length > 0 ? sourceData : [
-                    { name: 'LinkedIn', value: 42 },
-                    { name: 'Portal', value: 28 },
-                    { name: 'Referido', value: 18 },
-                    { name: 'Indeed', value: 12 },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={85}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {(sourceData.length > 0 ? sourceData : [{ name: 'LinkedIn' }, { name: 'Portal' }, { name: 'Referido' }, { name: 'Indeed' }]).map(
-                    (entry, i) => (
-                      <Cell key={i} fill={SOURCE_COLORS[entry.name] ?? CHART_COLORS[i % CHART_COLORS.length]} />
-                    )
-                  )}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                />
-                <Legend iconSize={10} iconType="circle" formatter={(v) => <span style={{ fontSize: 11 }}>{v}</span>} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-        {/* Row 2: Score by vacancy + Interviews per week */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <ChartCard title="Score ATS por Vacante">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={scoreByVacancy.some((d) => d.score > 0) ? scoreByVacancy : [
-                  { name: 'Frontend Dev', score: 82 },
-                  { name: 'Product Mgr', score: 76 },
-                  { name: 'Data Analyst', score: 68 },
-                  { name: 'DevOps', score: 88 },
-                  { name: 'UX Designer', score: 71 },
-                ]}
-                margin={{ bottom: 20 }}
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+            <label className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-sm text-text-secondary">
+              <Filter className="h-4 w-4 text-text-secondary" />
+              <select
+                value={range}
+                onChange={(event) => setRange(event.target.value as DateRange)}
+                className="w-full bg-transparent text-sm text-text-primary outline-none"
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} angle={-30} textAnchor="end" />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v) => [`${v ?? 0}%`, 'Score ATS']}
-                />
-                <Bar dataKey="score" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+                <option value="month">Este mes</option>
+                <option value="quarter">Ultimos 3 meses</option>
+                <option value="year">Este ano</option>
+              </select>
+            </label>
 
-          <ChartCard title="Entrevistas por Semana">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart
-                data={weeks.some((w) => w.entrevistas > 0) ? weeks : weeks.map((w, i) => ({ ...w, entrevistas: [2, 4, 3, 6, 5, 7, 4, 8][i] }))}
+            <label className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-sm text-text-secondary">
+              <Users className="h-4 w-4 text-text-secondary" />
+              <select
+                value={selectedSource}
+                onChange={(event) => setSelectedSource(event.target.value)}
+                className="w-full bg-transparent text-sm text-text-primary outline-none"
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                />
-                <Line type="monotone" dataKey="entrevistas" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
+                {sourceOptions.map((source) => (
+                  <option key={source} value={source}>
+                    {source === 'all' ? 'Todas las fuentes' : source}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        {/* Row 3: Open vs Closed */}
-        <ChartCard title="Vacantes Abiertas vs Cerradas – Evolución mensual">
-          <ResponsiveContainer width="100%" height={220}>
+            <button
+              type="button"
+              onClick={onExportPdf}
+              disabled={exporting}
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--radius)] bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-70"
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? 'Generando PDF...' : 'Exportar PDF'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {isEmpty ? (
+        <section className="rounded-[var(--radius-lg)] border border-warning/35 bg-warning/10 p-4">
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 h-5 w-5 text-warning" />
+            <div>
+              <p className="text-sm font-semibold text-text-primary">Sin datos en el periodo seleccionado</p>
+              <p className="mt-1 text-sm text-text-secondary">
+                Crea vacantes y candidatos para activar los reportes. Mientras tanto se mostraran datos de referencia.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard
+          icon={<Users className="h-5 w-5" />}
+          title="Total Postulaciones"
+          value={totalApps}
+          detail={rangeLabel(range)}
+        />
+        <KpiCard
+          icon={<Clock3 className="h-5 w-5" />}
+          title="Tiempo Promedio (dias)"
+          value={avgDays}
+          detail="Tiempo de cobertura"
+        />
+        <KpiCard
+          icon={<Target className="h-5 w-5" />}
+          title="Score ATS Promedio"
+          value={avgScore}
+          detail="Calidad promedio de perfil"
+        />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          title="Tasa de Conversion"
+          value={conversion}
+          detail="Postulacion a contratado"
+        />
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ChartCard title="Embudo de Contratacion" subtitle="Conversion por etapa">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart
+              data={funnelData.some((item) => item.total > 0) ? funnelData : FALLBACK_FUNNEL}
+              layout="vertical"
+              margin={{ left: 8, right: 16, top: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
+              <YAxis
+                dataKey="stage"
+                type="category"
+                width={88}
+                tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 10,
+                }}
+              />
+              <Bar dataKey="total" fill="#1f4a8b" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Fuentes de Candidatos" subtitle="Distribucion por canal">
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie
+                data={sourceData.length ? sourceData : FALLBACK_SOURCES}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={54}
+                outerRadius={88}
+                paddingAngle={2}
+              >
+                {(sourceData.length ? sourceData : FALLBACK_SOURCES).map((entry, index) => (
+                  <Cell
+                    key={`${entry.name}-${index}`}
+                    fill={SOURCE_COLORS[entry.name] ?? '#6b7280'}
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 10,
+                }}
+              />
+              <Legend iconSize={10} iconType="circle" />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ChartCard title="Score ATS por Vacante" subtitle="Promedio por posicion activa">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart
+              data={
+                scoreByVacancy.some((item) => item.score > 0)
+                  ? scoreByVacancy
+                  : [
+                      { name: 'Frontend', score: 82 },
+                      { name: 'Producto', score: 76 },
+                      { name: 'Data', score: 68 },
+                      { name: 'DevOps', score: 88 },
+                      { name: 'UX', score: 71 },
+                    ]
+              }
+              margin={{ bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} angle={-28} textAnchor="end" />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
+              <Tooltip
+                formatter={(value) => [`${value}%`, 'Score ATS']}
+                contentStyle={{
+                  background: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 10,
+                }}
+              />
+              <Bar dataKey="score" fill="#0f766e" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Entrevistas por Semana" subtitle="Ultimas 8 semanas">
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart
+              data={
+                interviewsPerWeek.some((item) => item.entrevistas > 0)
+                  ? interviewsPerWeek
+                  : interviewsPerWeek.map((row, index) => ({
+                      ...row,
+                      entrevistas: [2, 4, 3, 6, 5, 7, 4, 8][index],
+                    }))
+              }
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 10,
+                }}
+              />
+              <Line type="monotone" dataKey="entrevistas" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.5fr_1fr]">
+        <ChartCard title="Vacantes Abiertas vs Cerradas" subtitle="Evolucion mensual">
+          <ResponsiveContainer width="100%" height={230}>
             <AreaChart data={monthlyData}>
               <defs>
-                <linearGradient id="colorAbiertas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                <linearGradient id="openGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1f4a8b" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#1f4a8b" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="colorCerradas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <linearGradient id="closedGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0f766e" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
               <Tooltip
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{
+                  background: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 10,
+                }}
               />
-              <Legend iconSize={10} iconType="circle" formatter={(v) => <span style={{ fontSize: 11 }}>{v}</span>} />
-              <Area type="monotone" dataKey="abiertas" name="Abiertas" stroke="#6366f1" strokeWidth={2} fill="url(#colorAbiertas)" />
-              <Area type="monotone" dataKey="cerradas" name="Cerradas" stroke="#10b981" strokeWidth={2} fill="url(#colorCerradas)" />
+              <Legend iconSize={10} iconType="circle" />
+              <Area type="monotone" dataKey="abiertas" stroke="#1f4a8b" fill="url(#openGradient)" name="Abiertas" />
+              <Area type="monotone" dataKey="cerradas" stroke="#0f766e" fill="url(#closedGradient)" name="Cerradas" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
-      </div>
+
+        <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
+          <h3 className="text-sm font-semibold text-text-primary">Recomendaciones Ejecutivas</h3>
+          <p className="mt-1 text-xs text-text-secondary">Acciones sugeridas para el proximo ciclo</p>
+          <ul className="mt-4 space-y-3 text-sm text-text-primary">
+            {recommendations.map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 rounded-[var(--radius)] border border-warning/35 bg-warning/10 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <p className="text-xs text-text-secondary">
+                Sugerencia: generar este informe semanalmente para seguimiento de SLA de cobertura.
+              </p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-text-secondary">{summary}</p>
+        </article>
+      </section>
     </div>
   )
 }
