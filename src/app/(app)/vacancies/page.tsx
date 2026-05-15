@@ -16,10 +16,10 @@ import { useUser } from '@/lib/context/user-context'
 import type { Vacancy, VacancyModality, VacancyPriority } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
-const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; cls: string }> = {
-  Alta: { label: 'Alta', cls: 'bg-red-100 text-red-700 border-red-200' },
-  Media: { label: 'Media', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-  Baja: { label: 'Baja', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
+  Alta: { label: 'Alta', bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
+  Media: { label: 'Media', bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
+  Baja: { label: 'Baja', bg: 'rgba(107,114,128,0.15)', color: '#9ca3af' },
 }
 
 const MODALITY_ICONS: Record<VacancyModality, React.ElementType> = {
@@ -133,20 +133,23 @@ function VacancyFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* Rubro + Perfil selector */}
-          <div className="grid grid-cols-2 gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+          <div
+            className="grid grid-cols-2 gap-3 p-3 rounded-lg border"
+            style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}
+          >
             <div>
-              <label className={cn(labelCls, 'text-indigo-700')}>Rubro</label>
+              <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Rubro</label>
               <select value={form.rubro} onChange={e => setForm(f => ({...f, rubro: e.target.value, perfil: ''}))}
-                className={cn(inputCls, 'border-indigo-200')}>
+                className={inputCls}>
                 <option value="">Seleccioná un rubro</option>
                 {rubros.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
-              <label className={cn(labelCls, 'text-indigo-700')}>Perfil (auto-completa skills)</label>
+              <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Perfil (auto-completa skills)</label>
               <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
                 disabled={!form.rubro}
-                className={cn(inputCls, 'border-indigo-200 disabled:opacity-50')}>
+                className={cn(inputCls, 'disabled:opacity-50')}>
                 <option value="">Seleccioná un perfil</option>
                 {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.perfil} · {p.nivel}</option>)}
               </select>
@@ -214,7 +217,7 @@ function VacancyFormDialog({
             <div className="flex items-center justify-between mb-1">
               <label className={labelCls}>Descripción del puesto</label>
               <Button type="button" variant="outline" size="sm" onClick={generateDescription} disabled={!form.title || generating}
-                className="text-xs gap-1 h-6 px-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                className="text-xs gap-1 h-6 px-2">
                 {generating ? '⏳ Generando...' : '✨ Generar con IA'}
               </Button>
             </div>
@@ -255,7 +258,13 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
       <CardContent className="p-4">
         {/* Priority badge */}
         <div className="flex items-start justify-between mb-2">
-          <span className={cn('text-[10px] px-2 py-0.5 rounded-full border font-semibold', PRIORITY_CONFIG[vacancy.priority].cls)}>
+          <span
+            className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+            style={{
+              background: PRIORITY_CONFIG[vacancy.priority].bg,
+              color: PRIORITY_CONFIG[vacancy.priority].color,
+            }}
+          >
             {vacancy.priority}
           </span>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -268,7 +277,7 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           </div>
         </div>
 
-        <h3 className="font-bold text-foreground text-base leading-tight mb-1 cursor-pointer hover:text-indigo-600 transition-colors" onClick={onEdit}>
+        <h3 className="font-bold text-base leading-tight mb-1 cursor-pointer transition-colors hover:opacity-80" style={{ color: 'var(--text)' }} onClick={onEdit}>
           {vacancy.title}
         </h3>
 
@@ -284,13 +293,19 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           )}
         </div>
 
-        <div className="text-xs font-semibold text-emerald-700 mb-3">{salaryStr}</div>
+        <div className="text-xs font-semibold mb-3" style={{ color: '#34d399' }}>{salaryStr}</div>
 
         {/* Skills */}
         {vacancy.requirements.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {vacancy.requirements.slice(0, 3).map(s => (
-              <span key={s} className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full">{s}</span>
+              <span
+                key={s}
+                className="text-[10px] px-1.5 py-0.5 rounded-full"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)' }}
+              >
+                {s}
+              </span>
             ))}
             {vacancy.requirements.length > 3 && (
               <span className="text-[10px] text-muted-foreground">+{vacancy.requirements.length - 3}</span>
@@ -314,7 +329,7 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = '/pipeline'}>
             Ver pipeline
           </Button>
-          <Button size="sm" className="flex-1 text-xs h-7 gap-1 bg-indigo-600 hover:bg-indigo-700">
+          <Button size="sm" className="flex-1 text-xs h-7 gap-1">
             <Rocket className="h-3 w-3" /> Publicar
           </Button>
         </div>
@@ -397,22 +412,31 @@ export default function VacanciesPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Briefcase, label: 'Total Vacantes', value: kpis.total, color: 'bg-indigo-500' },
-          { icon: Globe, label: 'Abiertas', value: kpis.open, color: 'bg-emerald-500' },
-          { icon: Users, label: 'Candidatos Totales', value: kpis.totalCandidates, color: 'bg-violet-500' },
-          { icon: Clock, label: 'Días Promedio Abierta', value: `${kpis.avgDays}d`, color: 'bg-amber-500' },
+          { icon: Briefcase, label: 'Total Vacantes', value: kpis.total, accentColor: 'var(--accent)' },
+          { icon: Globe, label: 'Abiertas', value: kpis.open, accentColor: '#34d399' },
+          { icon: Users, label: 'Candidatos Totales', value: kpis.totalCandidates, accentColor: 'var(--accent-2)' },
+          { icon: Clock, label: 'Días Promedio Abierta', value: `${kpis.avgDays}d`, accentColor: '#fbbf24' },
         ].map(k => (
-          <Card key={k.label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', k.color)}>
-                <k.icon className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{k.label}</p>
-                <p className="text-lg font-bold">{k.value}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div
+            key={k.label}
+            className="rounded-xl border p-4 flex items-center gap-3 relative overflow-hidden"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div
+              className="absolute top-0 left-0 right-0 h-[2px]"
+              style={{ background: k.accentColor }}
+            />
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: `${k.accentColor}22` }}
+            >
+              <k.icon className="h-4 w-4" style={{ color: k.accentColor }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>{k.label}</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--text)' }}>{k.value}</p>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -436,8 +460,8 @@ export default function VacanciesPage() {
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
-            <Briefcase className="h-8 w-8 text-indigo-400" />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--accent-soft)' }}>
+            <Briefcase className="h-8 w-8" style={{ color: 'var(--accent-2)' }} />
           </div>
           <h3 className="font-semibold text-foreground mb-1">
             {search ? 'No se encontraron vacantes' : 'Creá tu primera búsqueda'}

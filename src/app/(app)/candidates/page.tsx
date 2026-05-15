@@ -17,50 +17,78 @@ import type { Candidate, Vacancy, CandidateSource } from '@/types'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
-  if (score === undefined) return <span className="text-xs text-muted-foreground">—</span>
-  const cls =
-    score >= 85 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-    score >= 70 ? 'bg-green-100 text-green-700 border-green-200' :
-    score >= 50 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-    'bg-red-100 text-red-700 border-red-200'
+  if (score === undefined) return <span className="text-xs" style={{ color: 'var(--muted)' }}>—</span>
+  const bg =
+    score >= 85 ? 'rgba(52,211,153,0.15)' :
+    score >= 70 ? 'rgba(52,211,153,0.1)' :
+    score >= 50 ? 'rgba(251,191,36,0.15)' :
+    'rgba(239,68,68,0.15)'
+  const textColor =
+    score >= 85 ? '#34d399' :
+    score >= 70 ? '#34d399' :
+    score >= 50 ? '#fbbf24' :
+    '#ef4444'
   const label = score >= 85 ? 'Excelente' : score >= 70 ? 'Bueno' : score >= 50 ? 'Regular' : 'Bajo'
   return (
-    <div className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold', cls)}>
+    <div
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+      style={{ background: bg, color: textColor }}
+    >
       <span>{score}</span>
       <span className="font-normal opacity-75">· {label}</span>
     </div>
   )
 }
 
-const SOURCE_CHIP: Record<string, string> = {
-  LinkedIn: 'bg-blue-100 text-blue-700',
-  Portal: 'bg-indigo-100 text-indigo-700',
-  Referido: 'bg-purple-100 text-purple-700',
-  Indeed: 'bg-orange-100 text-orange-700',
-  WhatsApp: 'bg-green-100 text-green-700',
-  Manual: 'bg-gray-100 text-gray-600',
-  Computrabajo: 'bg-red-100 text-red-700',
-  ZonaJobs: 'bg-teal-100 text-teal-700',
-  Bumeran: 'bg-sky-100 text-sky-700',
+const SOURCE_BG: Record<string, string> = {
+  LinkedIn: 'rgba(59,130,246,0.15)',
+  Portal: 'rgba(108,99,255,0.15)',
+  Referido: 'rgba(139,92,246,0.15)',
+  Indeed: 'rgba(249,115,22,0.15)',
+  WhatsApp: 'rgba(34,197,94,0.15)',
+  Manual: 'rgba(107,114,128,0.15)',
+  Computrabajo: 'rgba(239,68,68,0.15)',
+  ZonaJobs: 'rgba(20,184,166,0.15)',
+  Bumeran: 'rgba(14,165,233,0.15)',
+}
+const SOURCE_TEXT: Record<string, string> = {
+  LinkedIn: '#60a5fa',
+  Portal: '#a78bfa',
+  Referido: '#c084fc',
+  Indeed: '#fb923c',
+  WhatsApp: '#4ade80',
+  Manual: '#9ca3af',
+  Computrabajo: '#f87171',
+  ZonaJobs: '#2dd4bf',
+  Bumeran: '#38bdf8',
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string; color: string
+function KpiCard({ icon: Icon, label, value, sub, accentColor }: {
+  icon: React.ElementType; label: string; value: string | number; sub?: string; accentColor: string
 }) {
   return (
-    <Card className="flex-1 min-w-[150px]">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', color)}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold text-foreground">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className="flex-1 min-w-[150px] rounded-xl border p-4 flex items-center gap-3 relative overflow-hidden"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      {/* top accent bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{ background: accentColor }}
+      />
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: `${accentColor}22` }}
+      >
+        <Icon className="h-5 w-5" style={{ color: accentColor }} />
+      </div>
+      <div>
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>{label}</p>
+        <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>{value}</p>
+        {sub && <p className="text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
+      </div>
+    </div>
   )
 }
 
@@ -266,31 +294,42 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={cn(
-          'border-2 border-dashed rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-colors mb-4',
-          isDragging ? 'border-indigo-400 bg-indigo-50' : 'border-border hover:border-indigo-300 hover:bg-muted/30'
-        )}
+        className="border-2 border-dashed rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all mb-4"
+        style={{
+          borderColor: isDragging ? 'var(--accent)' : 'var(--border2)',
+          background: isDragging ? 'var(--accent-soft)' : 'var(--surface2)',
+        }}
       >
         <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) analyzeFile(f) }} />
-        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-          {status === 'analyzing' ? <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" /> :
-           status === 'done' ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> :
-           <Upload className="h-5 w-5 text-indigo-600" />}
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: 'var(--accent-soft)' }}
+        >
+          {status === 'analyzing' ? <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--accent-2)' }} /> :
+           status === 'done' ? <CheckCircle2 className="h-5 w-5" style={{ color: '#34d399' }} /> :
+           <Upload className="h-5 w-5" style={{ color: 'var(--accent-2)' }} />}
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
             {status === 'analyzing' ? 'Analizando CV con IA...' :
              status === 'done' ? '¡CV analizado! Abriendo formulario...' :
              status === 'error' ? 'Error al analizar. Intentá de nuevo.' :
              'Arrastrá un CV aquí o hacé clic para seleccionar'}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">PDF, DOCX o TXT · La IA extrae nombre, skills y calcula score ATS</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>PDF, DOCX o TXT · La IA extrae nombre, skills y calcula score ATS</p>
         </div>
         <div className="ml-auto">
-          <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200">
+          <span
+            className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+            style={{
+              background: 'var(--accent-soft)',
+              color: 'var(--accent-2)',
+              borderColor: 'var(--accent)',
+            }}
+          >
             ✨ IA
-          </Badge>
+          </span>
         </div>
       </div>
       <AddCandidateDialog
@@ -385,10 +424,10 @@ export default function CandidatesPage() {
 
       {/* KPIs */}
       <div className="flex gap-4 flex-wrap">
-        <KpiCard icon={Users} label="Total Candidatos" value={kpis.total} color="bg-indigo-500" />
-        <KpiCard icon={Brain} label="CVs Analizados con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} color="bg-violet-500" />
-        <KpiCard icon={TrendingUp} label="Score Promedio" value={kpis.avgScore} sub="sobre 100" color="bg-emerald-500" />
-        <KpiCard icon={Clock} label="Nuevos Esta Semana" value={kpis.newThisWeek} color="bg-amber-500" />
+        <KpiCard icon={Users} label="Total Candidatos" value={kpis.total} accentColor="var(--accent)" />
+        <KpiCard icon={Brain} label="CVs Analizados con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} accentColor="var(--accent-2)" />
+        <KpiCard icon={TrendingUp} label="Score Promedio" value={kpis.avgScore} sub="sobre 100" accentColor="#34d399" />
+        <KpiCard icon={Clock} label="Nuevos Esta Semana" value={kpis.newThisWeek} accentColor="#fbbf24" />
       </div>
 
       {/* CV Drop Zone */}
@@ -470,7 +509,10 @@ export default function CandidatesPage() {
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold shrink-0">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
+                      >
                         {getInitials(c.fullName)}
                       </div>
                       <div>
@@ -489,7 +531,13 @@ export default function CandidatesPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', SOURCE_CHIP[c.source] ?? 'bg-gray-100 text-gray-600')}>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)',
+                        color: SOURCE_TEXT[c.source] ?? '#9ca3af',
+                      }}
+                    >
                       {c.source}
                     </span>
                   </td>
@@ -522,7 +570,10 @@ export default function CandidatesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                      style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
+                    >
                       {getInitials(c.fullName)}
                     </div>
                     <div>
@@ -540,9 +591,17 @@ export default function CandidatesPage() {
                     <span key={s} className="text-[10px] px-1.5 py-0.5 bg-muted rounded-full text-muted-foreground">{s}</span>
                   ))}
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className={cn('px-1.5 py-0.5 rounded-full font-medium text-[10px]', SOURCE_CHIP[c.source] ?? 'bg-gray-100 text-gray-600')}>{c.source}</span>
-                  <span>{formatRelativeDate(c.createdAt)}</span>
+                <div className="flex items-center justify-between text-xs">
+                  <span
+                    className="px-1.5 py-0.5 rounded-full font-medium text-[10px]"
+                    style={{
+                      background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)',
+                      color: SOURCE_TEXT[c.source] ?? '#9ca3af',
+                    }}
+                  >
+                    {c.source}
+                  </span>
+                  <span style={{ color: 'var(--muted)' }}>{formatRelativeDate(c.createdAt)}</span>
                 </div>
               </CardContent>
             </Card>
