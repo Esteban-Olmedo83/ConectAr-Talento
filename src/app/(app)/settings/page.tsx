@@ -686,20 +686,37 @@ function ConexionIAsTab() {
     setTestResult(null)
     try {
       if (selected === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Di hola en una palabra.' }] }],
-          }),
-        })
-        const data = await res.json()
-        if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          setTestResult({ ok: true, message: `Conexión exitosa. Respuesta: "${data.candidates[0].content.parts[0].text.trim()}"` })
-        } else {
-          const errMsg = data.error?.message || 'Respuesta inesperada de la API'
-          setTestResult({ ok: false, message: errMsg })
+        // Try gemini-1.5-flash first (higher free-tier quota), fall back to gemini-2.0-flash
+        const models = ['gemini-1.5-flash', 'gemini-2.0-flash']
+        let lastError = ''
+        let success = false
+        for (const model of models) {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Di hola en una palabra.' }] }],
+            }),
+          })
+          const data = await res.json()
+          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            setTestResult({ ok: true, message: `Conexión exitosa con ${model}. Respuesta: "${data.candidates[0].content.parts[0].text.trim()}"` })
+            success = true
+            break
+          }
+          const rawMsg: string = data.error?.message || ''
+          if (rawMsg.toLowerCase().includes('quota') || rawMsg.toLowerCase().includes('rate') || res.status === 429) {
+            lastError = 'Cuota gratuita agotada. El plan gratuito de Gemini tiene límite diario. Revisá tu uso en ai.dev/rate-limit o esperá al reinicio de cuota (medianoche PT). Si necesitás más cuota, habilitá facturación en console.cloud.google.com.'
+          } else if (res.status === 400 && rawMsg.toLowerCase().includes('api key')) {
+            lastError = 'API key inválida. Verificá que la key sea correcta en aistudio.google.com.'
+            break
+          } else {
+            lastError = rawMsg || 'Respuesta inesperada de la API'
+          }
+        }
+        if (!success) {
+          setTestResult({ ok: false, message: lastError })
         }
       } else {
         setTestResult({ ok: true, message: 'API key guardada. La prueba directa está disponible para Gemini.' })
