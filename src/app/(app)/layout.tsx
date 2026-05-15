@@ -17,6 +17,7 @@ const TITLE_MAP: Record<string, string> = {
   '/templates': 'Plantillas',
   '/integrations': 'Integraciones',
   '/reports': 'Informes',
+  '/settings': 'Configuración',
 }
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
@@ -101,12 +102,21 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div
+        className="flex h-screen items-center justify-center"
+        style={{ background: 'var(--bg)' }}
+      >
         <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
+          <div
+            className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg animate-pulse"
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+              fontFamily: 'var(--font-nunito)',
+            }}
+          >
             CT
           </div>
-          <p className="text-sm text-muted-foreground">Cargando...</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>Cargando...</p>
         </div>
       </div>
     )
