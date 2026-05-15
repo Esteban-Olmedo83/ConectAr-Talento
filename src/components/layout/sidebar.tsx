@@ -23,7 +23,7 @@ import type { User } from '@/types'
 // ─── Nav structure ────────────────────────────────────────────────────────────
 const mainNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Pipeline', href: '/pipeline', icon: Columns3 },
+  { label: 'Procesos', href: '/pipeline', icon: Columns3 },
   { label: 'Candidatos', href: '/candidates', icon: Users },
   { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
   { label: 'Entrevistas', href: '/interviews', icon: Calendar },
