@@ -22,15 +22,12 @@ import {
   Plus,
   Search,
   Filter,
-  User2,
   Calendar,
   ChevronDown,
-  Briefcase,
-  Clock,
-  ExternalLink,
+  Mail,
+  MessageCircle,
 } from 'lucide-react'
-import { cn, formatRelativeDate, getInitials, generateId } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
@@ -45,12 +42,27 @@ const STAGES: VacancyStatus[] = [
   'Contratado',
 ]
 
-const STAGE_ACCENT: Record<VacancyStatus, string> = {
-  'Nuevas Vacantes': '#6b7280',
-  'En Proceso': '#3b82f6',
-  'Entrevistas': '#8b5cf6',
-  'Oferta Enviada': '#f59e0b',
-  'Contratado': '#10b981',
+const STAGE_COLORS: Record<VacancyStatus, string> = {
+  'Nuevas Vacantes': '#94a3b8',
+  'En Proceso': '#38bdf8',
+  'Entrevistas': '#a78bfa',
+  'Oferta Enviada': '#fbbf24',
+  'Contratado': '#34d399',
+}
+
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg, #6c63ff, #a78bfa)',
+  'linear-gradient(135deg, #0ea5e9, #38bdf8)',
+  'linear-gradient(135deg, #10b981, #34d399)',
+  'linear-gradient(135deg, #f59e0b, #fbbf24)',
+  'linear-gradient(135deg, #f43f5e, #fb7185)',
+  'linear-gradient(135deg, #d946ef, #e879f9)',
+]
+
+function avatarGradient(name: string): string {
+  let sum = 0
+  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
+  return AVATAR_GRADIENTS[sum % AVATAR_GRADIENTS.length]
 }
 
 interface HydratedApplication extends Application {
@@ -58,30 +70,7 @@ interface HydratedApplication extends Application {
   vacancyTitle?: string
 }
 
-// ─── ATS Score pill ───────────────────────────────────────────────────────────
-function ScorePill({ score }: { score?: number }) {
-  if (score === undefined || score === null) return null
-  const bg =
-    score >= 85 ? 'rgba(52,211,153,0.15)' :
-    score >= 70 ? 'rgba(52,211,153,0.1)' :
-    score >= 50 ? 'rgba(251,191,36,0.15)' :
-    'rgba(239,68,68,0.15)'
-  const color =
-    score >= 85 ? '#34d399' :
-    score >= 70 ? '#34d399' :
-    score >= 50 ? '#fbbf24' :
-    '#ef4444'
-  return (
-    <span
-      className="text-xs font-bold px-1.5 py-0.5 rounded-full"
-      style={{ background: bg, color }}
-    >
-      {score}
-    </span>
-  )
-}
-
-// ─── Source badge ─────────────────────────────────────────────────────────────
+// ─── Source badge colors ──────────────────────────────────────────────────────
 const SOURCE_BG: Record<string, string> = {
   LinkedIn: 'rgba(59,130,246,0.15)',
   Portal: 'rgba(108,99,255,0.15)',
@@ -105,6 +94,86 @@ const SOURCE_TEXT: Record<string, string> = {
   Bumeran: '#38bdf8',
 }
 
+// ─── Stage pills bar ──────────────────────────────────────────────────────────
+function StagePillsBar({
+  stages,
+  counts,
+  activeStage,
+  onSelect,
+}: {
+  stages: VacancyStatus[]
+  counts: Record<VacancyStatus, number>
+  activeStage: VacancyStatus | 'all'
+  onSelect: (s: VacancyStatus | 'all') => void
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <button
+        onClick={() => onSelect('all')}
+        style={{
+          padding: '5px 12px',
+          borderRadius: 99,
+          fontSize: 12,
+          fontWeight: 600,
+          border: '1px solid',
+          borderColor: activeStage === 'all' ? 'var(--accent)' : 'var(--border)',
+          background: activeStage === 'all' ? 'var(--accent-soft)' : 'transparent',
+          color: activeStage === 'all' ? 'var(--accent-2)' : 'var(--muted2)',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        Todos
+      </button>
+      {stages.map(stage => {
+        const isActive = activeStage === stage
+        const color = STAGE_COLORS[stage]
+        return (
+          <button
+            key={stage}
+            onClick={() => onSelect(stage)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 12px',
+              borderRadius: 99,
+              fontSize: 12,
+              fontWeight: 600,
+              border: '1px solid',
+              borderColor: isActive ? color : 'var(--border)',
+              background: isActive ? `${color}18` : 'transparent',
+              color: isActive ? color : 'var(--muted2)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {stage}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 18,
+                height: 18,
+                borderRadius: 99,
+                fontSize: 10,
+                fontWeight: 900,
+                fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+                background: isActive ? color : 'var(--surface2)',
+                color: isActive ? '#fff' : 'var(--muted2)',
+                padding: '0 4px',
+              }}
+            >
+              {counts[stage]}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Candidate card ───────────────────────────────────────────────────────────
 interface CardProps {
   app: HydratedApplication
@@ -114,67 +183,242 @@ interface CardProps {
 function CandidateCard({ app, isDragging }: CardProps) {
   const c = app.candidate
   if (!c) return null
+  const [hovered, setHovered] = React.useState(false)
+
+  const stageColor = STAGE_COLORS[app.status]
+  const score = c.atsScore ?? 0
+  const scoreColor =
+    score >= 85 ? '#34d399' :
+    score >= 70 ? 'var(--accent-2)' :
+    '#fbbf24'
+
   const daysSince = Math.floor(
     (Date.now() - new Date(app.appliedAt).getTime()) / 86400000
   )
+
+  const skills = c.skills ?? []
+  const visibleSkills = skills.slice(0, 3)
+  const extraSkills = skills.length - 3
+
   return (
     <div
-      className={cn(
-        'rounded-xl border p-3 cursor-grab select-none transition-all',
-        isDragging && 'opacity-50 rotate-1'
-      )}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
       style={{
+        position: 'relative',
         background: 'var(--surface2)',
-        borderColor: 'var(--border)',
-        boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.2)',
+        border: `1px solid ${hovered && !isDragging ? stageColor : 'var(--border)'}`,
+        borderRadius: 12,
+        padding: '12px 12px 10px 16px',
+        transform: hovered && !isDragging ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !isDragging
+          ? `0 6px 20px rgba(0,0,0,0.3), 0 0 0 1px ${stageColor}30`
+          : isDragging
+          ? '0 8px 24px rgba(0,0,0,0.4)'
+          : '0 1px 3px rgba(0,0,0,0.2)',
+        transition: 'all 0.15s ease',
+        overflow: 'hidden',
       }}
     >
-      <div className="flex items-start gap-2">
-        <div
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
-        >
-          {getInitials(c.fullName)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{c.fullName}</span>
-            <ScorePill score={c.atsScore} />
-          </div>
-          <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted)' }}>{app.vacancyTitle}</p>
-        </div>
-      </div>
+      {/* Left accent bar */}
       <div
-        className="flex items-center justify-between mt-2 pt-2"
-        style={{ borderTop: '1px solid var(--border)' }}
-      >
-        <div className="flex items-center gap-1">
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: 3,
+          background: stageColor,
+          borderRadius: '12px 0 0 12px',
+        }}
+      />
+
+      {/* Avatar + name row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        {/* Avatar with score badge */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div
             style={{
-              background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)',
-              color: SOURCE_TEXT[c.source] ?? '#9ca3af',
+              width: 42,
+              height: 42,
+              borderRadius: 11,
+              background: avatarGradient(c.fullName),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 700,
+              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
             }}
           >
-            {c.source}
-          </span>
-          <span className="text-[10px] flex items-center gap-0.5" style={{ color: 'var(--muted)' }}>
-            <Clock className="h-2.5 w-2.5" />
+            {getInitials(c.fullName)}
+          </div>
+          {score > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: -4,
+                right: -4,
+                background: 'var(--surface)',
+                border: `1.5px solid var(--border)`,
+                borderRadius: 6,
+                padding: '1px 4px',
+                fontSize: 10,
+                fontWeight: 900,
+                fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+                color: scoreColor,
+                lineHeight: 1.3,
+              }}
+            >
+              {score}
+            </div>
+          )}
+        </div>
+
+        {/* Name + vacancy */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+            {c.fullName}
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {app.vacancyTitle}
+          </p>
+        </div>
+      </div>
+
+      {/* Skills chips */}
+      {visibleSkills.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 9 }}>
+          {visibleSkills.map(skill => (
+            <span
+              key={skill}
+              style={{
+                fontSize: 10,
+                padding: '2px 7px',
+                borderRadius: 99,
+                background: 'var(--accent-soft)',
+                color: 'var(--accent-2)',
+                border: '1px solid rgba(var(--accent-rgb), 0.18)',
+                fontWeight: 500,
+              }}
+            >
+              {skill}
+            </span>
+          ))}
+          {extraSkills > 0 && (
+            <span
+              style={{
+                fontSize: 10,
+                padding: '2px 7px',
+                borderRadius: 99,
+                background: 'var(--surface3, var(--surface2))',
+                color: 'var(--muted)',
+                border: '1px solid var(--border)',
+                fontWeight: 500,
+              }}
+            >
+              +{extraSkills}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Bottom meta row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 9,
+          paddingTop: 8,
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        {/* Source + days */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {c.source && (
+            <span
+              style={{
+                fontSize: 9,
+                padding: '1.5px 6px',
+                borderRadius: 99,
+                fontWeight: 600,
+                background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)',
+                color: SOURCE_TEXT[c.source] ?? '#9ca3af',
+              }}
+            >
+              {c.source}
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: 'var(--muted)' }}>
             {daysSince === 0 ? 'Hoy' : `${daysSince}d`}
           </span>
         </div>
-        <div className="flex gap-1">
+
+        {/* Quick action buttons */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.15s',
+          }}
+        >
           <button
-            className="text-[10px] font-medium transition-colors hover:opacity-80"
-            style={{ color: 'var(--accent-2)' }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--muted2)',
+            }}
+            title="Enviar email"
           >
-            Ver
+            <Mail style={{ width: 11, height: 11 }} />
           </button>
           <button
-            className="text-[10px] transition-colors hover:opacity-80"
-            style={{ color: 'var(--muted)' }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--muted2)',
+            }}
+            title="Agendar entrevista"
           >
-            <Calendar className="h-3 w-3" />
+            <Calendar style={{ width: 11, height: 11 }} />
+          </button>
+          <button
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--muted2)',
+            }}
+            title="WhatsApp"
+          >
+            <MessageCircle style={{ width: 11, height: 11 }} />
           </button>
         </div>
       </div>
@@ -205,51 +449,73 @@ function Lane({
   stage: VacancyStatus
   apps: HydratedApplication[]
 }) {
-  const accent = STAGE_ACCENT[stage]
+  const stageColor = STAGE_COLORS[stage]
   return (
     <div
-      className="flex flex-col rounded-xl min-w-[260px] w-[260px] flex-shrink-0 border"
+      className="flex flex-col rounded-xl min-w-[270px] w-[270px] flex-shrink-0"
       style={{
         background: 'var(--surface)',
-        borderColor: 'var(--border)',
-      }}
+        border: '1px solid var(--border)',
+        '--lane-color': stageColor,
+        overflow: 'hidden',
+      } as React.CSSProperties}
     >
-      {/* Lane header with colored top bar */}
+      {/* Lane header — 3px top bar + title row */}
       <div
-        className="relative flex items-center gap-2 px-3 py-2.5"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{
+          position: 'relative',
+          borderBottom: '1px solid var(--border)',
+        }}
       >
-        {/* Accent top bar */}
-        <div
-          className="absolute top-0 left-4 right-4 h-[2px] rounded-b"
-          style={{ background: accent }}
-        />
-        <span
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: accent }}
-        />
-        <span className="text-xs font-semibold flex-1" style={{ color: 'var(--text)' }}>{stage}</span>
-        <span
-          className="text-xs font-bold rounded-full px-2 py-0.5"
-          style={{
-            background: `${accent}22`,
-            color: accent,
-          }}
-        >
-          {apps.length}
-        </span>
+        {/* 3px top color bar */}
+        <div style={{ height: 3, background: stageColor }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px' }}>
+          {/* Stage dot */}
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{stage}</span>
+          {/* Count badge */}
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 900,
+              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+              padding: '1px 8px',
+              borderRadius: 99,
+              background: `${stageColor}22`,
+              color: stageColor,
+            }}
+          >
+            {apps.length}
+          </span>
+          {/* Add button */}
+          <button
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 6,
+              background: 'var(--surface2)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--muted)',
+              flexShrink: 0,
+            }}
+          >
+            <Plus style={{ width: 11, height: 11 }} />
+          </button>
+        </div>
       </div>
+
       <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2 p-2 flex-1 min-h-[120px]">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1, minHeight: 120 }}>
           {apps.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--surface2)' }}
-              >
-                <Plus className="h-4 w-4" style={{ color: 'var(--muted)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Plus style={{ width: 14, height: 14, color: 'var(--muted)' }} />
               </div>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>Sin candidatos</p>
+              <p style={{ fontSize: 11, color: 'var(--muted)' }}>Sin candidatos</p>
             </div>
           )}
           {apps.map(app => (
@@ -261,23 +527,35 @@ function Lane({
   )
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function Skeleton() {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16 }}>
       {STAGES.map(s => (
         <div
           key={s}
-          className="min-w-[260px] w-[260px] rounded-xl border animate-pulse"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          style={{
+            minWidth: 270,
+            width: 270,
+            borderRadius: 12,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            overflow: 'hidden',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}
         >
-          <div
-            className="h-10 rounded-t-xl"
-            style={{ background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}
-          />
-          <div className="p-2 flex flex-col gap-2">
+          <div style={{ height: 3, background: `${STAGE_COLORS[s]}55` }} />
+          <div style={{ height: 40, background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }} />
+          <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[0, 1, 2].map(i => (
-              <div key={i} className="h-16 rounded-lg" style={{ background: 'var(--surface3)' }} />
+              <div key={i} style={{ height: 90, borderRadius: 10, background: 'var(--surface2)' }} />
             ))}
           </div>
         </div>
@@ -295,6 +573,7 @@ export default function PipelinePage() {
   const [filterVacancy, setFilterVacancy] = React.useState<string>('all')
   const [filterScore, setFilterScore] = React.useState<string>('all')
   const [searchText, setSearchText] = React.useState('')
+  const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -326,6 +605,7 @@ export default function PipelinePage() {
     return applications.filter(a => {
       const c = a.candidate
       if (!c) return false
+      if (activeStage !== 'all' && a.status !== activeStage) return false
       if (filterVacancy !== 'all' && a.vacancyId !== filterVacancy) return false
       if (filterScore === '80+' && (c.atsScore ?? 0) < 80) return false
       if (filterScore === '60-79' && ((c.atsScore ?? 0) < 60 || (c.atsScore ?? 0) >= 80)) return false
@@ -333,7 +613,22 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, filterVacancy, filterScore, searchText])
+  }, [applications, activeStage, filterVacancy, filterScore, searchText])
+
+  // Counts per stage (from ALL applications, not filtered, for pills)
+  const stageCounts = React.useMemo(() => {
+    const map: Record<VacancyStatus, number> = {
+      'Nuevas Vacantes': 0,
+      'En Proceso': 0,
+      'Entrevistas': 0,
+      'Oferta Enviada': 0,
+      'Contratado': 0,
+    }
+    applications.forEach(a => {
+      if (map[a.status] !== undefined) map[a.status]++
+    })
+    return map
+  }, [applications])
 
   const byStage = React.useMemo(() => {
     const map: Record<VacancyStatus, HydratedApplication[]> = {
@@ -361,7 +656,6 @@ export default function PipelinePage() {
     const draggedApp = applications.find(a => a.id === active.id)
     if (!draggedApp) return
 
-    // Find which stage the drop target belongs to
     let newStage: VacancyStatus | null = null
     for (const stage of STAGES) {
       if (over.id === stage || byStage[stage].some(a => a.id === over.id)) {
@@ -371,7 +665,6 @@ export default function PipelinePage() {
     }
     if (!newStage || newStage === draggedApp.status) return
 
-    // Optimistic update
     setApplications(prev =>
       prev.map(a => a.id === draggedApp.id ? { ...a, status: newStage! } : a)
     )
@@ -379,13 +672,11 @@ export default function PipelinePage() {
   }
 
   if (loading) return (
-    <div className="p-6">
-      <div className="h-8 w-64 rounded animate-pulse mb-6" style={{ background: 'var(--surface2)' }} />
+    <div style={{ padding: 24 }}>
+      <div style={{ height: 36, width: 280, borderRadius: 8, background: 'var(--surface2)', marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
       <Skeleton />
     </div>
   )
-
-  const total = filtered.length
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--surface2)',
@@ -399,6 +690,22 @@ export default function PipelinePage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Stage pills bar */}
+      <div
+        style={{
+          padding: '10px 0 10px',
+          borderBottom: '1px solid var(--border)',
+          marginBottom: 0,
+        }}
+      >
+        <StagePillsBar
+          stages={STAGES}
+          counts={stageCounts}
+          activeStage={activeStage}
+          onSelect={setActiveStage}
+        />
+      </div>
+
       {/* Filters */}
       <div
         className="flex items-center gap-3 py-3 flex-wrap shrink-0"
@@ -450,9 +757,9 @@ export default function PipelinePage() {
             style={{ color: 'var(--muted)' }}
           />
         </div>
-        {(filterVacancy !== 'all' || filterScore !== 'all' || searchText) && (
+        {(filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
-            onClick={() => { setFilterVacancy('all'); setFilterScore('all'); setSearchText('') }}
+            onClick={() => { setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
             className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
             style={{ color: 'var(--muted)' }}
           >

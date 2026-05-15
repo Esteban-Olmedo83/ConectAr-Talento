@@ -15,14 +15,15 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Columns3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 const mainNavItems = [
-  { label: 'Dashboard', href: '/pipeline', icon: LayoutDashboard },
-  { label: 'Pipeline', href: '/pipeline', icon: LayoutDashboard, hidden: true },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Pipeline', href: '/pipeline', icon: Columns3 },
   { label: 'Candidatos', href: '/candidates', icon: Users },
   { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
   { label: 'Entrevistas', href: '/interviews', icon: Calendar },
@@ -116,9 +117,6 @@ export function Sidebar({
     return pathname === href || pathname?.startsWith(href + '/')
   }
 
-  // For Dashboard item — active when on /pipeline
-  const dashboardActive = pathname === '/pipeline' || pathname?.startsWith('/pipeline/')
-
   return (
     <>
       {/* Mobile overlay */}
@@ -207,39 +205,17 @@ export function Sidebar({
           {/* Main section */}
           <SectionLabel label="Principal" collapsed={isCollapsed} />
 
-          {/* Dashboard (points to /pipeline) */}
-          <NavItem
-            href="/pipeline"
-            icon={LayoutDashboard}
-            label="Dashboard"
-            isActive={dashboardActive}
-            isCollapsed={isCollapsed}
-            onClick={onClose}
-          />
-          <NavItem
-            href="/candidates"
-            icon={Users}
-            label="Candidatos"
-            isActive={isActive('/candidates')}
-            isCollapsed={isCollapsed}
-            onClick={onClose}
-          />
-          <NavItem
-            href="/vacancies"
-            icon={Briefcase}
-            label="Vacantes"
-            isActive={isActive('/vacancies')}
-            isCollapsed={isCollapsed}
-            onClick={onClose}
-          />
-          <NavItem
-            href="/interviews"
-            icon={Calendar}
-            label="Entrevistas"
-            isActive={isActive('/interviews')}
-            isCollapsed={isCollapsed}
-            onClick={onClose}
-          />
+          {mainNavItems.map(item => (
+            <NavItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              isActive={isActive(item.href)}
+              isCollapsed={isCollapsed}
+              onClick={onClose}
+            />
+          ))}
 
           {/* Tools section */}
           <SectionLabel label="Herramientas" collapsed={isCollapsed} />

@@ -10,6 +10,7 @@ import { UserContext } from '@/lib/context/user-context'
 import type { User } from '@/types'
 
 const TITLE_MAP: Record<string, string> = {
+  '/dashboard': 'Dashboard',
   '/pipeline': 'Procesos de reclutamiento',
   '/vacancies': 'Gestión de Vacantes',
   '/candidates': 'Candidatos',
