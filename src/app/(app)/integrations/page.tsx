@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Mail,
   MessageCircle,
@@ -16,6 +17,7 @@ import {
   Loader2,
   Lock,
   Globe,
+  ExternalLink,
 } from 'lucide-react'
 
 /* LinkedIn pseudo-icon since lucide-react doesn't export Linkedin */
@@ -29,7 +31,6 @@ function LinkedInIcon({ className }: { className?: string }) {
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
-import { generateId } from '@/lib/utils'
 
 const PLAN_LIMITS: Record<string, number> = {
   free: 1,
@@ -37,6 +38,19 @@ const PLAN_LIMITS: Record<string, number> = {
   pro: 3,
   business: 5,
   enterprise: 999,
+}
+
+/* ─── Platform configuration status ─────────────────────────── */
+// Next.js inlines NEXT_PUBLIC_* env vars at build time.
+// Set NEXT_PUBLIC_<PLATFORM>_CONFIGURED=true in .env.local to enable real OAuth buttons.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _proc = (typeof (globalThis as any).process !== 'undefined' ? (globalThis as any).process : { env: {} }) as { env: Record<string, string | undefined> }
+const PLATFORM_CONFIGURED: Record<string, boolean> = {
+  linkedin: Boolean(_proc.env.NEXT_PUBLIC_LINKEDIN_CONFIGURED),
+  google: Boolean(_proc.env.NEXT_PUBLIC_GOOGLE_CONFIGURED),
+  microsoft: Boolean(_proc.env.NEXT_PUBLIC_MICROSOFT_CONFIGURED),
+  zoom: Boolean(_proc.env.NEXT_PUBLIC_ZOOM_CONFIGURED),
+  meta: Boolean(_proc.env.NEXT_PUBLIC_META_CONFIGURED),
 }
 
 /* ─── status config ──────────────────────────────────────────── */
@@ -47,6 +61,33 @@ const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.Reac
   pending: { label: 'Pendiente', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, color: 'text-blue-600 bg-blue-100' },
 }
 
+/* ─── Toast notification ─────────────────────────────────────── */
+const CONNECTED_LABELS: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  google: 'Google (Gmail + Meet)',
+  microsoft: 'Microsoft (Outlook + Teams)',
+  zoom: 'Zoom',
+  whatsapp: 'WhatsApp Business',
+  meta: 'WhatsApp Business',
+}
+
+function SuccessToast({ platform, onClose }: { platform: string; onClose: () => void }) {
+  const label = CONNECTED_LABELS[platform] ?? platform
+  React.useEffect(() => {
+    const t = setTimeout(onClose, 5000)
+    return () => clearTimeout(t)
+  }, [onClose])
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-green-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2">
+      <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+      <span className="text-sm font-medium">{label} conectado correctamente</span>
+      <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
 /* ─── ConnectedAccountRow ────────────────────────────────────── */
 function ConnectedAccountRow({
   integration,
@@ -55,7 +96,7 @@ function ConnectedAccountRow({
 }: {
   integration: Integration
   onRemove: (id: string) => void | Promise<void>
-  onReconnect: (id: string) => void | Promise<void>
+  onReconnect: (platform: IntegrationPlatform) => void
 }) {
   const sc = STATUS_CONFIG[integration.status]
   return (
@@ -78,8 +119,9 @@ function ConnectedAccountRow({
         </span>
         {integration.status === 'expired' && (
           <button
-            onClick={() => onReconnect(integration.id)}
+            onClick={() => onReconnect(integration.platform)}
             className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            title="Reconectar"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
@@ -87,6 +129,7 @@ function ConnectedAccountRow({
         <button
           onClick={() => onRemove(integration.id)}
           className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          title="Desconectar"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -95,62 +138,84 @@ function ConnectedAccountRow({
   )
 }
 
-/* ─── OAuthConnectModal ──────────────────────────────────────── */
-function OAuthConnectModal({
+/* ─── Job board modal ────────────────────────────────────────── */
+function JobBoardModal({
   platform,
-  title,
-  description,
-  fields,
+  name,
   onConnect,
   onClose,
 }: {
   platform: IntegrationPlatform
-  title: string
-  description: string
-  fields: { key: string; label: string; type?: string; placeholder?: string }[]
-  onConnect: (data: Record<string, string>) => void
+  name: string
+  onConnect: (platform: IntegrationPlatform, data: { accountName: string; accountEmail?: string; apiKey?: string }) => Promise<void>
   onClose: () => void
 }) {
-  const [values, setValues] = React.useState<Record<string, string>>({})
+  const [apiKey, setApiKey] = React.useState('')
+  const [accountEmail, setAccountEmail] = React.useState('')
   const [loading, setLoading] = React.useState(false)
 
   async function handleSubmit() {
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1200))
-    onConnect(values)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/integrations/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform,
+          account_name: name,
+          account_email: accountEmail || undefined,
+          api_key: apiKey || undefined,
+        }),
+      })
+      if (res.ok) {
+        await onConnect(platform, { accountName: name, accountEmail: accountEmail || undefined, apiKey: apiKey || undefined })
+      }
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const isValid = fields.every((f) => (values[f.key] ?? '').trim() !== '')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold text-foreground">{title}</h2>
+          <h2 className="font-semibold text-foreground">Conectar {name}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="p-5 space-y-4">
-          <p className="text-sm text-muted-foreground">{description}</p>
-          {fields.map((f) => (
-            <div key={f.key}>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
-                {f.label}
-              </label>
-              <input
-                type={f.type ?? 'text'}
-                value={values[f.key] ?? ''}
-                onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-            </div>
-          ))}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
+              Email de la cuenta
+            </label>
+            <input
+              type="email"
+              value={accountEmail}
+              onChange={(e) => setAccountEmail(e.target.value)}
+              placeholder="cuenta@empresa.com"
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
+              API Key
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Ingresá tu API key"
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
             <Lock className="h-3.5 w-3.5 flex-shrink-0" />
             <span>Tus credenciales se guardan encriptadas y nunca se comparten.</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
+            <Globe className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Necesitás una cuenta de empleador activa en el portal para obtener tu API key.</span>
           </div>
         </div>
         <div className="flex gap-2 justify-end p-5 border-t border-border">
@@ -159,7 +224,7 @@ function OAuthConnectModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid || loading}
+            disabled={loading || (!apiKey && !accountEmail)}
             className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -172,79 +237,6 @@ function OAuthConnectModal({
 }
 
 /* ─── section config ─────────────────────────────────────────── */
-type ModalConfig = {
-  platform: IntegrationPlatform
-  title: string
-  description: string
-  fields: { key: string; label: string; type?: string; placeholder?: string }[]
-}
-
-const OAUTH_CONFIGS: Record<string, ModalConfig> = {
-  linkedin: {
-    platform: 'linkedin',
-    title: 'Conectar LinkedIn',
-    description: 'Autoriza a ConectAr Talento para publicar vacantes y enviar mensajes desde tu cuenta de LinkedIn.',
-    fields: [
-      { key: 'accountName', label: 'Nombre de la cuenta', placeholder: 'Ej: Juan Pérez (Perfil personal)' },
-      { key: 'clientId', label: 'LinkedIn Client ID', placeholder: '86abc123...' },
-      { key: 'clientSecret', label: 'LinkedIn Client Secret', type: 'password', placeholder: '••••••••' },
-    ],
-  },
-  gmail: {
-    platform: 'gmail',
-    title: 'Conectar Gmail',
-    description: 'Conecta tu cuenta de Gmail para enviar emails a candidatos directamente desde la app.',
-    fields: [
-      { key: 'accountEmail', label: 'Email de Gmail', placeholder: 'nombre@gmail.com' },
-      { key: 'accountName', label: 'Nombre del remitente', placeholder: 'Equipo de RRHH' },
-    ],
-  },
-  outlook: {
-    platform: 'outlook',
-    title: 'Conectar Outlook / Microsoft 365',
-    description: 'Conecta tu cuenta corporativa de Microsoft para enviar emails profesionales.',
-    fields: [
-      { key: 'accountEmail', label: 'Email corporativo', placeholder: 'nombre@empresa.com' },
-      { key: 'accountName', label: 'Nombre del remitente', placeholder: 'RRHH Empresa' },
-      { key: 'tenantId', label: 'Tenant ID (Azure)', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' },
-    ],
-  },
-  smtp: {
-    platform: 'smtp',
-    title: 'Configurar SMTP personalizado',
-    description: 'Conecta cualquier servidor de email corporativo via SMTP.',
-    fields: [
-      { key: 'host', label: 'Servidor SMTP', placeholder: 'smtp.tuempresa.com' },
-      { key: 'port', label: 'Puerto', placeholder: '587' },
-      { key: 'username', label: 'Usuario', placeholder: 'rrhh@tuempresa.com' },
-      { key: 'password', label: 'Contraseña', type: 'password', placeholder: '••••••••' },
-      { key: 'accountName', label: 'Nombre del remitente', placeholder: 'RRHH' },
-    ],
-  },
-  whatsapp: {
-    platform: 'whatsapp',
-    title: 'Conectar WhatsApp Business',
-    description: 'Conecta tu número de WhatsApp Business via Meta Cloud API.',
-    fields: [
-      { key: 'accountName', label: 'Nombre del negocio', placeholder: 'RRHH Empresa' },
-      { key: 'phoneNumberId', label: 'Phone Number ID', placeholder: '1234567890' },
-      { key: 'accessToken', label: 'Access Token de Meta', type: 'password', placeholder: 'EAAxxxxxxxx' },
-      { key: 'verifyToken', label: 'Verify Token (webhook)', placeholder: 'mi_verify_token_secreto' },
-    ],
-  },
-  zoom: {
-    platform: 'zoom',
-    title: 'Conectar Zoom',
-    description: 'Autoriza a ConectAr Talento para crear reuniones de Zoom desde la agenda de entrevistas.',
-    fields: [
-      { key: 'accountEmail', label: 'Email de la cuenta Zoom', placeholder: 'nombre@empresa.com' },
-      { key: 'accountName', label: 'Nombre de la cuenta', placeholder: 'Mi cuenta Zoom' },
-      { key: 'clientId', label: 'Zoom OAuth Client ID', placeholder: 'AbCdEfGhIj' },
-      { key: 'clientSecret', label: 'Zoom OAuth Client Secret', type: 'password', placeholder: '••••••••' },
-    ],
-  },
-}
-
 const JOB_BOARDS: { platform: IntegrationPlatform; name: string; countries: string; color: string; available: boolean }[] = [
   { platform: 'computrabajo', name: 'Computrabajo', countries: 'AR/MX/CO/PE/CL', color: '#E8003D', available: true },
   { platform: 'zonajobs', name: 'ZonaJobs', countries: 'AR', color: '#FF6B00', available: true },
@@ -256,12 +248,60 @@ const JOB_BOARDS: { platform: IntegrationPlatform; name: string; countries: stri
   { platform: 'infojobs', name: 'InfoJobs', countries: 'AR/ES', color: '#36B37E', available: false },
 ]
 
+/* ─── OAuth platform configs ─────────────────────────────────── */
+const OAUTH_ROUTES: Record<string, { href: string; label: string; configKey: string; envVars: string[] }> = {
+  linkedin: {
+    href: '/api/oauth/linkedin',
+    label: 'Conectar LinkedIn',
+    configKey: 'linkedin',
+    envVars: ['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET'],
+  },
+  gmail: {
+    href: '/api/oauth/google',
+    label: 'Conectar Gmail + Google Meet',
+    configKey: 'google',
+    envVars: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+  },
+  outlook: {
+    href: '/api/oauth/microsoft',
+    label: 'Conectar Outlook + Teams',
+    configKey: 'microsoft',
+    envVars: ['MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
+  },
+  zoom: {
+    href: '/api/oauth/zoom',
+    label: 'Conectar Zoom',
+    configKey: 'zoom',
+    envVars: ['ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'],
+  },
+  whatsapp: {
+    href: '/api/oauth/meta',
+    label: 'Conectar WhatsApp Business',
+    configKey: 'meta',
+    envVars: ['META_APP_ID', 'META_APP_SECRET'],
+  },
+}
+
 /* ─── main page ──────────────────────────────────────────────── */
 export default function IntegrationsPage() {
   const { user } = useUser()
+  const searchParams = useSearchParams()
   const [integrations, setIntegrations] = React.useState<Integration[]>([])
-  const [activeModal, setActiveModal] = React.useState<string | null>(null)
+  const [activeJobBoardModal, setActiveJobBoardModal] = React.useState<IntegrationPlatform | null>(null)
+  const [toast, setToast] = React.useState<string | null>(null)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+
+  // Handle ?connected= query param
+  React.useEffect(() => {
+    const connected = searchParams.get('connected')
+    if (connected) {
+      setToast(connected)
+      // Remove query param from URL without reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('connected')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [searchParams])
 
   React.useEffect(() => {
     const tenantId = user?.tenantId ?? ''
@@ -275,18 +315,23 @@ export default function IntegrationsPage() {
     return integrations.filter((i) => i.platform === platform)
   }
 
-  async function handleConnect(platform: IntegrationPlatform, data: Record<string, string>) {
+  async function handleJobBoardConnect(
+    platform: IntegrationPlatform,
+    data: { accountName: string; accountEmail?: string }
+  ) {
     const tenantId = user?.tenantId ?? ''
     const res = await provider.saveIntegration({
       tenantId,
       platform,
-      accountName: data.accountName ?? data.accountEmail ?? platform,
-      accountEmail: data.accountEmail ?? data.username,
+      accountName: data.accountName,
+      accountEmail: data.accountEmail,
       status: 'connected',
-      metadata: data,
     })
-    if (res.data) setIntegrations((prev) => [...prev, res.data!])
-    setActiveModal(null)
+    if (res.data) setIntegrations((prev) => {
+      const without = prev.filter((i) => i.platform !== platform)
+      return [...without, res.data!]
+    })
+    setActiveJobBoardModal(null)
   }
 
   async function handleRemove(id: string) {
@@ -295,10 +340,14 @@ export default function IntegrationsPage() {
     setIntegrations((prev) => prev.filter((i) => i.id !== id))
   }
 
-  function handleReconnect(id: string) {
-    setIntegrations((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, status: 'connected' as IntegrationStatus } : i))
-    )
+  function handleReconnect(platform: IntegrationPlatform) {
+    const oauthConfig = Object.values(OAUTH_ROUTES).find((_, i) => {
+      const keys = Object.keys(OAUTH_ROUTES)
+      return keys[i] === platform
+    })
+    if (oauthConfig) {
+      window.location.href = oauthConfig.href
+    }
   }
 
   const plan = user?.plan ?? 'free'
@@ -337,31 +386,56 @@ export default function IntegrationsPage() {
     )
   }
 
-  function ConnectButton({
-    label,
+  /* ── OAuth connect button (real redirect) ── */
+  function OAuthConnectButton({
     platformKey,
     disabled,
   }: {
-    label: string
     platformKey: string
     disabled?: boolean
   }) {
+    const config = OAUTH_ROUTES[platformKey]
+    if (!config) return null
+
+    const configured = PLATFORM_CONFIGURED[config.configKey]
+
+    if (!configured) {
+      return (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+              <AlertCircle className="h-3 w-3" />
+              Requiere configuración
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Variables de entorno necesarias: <code className="font-mono text-xs">{config.envVars.join(', ')}</code>
+          </p>
+        </div>
+      )
+    }
+
     return (
-      <button
-        onClick={() => !disabled && setActiveModal(platformKey)}
-        disabled={disabled}
-        className="flex items-center gap-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      <a
+        href={disabled ? undefined : config.href}
+        aria-disabled={disabled}
+        className={`inline-flex items-center gap-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg transition-colors ${disabled ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}
       >
-        <Plus className="h-3.5 w-3.5" />
-        {label}
-      </button>
+        <ExternalLink className="h-3.5 w-3.5" />
+        {config.label}
+      </a>
     )
   }
 
-  const activeConfig = activeModal ? OAUTH_CONFIGS[activeModal] : null
+  const activeJobBoard = activeJobBoardModal
+    ? JOB_BOARDS.find((j) => j.platform === activeJobBoardModal)
+    : null
 
   return (
     <div className="flex flex-col h-full">
+      {/* success toast */}
+      {toast && <SuccessToast platform={toast} onClose={() => setToast(null)} />}
+
       {/* header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">
         <div>
@@ -383,11 +457,7 @@ export default function IntegrationsPage() {
             {getByPlatform('linkedin').map((i) => (
               <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
             ))}
-            <ConnectButton
-              label="Conectar LinkedIn"
-              platformKey="linkedin"
-              disabled={!canConnect('linkedin')}
-            />
+            <OAuthConnectButton platformKey="linkedin" disabled={!canConnect('linkedin')} />
             {!canConnect('linkedin') && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Lock className="h-3 w-3" /> Límite alcanzado. Subí de plan para agregar más cuentas.
@@ -399,22 +469,22 @@ export default function IntegrationsPage() {
         {/* 2. Email Corporativo */}
         <Section icon={<Mail className="h-5 w-5 text-gray-500" />} title="Email Corporativo" subtitle={`Gmail, Outlook, SMTP · hasta ${limit} cuenta${limit > 1 ? 's' : ''}`}>
           <div className="space-y-3">
-            {(['gmail', 'outlook', 'smtp'] as IntegrationPlatform[]).map((p) => {
-              const accounts = getByPlatform(p)
-              const labels: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook / M365', smtp: 'SMTP personalizado' }
-              return (
-                <div key={p}>
-                  {accounts.map((i) => (
-                    <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
-                  ))}
-                  <ConnectButton
-                    label={`Conectar ${labels[p]}`}
-                    platformKey={p}
-                    disabled={!canConnect(p)}
-                  />
-                </div>
-              )
-            })}
+            {/* Gmail */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-2">Gmail</p>
+              {getByPlatform('gmail').map((i) => (
+                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+              ))}
+              <OAuthConnectButton platformKey="gmail" disabled={!canConnect('gmail')} />
+            </div>
+            {/* Outlook */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-2">Outlook / Microsoft 365</p>
+              {getByPlatform('outlook').map((i) => (
+                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+              ))}
+              <OAuthConnectButton platformKey="outlook" disabled={!canConnect('outlook')} />
+            </div>
           </div>
         </Section>
 
@@ -424,16 +494,12 @@ export default function IntegrationsPage() {
             {getByPlatform('whatsapp').map((i) => (
               <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
             ))}
-            <ConnectButton
-              label="Conectar WhatsApp Business"
-              platformKey="whatsapp"
-              disabled={!canConnect('whatsapp')}
-            />
+            <OAuthConnectButton platformKey="whatsapp" disabled={!canConnect('whatsapp')} />
             <div className="text-xs text-muted-foreground bg-muted rounded-lg p-3 space-y-1">
-              <p className="font-medium text-foreground">¿Cómo obtener el Phone Number ID?</p>
+              <p className="font-medium text-foreground">¿Cómo obtener acceso?</p>
               <p>1. Creá una app en <span className="text-primary">developers.facebook.com</span></p>
               <p>2. Agregá el producto "WhatsApp Business"</p>
-              <p>3. Copiá el Phone Number ID y el Access Token</p>
+              <p>3. Completá la verificación de negocio en Meta</p>
             </div>
           </div>
         </Section>
@@ -447,7 +513,7 @@ export default function IntegrationsPage() {
               {getByPlatform('zoom').map((i) => (
                 <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
               ))}
-              <ConnectButton label="Conectar Zoom" platformKey="zoom" disabled={!canConnect('zoom')} />
+              <OAuthConnectButton platformKey="zoom" disabled={!canConnect('zoom')} />
             </div>
 
             {/* Google Meet */}
@@ -506,14 +572,20 @@ export default function IntegrationsPage() {
                     <p className="text-xs text-muted-foreground">{jb.countries}</p>
                   </div>
                   {isConnected ? (
-                    <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Conectado
-                    </span>
+                    <div className="flex flex-col items-center gap-1 w-full">
+                      <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Conectado
+                      </span>
+                      <button
+                        onClick={() => handleRemove(connected[0].id)}
+                        className="text-xs text-muted-foreground hover:text-red-500 flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" /> Desconectar
+                      </button>
+                    </div>
                   ) : jb.available ? (
                     <button
-                      onClick={() =>
-                        setActiveModal(`jobboard_${jb.platform}`)
-                      }
+                      onClick={() => setActiveJobBoardModal(jb.platform)}
                       className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-lg transition-colors"
                     >
                       Conectar
@@ -547,53 +619,14 @@ export default function IntegrationsPage() {
         )}
       </div>
 
-      {/* modals */}
-      {activeModal && activeConfig && (
-        <OAuthConnectModal
-          {...activeConfig}
-          onConnect={(data) => handleConnect(activeConfig.platform, data)}
-          onClose={() => setActiveModal(null)}
+      {/* Job board modal */}
+      {activeJobBoard && (
+        <JobBoardModal
+          platform={activeJobBoard.platform}
+          name={activeJobBoard.name}
+          onConnect={handleJobBoardConnect}
+          onClose={() => setActiveJobBoardModal(null)}
         />
-      )}
-
-      {/* job board connect modal */}
-      {activeModal?.startsWith('jobboard_') && !activeConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-foreground">Conectar Job Board</h2>
-              <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-muted">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">API Key</label>
-                <input
-                  placeholder="Ingresá tu API key"
-                  className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
-                <Globe className="h-3.5 w-3.5 flex-shrink-0" />
-                <span>Necesitás una cuenta de empleador activa en el portal para obtener tu API key.</span>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-sm text-muted-foreground">Cancelar</button>
-              <button
-                onClick={() => {
-                  const platform = activeModal.replace('jobboard_', '') as IntegrationPlatform
-                  const jb = JOB_BOARDS.find((j) => j.platform === platform)
-                  handleConnect(platform, { accountName: jb?.name ?? platform })
-                }}
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                Conectar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
