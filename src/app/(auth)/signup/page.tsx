@@ -88,7 +88,7 @@ export default function SignupPage() {
       return
     }
     setSuccess(true)
-    setTimeout(() => router.push('/pipeline'), 2000)
+    setTimeout(() => router.push('/dashboard'), 2000)
   }
 
   if (success) {
