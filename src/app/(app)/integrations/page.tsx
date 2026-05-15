@@ -26,32 +26,10 @@ function LinkedInIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
 import { generateId } from '@/lib/utils'
-
-/* ─── helpers ────────────────────────────────────────────────── */
-function getTenantId(): string {
-  if (typeof window === 'undefined') return 'default'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'default'
-    return JSON.parse(raw).tenantId ?? 'default'
-  } catch {
-    return 'default'
-  }
-}
-
-function getUserPlan(): string {
-  if (typeof window === 'undefined') return 'free'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'free'
-    return JSON.parse(raw).plan ?? 'free'
-  } catch {
-    return 'free'
-  }
-}
 
 const PLAN_LIMITS: Record<string, number> = {
   free: 1,
@@ -76,8 +54,8 @@ function ConnectedAccountRow({
   onReconnect,
 }: {
   integration: Integration
-  onRemove: (id: string) => void
-  onReconnect: (id: string) => void
+  onRemove: (id: string) => void | Promise<void>
+  onReconnect: (id: string) => void | Promise<void>
 }) {
   const sc = STATUS_CONFIG[integration.status]
   return (
@@ -280,40 +258,40 @@ const JOB_BOARDS: { platform: IntegrationPlatform; name: string; countries: stri
 
 /* ─── main page ──────────────────────────────────────────────── */
 export default function IntegrationsPage() {
+  const { user } = useUser()
   const [integrations, setIntegrations] = React.useState<Integration[]>([])
   const [activeModal, setActiveModal] = React.useState<string | null>(null)
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   React.useEffect(() => {
-    const tenantId = getTenantId()
-    const all = provider.getIntegrationsSync() ?? []
-    setIntegrations(all.filter((i: Integration) => i.tenantId === tenantId))
-  }, [provider])
+    const tenantId = user?.tenantId ?? ''
+    if (!tenantId) return
+    provider.getIntegrations(tenantId).then((res) => {
+      setIntegrations(res.data ?? [])
+    })
+  }, [provider, user])
 
   function getByPlatform(platform: IntegrationPlatform) {
     return integrations.filter((i) => i.platform === platform)
   }
 
-  function handleConnect(platform: IntegrationPlatform, data: Record<string, string>) {
-    const tenantId = getTenantId()
-    const integration: Integration = {
-      id: generateId(),
+  async function handleConnect(platform: IntegrationPlatform, data: Record<string, string>) {
+    const tenantId = user?.tenantId ?? ''
+    const res = await provider.saveIntegration({
       tenantId,
       platform,
       accountName: data.accountName ?? data.accountEmail ?? platform,
       accountEmail: data.accountEmail ?? data.username,
       status: 'connected',
-      createdAt: new Date().toISOString(),
       metadata: data,
-    }
-    provider.createIntegration(integration)
-    setIntegrations((prev) => [...prev, integration])
+    })
+    if (res.data) setIntegrations((prev) => [...prev, res.data!])
     setActiveModal(null)
   }
 
-  function handleRemove(id: string) {
+  async function handleRemove(id: string) {
     if (!confirm('¿Desconectar esta integración?')) return
-    provider.deleteIntegration(id)
+    await provider.deleteIntegration(id)
     setIntegrations((prev) => prev.filter((i) => i.id !== id))
   }
 
@@ -323,7 +301,7 @@ export default function IntegrationsPage() {
     )
   }
 
-  const plan = getUserPlan()
+  const plan = user?.plan ?? 'free'
   const limit = PLAN_LIMITS[plan] ?? 1
 
   function canConnect(platform: IntegrationPlatform) {

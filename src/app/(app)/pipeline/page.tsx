@@ -32,48 +32,9 @@ import {
 import { cn, formatRelativeDate, getInitials, generateId } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Application, Candidate, Vacancy, VacancyStatus } from '@/types'
-
-// ─── Seed data ────────────────────────────────────────────────────────────────
-const TENANT_ID = 'demo'
-
-function seedIfEmpty(provider: LocalStorageProvider) {
-  if (typeof window === 'undefined') return
-  const existing = localStorage.getItem('ct_vacancies')
-  if (existing && JSON.parse(existing).length > 0) return
-
-  const now = new Date().toISOString()
-  const vacancies: Omit<Vacancy, 'applications'>[] = [
-    { id: 'v1', tenantId: TENANT_ID, title: 'Frontend Developer Senior', department: 'Tecnología', status: 'Nuevas Vacantes', requirements: ['React', 'TypeScript', 'Next.js'], modality: 'Remoto', priority: 'Alta', createdAt: now },
-    { id: 'v2', tenantId: TENANT_ID, title: 'Marketing Digital Manager', department: 'Marketing', status: 'Nuevas Vacantes', requirements: ['SEO', 'Google Ads', 'Analytics'], modality: 'Híbrido', priority: 'Media', createdAt: now },
-    { id: 'v3', tenantId: TENANT_ID, title: 'Analista de RRHH', department: 'RRHH', status: 'Nuevas Vacantes', requirements: ['Reclutamiento', 'HRIS', 'Liquidación'], modality: 'Presencial', priority: 'Baja', createdAt: now },
-  ]
-  const candidates: Omit<Candidate, 'interviews'>[] = [
-    { id: 'c1', tenantId: TENANT_ID, fullName: 'Valentina Rodríguez', email: 'vrodriguez@email.com', atsScore: 88, skills: ['React', 'TypeScript', 'Node.js'], source: 'LinkedIn', appliedAt: new Date(Date.now() - 2 * 86400000).toISOString(), createdAt: now },
-    { id: 'c2', tenantId: TENANT_ID, fullName: 'Matías González', email: 'mgonzalez@email.com', atsScore: 72, skills: ['React', 'CSS', 'Figma'], source: 'Portal', appliedAt: new Date(Date.now() - 5 * 86400000).toISOString(), createdAt: now },
-    { id: 'c3', tenantId: TENANT_ID, fullName: 'Lucía Fernández', email: 'lfernandez@email.com', atsScore: 95, skills: ['SEO', 'Google Ads', 'HubSpot'], source: 'LinkedIn', appliedAt: new Date(Date.now() - 1 * 86400000).toISOString(), createdAt: now },
-    { id: 'c4', tenantId: TENANT_ID, fullName: 'Santiago Pérez', email: 'sperez@email.com', atsScore: 61, skills: ['Google Ads', 'Facebook Ads', 'Analytics'], source: 'Referido', appliedAt: new Date(Date.now() - 8 * 86400000).toISOString(), createdAt: now },
-    { id: 'c5', tenantId: TENANT_ID, fullName: 'Camila López', email: 'clopez@email.com', atsScore: 79, skills: ['Reclutamiento', 'HRIS', 'Evaluación'], source: 'LinkedIn', appliedAt: new Date(Date.now() - 3 * 86400000).toISOString(), createdAt: now },
-    { id: 'c6', tenantId: TENANT_ID, fullName: 'Nicolás Martínez', email: 'nmartinez@email.com', atsScore: 83, skills: ['React', 'TypeScript', 'GraphQL'], source: 'Indeed', appliedAt: new Date(Date.now() - 12 * 86400000).toISOString(), createdAt: now },
-    { id: 'c7', tenantId: TENANT_ID, fullName: 'Florencia Sánchez', email: 'fsanchez@email.com', atsScore: 68, skills: ['SEO', 'Content', 'Analytics'], source: 'Portal', appliedAt: new Date(Date.now() - 7 * 86400000).toISOString(), createdAt: now },
-    { id: 'c8', tenantId: TENANT_ID, fullName: 'Agustín Torres', email: 'atorres@email.com', atsScore: 91, skills: ['React', 'Next.js', 'TypeScript', 'AWS'], source: 'LinkedIn', appliedAt: new Date(Date.now() - 15 * 86400000).toISOString(), createdAt: now },
-  ]
-  const applications: Application[] = [
-    { id: 'a1', vacancyId: 'v1', candidateId: 'c1', status: 'Nuevas Vacantes', positionInStage: 0, appliedAt: now, updatedAt: now },
-    { id: 'a2', vacancyId: 'v1', candidateId: 'c2', status: 'Nuevas Vacantes', positionInStage: 1, appliedAt: now, updatedAt: now },
-    { id: 'a3', vacancyId: 'v2', candidateId: 'c3', status: 'En Proceso', positionInStage: 0, appliedAt: now, updatedAt: now },
-    { id: 'a4', vacancyId: 'v2', candidateId: 'c4', status: 'En Proceso', positionInStage: 1, appliedAt: now, updatedAt: now },
-    { id: 'a5', vacancyId: 'v3', candidateId: 'c5', status: 'Entrevistas', positionInStage: 0, appliedAt: now, updatedAt: now },
-    { id: 'a6', vacancyId: 'v1', candidateId: 'c6', status: 'Entrevistas', positionInStage: 1, appliedAt: now, updatedAt: now },
-    { id: 'a7', vacancyId: 'v2', candidateId: 'c7', status: 'Oferta Enviada', positionInStage: 0, appliedAt: now, updatedAt: now },
-    { id: 'a8', vacancyId: 'v1', candidateId: 'c8', status: 'Contratado', positionInStage: 0, appliedAt: now, updatedAt: now },
-  ]
-
-  localStorage.setItem('ct_vacancies', JSON.stringify(vacancies.map(v => ({ ...v, applications: [] }))))
-  localStorage.setItem('ct_candidates', JSON.stringify(candidates.map(c => ({ ...c, interviews: [] }))))
-  localStorage.setItem('ct_applications', JSON.stringify(applications))
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -264,19 +225,11 @@ export default function PipelinePage() {
   const [filterScore, setFilterScore] = React.useState<string>('all')
   const [searchText, setSearchText] = React.useState('')
 
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
-
-  const getTenantId = () => {
-    try {
-      const raw = localStorage.getItem('ct_user')
-      if (raw) return JSON.parse(raw).tenantId ?? TENANT_ID
-    } catch { /* noop */ }
-    return TENANT_ID
-  }
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
-    const tenantId = getTenantId()
-    seedIfEmpty(provider)
+    const tenantId = user?.tenantId ?? ''
     const [appsResult, vacResult] = await Promise.all([
       provider.getApplications(),
       provider.getVacancies(tenantId),
@@ -290,7 +243,7 @@ export default function PipelinePage() {
     setApplications(hydrated)
     setVacancies(vacs)
     setLoading(false)
-  }, [provider])
+  }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 
