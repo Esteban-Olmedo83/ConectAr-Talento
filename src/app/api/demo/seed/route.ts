@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const supabase = await createClient()
+  const reset = request.nextUrl.searchParams.get('reset') === 'true'
 
   // 1. Validate authentication
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -24,14 +26,21 @@ export async function POST() {
   // If profile doesn't exist, use user.id directly as tenant_id (matches UserContext behaviour)
   const tenant_id: string = profile?.tenant_id ?? user.id
 
-  // 3. Check if data already exists
+  // 3. Check if data already exists (or reset if requested)
   const { count: existingCount } = await supabase
     .from('vacancies')
     .select('*', { count: 'exact', head: true })
     .eq('tenant_id', tenant_id)
 
   if (existingCount && existingCount > 0) {
-    return NextResponse.json({ ok: false, message: 'Ya tenés datos cargados' })
+    if (!reset) {
+      return NextResponse.json({ ok: false, message: 'Ya tenés datos cargados' })
+    }
+    // Delete existing demo data for this tenant before re-seeding
+    await supabase.from('interviews').delete().eq('tenant_id', tenant_id)
+    await supabase.from('applications').delete().eq('tenant_id', tenant_id)
+    await supabase.from('candidates').delete().eq('tenant_id', tenant_id)
+    await supabase.from('vacancies').delete().eq('tenant_id', tenant_id)
   }
 
   // 4. Insert demo data

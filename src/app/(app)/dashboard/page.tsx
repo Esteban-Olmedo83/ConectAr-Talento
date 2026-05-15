@@ -254,6 +254,30 @@ export default function DashboardPage() {
     ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / candidates.length)
     : 0
 
+  // Average days per stage
+  const STAGE_INDEX: Record<VacancyStatus, number> = {
+    'Nuevas Vacantes': 1,
+    'En Proceso': 2,
+    'Entrevistas': 3,
+    'Oferta Enviada': 4,
+    'Contratado': 5,
+  }
+  const avgDaysPerStage = (() => {
+    const valid = applications.filter(a => {
+      const stageIdx = STAGE_INDEX[a.status]
+      if (stageIdx <= 1) return false
+      const appliedAt = a.candidate?.appliedAt ?? a.appliedAt
+      return !!appliedAt
+    })
+    if (valid.length === 0) return null
+    const total = valid.reduce((sum, a) => {
+      const appliedAt = a.candidate?.appliedAt ?? a.appliedAt
+      const days = (Date.now() - new Date(appliedAt).getTime()) / 86400000
+      return sum + days / STAGE_INDEX[a.status]
+    }, 0)
+    return total / valid.length
+  })()
+
   // Stuck in Entrevistas for 5+ days
   const stuckCount = applications.filter(a => {
     if (a.status !== 'Entrevistas') return false
@@ -359,10 +383,9 @@ export default function DashboardPage() {
           sub="sobre 100 puntos"
           accentColor="var(--emerald)"
         />
-        {/* TODO: "Tiempo prom. por etapa" is hardcoded — we don't yet track per-stage timestamps in the DB */}
         <KpiCard
           label="Tiempo prom. por etapa"
-          value="3.2d"
+          value={avgDaysPerStage !== null ? `${avgDaysPerStage.toFixed(1)}d` : '—'}
           sub="promedio histórico"
           accentColor="var(--gold)"
         />
