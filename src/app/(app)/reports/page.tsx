@@ -29,7 +29,8 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Application, Candidate, Interview, Vacancy } from '@/types'
 
 type DateRange = 'month' | 'quarter' | 'year'
@@ -46,24 +47,10 @@ type MonthlyRow = { mes: string; abiertas: number; cerradas: number }
 
 const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
 
-const FALLBACK_FUNNEL: FunnelRow[] = [
-  { stage: 'Nuevas', total: 45 },
-  { stage: 'En Proceso', total: 28 },
-  { stage: 'Entrevistas', total: 14 },
-  { stage: 'Oferta', total: 6 },
-  { stage: 'Contratado', total: 3 },
-]
-
-const FALLBACK_SOURCES: SourceRow[] = [
-  { name: 'LinkedIn', value: 42 },
-  { name: 'Portal', value: 28 },
-  { name: 'Referido', value: 18 },
-  { name: 'Indeed', value: 12 },
-]
-
 const SOURCE_COLORS: Record<string, string> = {
   LinkedIn: '#2563eb',
   Portal: '#1f4a8b',
+  'Portal web': '#1f4a8b',
   Referido: '#0f766e',
   Indeed: '#0ea5e9',
   Computrabajo: '#f59e0b',
@@ -71,17 +58,6 @@ const SOURCE_COLORS: Record<string, string> = {
   Bumeran: '#4f46e5',
   Manual: '#6b7280',
   WhatsApp: '#22c55e',
-}
-
-function getTenantId(): string {
-  if (typeof window === 'undefined') return 'default'
-  try {
-    const raw = localStorage.getItem('ct_user')
-    if (!raw) return 'default'
-    return JSON.parse(raw).tenantId ?? 'default'
-  } catch {
-    return 'default'
-  }
 }
 
 function getDateFrom(range: DateRange): Date {
@@ -272,24 +248,37 @@ async function exportExecutivePdf({
 }
 
 export default function ReportsPage() {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [range, setRange] = React.useState<DateRange>('month')
   const [selectedSource, setSelectedSource] = React.useState('all')
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
   const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loading, setLoading] = React.useState(true)
   const [exporting, setExporting] = React.useState(false)
 
   React.useEffect(() => {
-    const tenantId = getTenantId()
-    const v = provider.getVacanciesSync().filter((item: Vacancy) => item.tenantId === tenantId)
-    const c = provider.getCandidatesSync().filter((item: Candidate) => item.tenantId === tenantId)
-    setVacancies(v)
-    setCandidates(c)
-    setApplications(provider.getApplicationsSync())
-    setInterviews(provider.getInterviewsSync())
-  }, [provider])
+    // Wait for user to be resolved before loading data
+    if (user === null) return
+
+    async function load() {
+      const tenantId = user!.tenantId ?? user!.id
+      const [vResult, cResult, appResult, intResult] = await Promise.all([
+        provider.getVacancies(tenantId),
+        provider.getCandidates(tenantId),
+        provider.getApplications(),
+        provider.getInterviews(),
+      ])
+      setVacancies(vResult.data ?? [])
+      setCandidates(cResult.data ?? [])
+      setApplications(appResult.data ?? [])
+      setInterviews(intResult.data ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [provider, user])
 
   const dateFrom = getDateFrom(range)
   const sourceOptions = React.useMemo(
@@ -432,7 +421,7 @@ export default function ReportsPage() {
     return list.slice(0, 3)
   }, [avgDays, avgScore, conversion])
 
-  const isEmpty = totalApps === 0 && filteredCandidates.length === 0 && vacancies.length === 0
+  const isEmpty = !loading && totalApps === 0 && filteredCandidates.length === 0 && vacancies.length === 0
 
   async function onExportPdf() {
     setExporting(true)
@@ -446,14 +435,24 @@ export default function ReportsPage() {
           { label: 'Tasa de Conversion', value: conversion },
         ],
         summary,
-        funnel: funnelData.some((item) => item.total > 0) ? funnelData : FALLBACK_FUNNEL,
-        topSources: sourceData.length ? sourceData : FALLBACK_SOURCES,
+        funnel: funnelData,
+        topSources: sourceData,
         topVacancies: scoreByVacancy.filter((item) => item.score > 0),
         recommendations,
       })
     } finally {
       setExporting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="mx-auto flex h-full w-full max-w-[1680px] flex-col gap-5 px-4 py-4 md:px-6 md:py-6">
+        <div className="flex items-center justify-center h-64 text-text-secondary text-sm">
+          Cargando datos...
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -521,7 +520,7 @@ export default function ReportsPage() {
             <div>
               <p className="text-sm font-semibold text-text-primary">Sin datos en el periodo seleccionado</p>
               <p className="mt-1 text-sm text-text-secondary">
-                Crea vacantes y candidatos para activar los reportes. Mientras tanto se mostraran datos de referencia.
+                Crea vacantes y candidatos para activar los reportes.
               </p>
             </div>
           </div>
@@ -559,7 +558,7 @@ export default function ReportsPage() {
         <ChartCard title="Embudo de Contratacion" subtitle="Conversion por etapa">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart
-              data={funnelData.some((item) => item.total > 0) ? funnelData : FALLBACK_FUNNEL}
+              data={funnelData}
               layout="vertical"
               margin={{ left: 8, right: 16, top: 0, bottom: 0 }}
             >
@@ -587,7 +586,7 @@ export default function ReportsPage() {
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
-                data={sourceData.length ? sourceData : FALLBACK_SOURCES}
+                data={sourceData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -596,7 +595,7 @@ export default function ReportsPage() {
                 outerRadius={88}
                 paddingAngle={2}
               >
-                {(sourceData.length ? sourceData : FALLBACK_SOURCES).map((entry, index) => (
+                {sourceData.map((entry, index) => (
                   <Cell
                     key={`${entry.name}-${index}`}
                     fill={SOURCE_COLORS[entry.name] ?? '#6b7280'}
@@ -620,17 +619,7 @@ export default function ReportsPage() {
         <ChartCard title="Score ATS por Vacante" subtitle="Promedio por posicion activa">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart
-              data={
-                scoreByVacancy.some((item) => item.score > 0)
-                  ? scoreByVacancy
-                  : [
-                      { name: 'Frontend', score: 82 },
-                      { name: 'Producto', score: 76 },
-                      { name: 'Data', score: 68 },
-                      { name: 'DevOps', score: 88 },
-                      { name: 'UX', score: 71 },
-                    ]
-              }
+              data={scoreByVacancy}
               margin={{ bottom: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -651,16 +640,7 @@ export default function ReportsPage() {
 
         <ChartCard title="Entrevistas por Semana" subtitle="Ultimas 8 semanas">
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart
-              data={
-                interviewsPerWeek.some((item) => item.entrevistas > 0)
-                  ? interviewsPerWeek
-                  : interviewsPerWeek.map((row, index) => ({
-                      ...row,
-                      entrevistas: [2, 4, 3, 6, 5, 7, 4, 8][index],
-                    }))
-              }
-            >
+            <LineChart data={interviewsPerWeek}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
               <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />

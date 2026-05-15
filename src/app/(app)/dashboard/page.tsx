@@ -217,8 +217,12 @@ export default function DashboardPage() {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   React.useEffect(() => {
+    // Wait for user to be resolved — if null, the user context hasn't loaded yet
+    if (user === null) return
+
     async function load() {
-      const tenantId = user?.tenantId ?? ''
+      // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
+      const tenantId = user!.tenantId ?? user!.id
       const [candResult, appResult] = await Promise.all([
         provider.getCandidates(tenantId),
         provider.getApplications(),
@@ -355,6 +359,7 @@ export default function DashboardPage() {
           sub="sobre 100 puntos"
           accentColor="var(--emerald)"
         />
+        {/* TODO: "Tiempo prom. por etapa" is hardcoded — we don't yet track per-stage timestamps in the DB */}
         <KpiCard
           label="Tiempo prom. por etapa"
           value="3.2d"

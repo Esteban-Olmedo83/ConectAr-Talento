@@ -10,18 +10,19 @@ export async function POST() {
     return NextResponse.json({ ok: false, message: 'No autenticado' }, { status: 401 })
   }
 
-  // 2. Get tenant_id from profiles
+  // 2. Get tenant_id from profiles — fall back to user.id if profile row doesn't exist yet
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('tenant_id')
     .eq('id', user.id)
     .single()
 
-  if (profileError || !profile) {
-    return NextResponse.json({ ok: false, message: 'Perfil no encontrado' }, { status: 404 })
+  if (profileError) {
+    console.error('[seed] profiles lookup error:', profileError.message)
   }
 
-  const tenant_id = profile.tenant_id
+  // If profile doesn't exist, use user.id directly as tenant_id (matches UserContext behaviour)
+  const tenant_id: string = profile?.tenant_id ?? user.id
 
   // 3. Check if data already exists
   const { count: existingCount } = await supabase
@@ -50,6 +51,7 @@ export async function POST() {
     .select('id')
 
   if (vacanciesError || !insertedVacancies) {
+    console.error('[seed] vacancies insert error:', vacanciesError?.message)
     return NextResponse.json({ ok: false, message: 'Error al insertar vacantes: ' + vacanciesError?.message }, { status: 500 })
   }
 
@@ -77,6 +79,7 @@ export async function POST() {
     .select('id')
 
   if (candidatesError || !insertedCandidates) {
+    console.error('[seed] candidates insert error:', candidatesError?.message)
     return NextResponse.json({ ok: false, message: 'Error al insertar candidatos: ' + candidatesError?.message }, { status: 500 })
   }
 
@@ -121,6 +124,7 @@ export async function POST() {
     .insert(applicationsData)
 
   if (applicationsError) {
+    console.error('[seed] applications insert error:', applicationsError.message)
     return NextResponse.json({ ok: false, message: 'Error al insertar postulaciones: ' + applicationsError.message }, { status: 500 })
   }
 
@@ -153,6 +157,7 @@ export async function POST() {
     .insert(interviewsData)
 
   if (interviewsError) {
+    console.error('[seed] interviews insert error:', interviewsError.message)
     return NextResponse.json({ ok: false, message: 'Error al insertar entrevistas: ' + interviewsError.message }, { status: 500 })
   }
 
