@@ -24,7 +24,14 @@ export async function GET(): Promise<NextResponse> {
     client_id: clientId,
     redirect_uri: redirectUri,
     state,
-    scope: 'email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events',
+    scope: [
+      'email',
+      'profile',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/drive.file',
+    ].join(' '),
     access_type: 'offline',
     prompt: 'consent',
   })
