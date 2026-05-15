@@ -4,60 +4,45 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, CheckCircle2, Loader2, Zap, Rocket, Building2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { UserPlan } from '@/types'
+import { AuthLeftPanel } from '@/components/auth/AuthLeftPanel'
 import { BrandLogo } from '@/components/brand'
+
+const LEFT_PANEL = {
+  headline: 'Empezá gratis. <em>Crecé sin límites.</em>',
+  subtitle: 'Sin tarjeta de crédito. En menos de 2 minutos tenés tu cuenta activa.',
+  features: [
+    { title: 'Free para siempre', desc: 'Plan gratuito sin vencimiento ni sorpresas.' },
+    { title: 'Setup en 2 minutos', desc: 'Importá tus vacantes y arrancá hoy mismo.' },
+    { title: 'Soporte en español', desc: 'Equipo local, respuesta en menos de 24 hs.' },
+  ],
+}
+
+const S = {
+  bg: '#0B0B14',
+  panel: 'rgba(255,255,255,0.03)',
+  border: 'rgba(255,255,255,0.07)',
+  accent: '#5D50D6',
+  accentSoft: '#8B7EFF',
+  text: '#ffffff',
+  textSec: 'rgba(255,255,255,0.45)',
+  textMuted: 'rgba(255,255,255,0.25)',
+  inputBg: 'rgba(255,255,255,0.06)',
+  inputBorder: 'rgba(255,255,255,0.12)',
+}
 
 const plans: {
   id: UserPlan
   name: string
   price: string
   description: string
-  features: string[]
   icon: React.ElementType
   highlighted?: boolean
 }[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: '$0',
-    description: 'Para empezar',
-    icon: CheckCircle2,
-    features: ['Hasta 3 vacantes activas', '50 candidatos/mes', 'Pipeline basico'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '$79',
-    description: 'Para equipos en crecimiento',
-    icon: Rocket,
-    highlighted: true,
-    features: [
-      'Vacantes ilimitadas',
-      'Candidatos ilimitados',
-      'IA analisis CVs',
-      'Publicacion multi-plataforma',
-      'Templates personalizados',
-    ],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '$149',
-    description: 'Para grandes empresas',
-    icon: Building2,
-    features: [
-      'Todo lo de Pro',
-      'Multiples usuarios',
-      'Integraciones avanzadas',
-      'Reportes personalizados',
-      'Soporte prioritario',
-    ],
-  },
+  { id: 'free', name: 'Free', price: '$0', description: 'Para empezar', icon: CheckCircle2 },
+  { id: 'pro', name: 'Pro', price: '$79', description: 'Para equipos', icon: Rocket, highlighted: true },
+  { id: 'business', name: 'Business', price: '$149', description: 'Para empresas', icon: Building2 },
 ]
 
 export default function SignupPage() {
@@ -75,32 +60,24 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
     if (!fullName.trim() || !company.trim() || !email.trim() || !password) {
       setError('Por favor completá todos los campos.')
       return
     }
     if (password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres.')
+      setError('La contraseña debe tener al menos 6 caracteres.')
       return
     }
-
     setIsLoading(true)
     const supabase = createClient()
-
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          full_name: fullName.trim(),
-          company_name: company.trim(),
-          plan: selectedPlan,
-        },
+        data: { full_name: fullName.trim(), company_name: company.trim(), plan: selectedPlan },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
-
     if (authError) {
       setError(
         authError.message === 'User already registered'
@@ -110,23 +87,25 @@ export default function SignupPage() {
       setIsLoading(false)
       return
     }
-
-    // Supabase sends a confirmation email by default.
-    // If email confirmation is disabled in the project settings, the user is
-    // logged in automatically and we redirect to /pipeline.
     setSuccess(true)
     setTimeout(() => router.push('/pipeline'), 2000)
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: S.bg }}
+      >
         <div className="text-center space-y-4 px-6">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-full mx-auto"
+            style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)' }}
+          >
+            <CheckCircle2 className="h-8 w-8" style={{ color: '#34d399' }} />
           </div>
-          <h2 className="text-2xl font-bold text-foreground">¡Cuenta creada!</h2>
-          <p className="text-muted-foreground max-w-sm">
+          <h2 className="text-2xl font-bold" style={{ color: S.text }}>¡Cuenta creada!</h2>
+          <p className="max-w-sm text-sm" style={{ color: S.textSec }}>
             Revisá tu email para confirmar tu cuenta. Si la confirmación está
             desactivada, serás redirigido automáticamente.
           </p>
@@ -136,206 +115,203 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-background dark:to-indigo-950/10 flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
-        <BrandLogo onDark={false} href="/" size="md" iconSize={28} />
-        <p className="text-sm text-muted-foreground">
-          Ya tenes cuenta?{' '}
-          <Link href="/login" className="text-primary font-medium hover:underline">
-            Ingresa
-          </Link>
-        </p>
-      </header>
+    <div className="flex min-h-screen" style={{ background: S.bg }}>
+      {/* Left panel */}
+      <div className="flex-1">
+        <AuthLeftPanel {...LEFT_PANEL} />
+      </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl space-y-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">
-              Crea tu cuenta gratis
+      {/* Right panel — wider for register */}
+      <div
+        className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12 overflow-y-auto"
+        style={{
+          background: S.panel,
+          backdropFilter: 'blur(24px)',
+          borderLeft: `1px solid ${S.border}`,
+        }}
+      >
+        {/* Mobile logo */}
+        <div className="md:hidden mb-8">
+          <BrandLogo onDark href="/" size="md" iconSize={28} />
+        </div>
+
+        <div className="w-full max-w-[380px] space-y-7 py-8">
+          {/* Heading */}
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold" style={{ color: S.text }}>
+              Creá tu cuenta gratis
             </h1>
-            <p className="text-muted-foreground">
-              Sin tarjeta de credito. Empeza en menos de 2 minutos.
+            <p className="text-sm" style={{ color: S.textSec }}>
+              Sin tarjeta de crédito. En menos de 2 minutos.
             </p>
           </div>
 
-          {/* Form card */}
-          <div className="bg-background rounded-2xl border shadow-sm p-6 md:p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div
                 role="alert"
-                className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive"
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}
               >
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nombre completo</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="Maria Garcia"
-                    autoComplete="name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input
-                    id="company"
-                    type="text"
-                    placeholder="Acme S.A."
-                    autoComplete="organization"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email de trabajo</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="maria@empresa.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+            {/* Name + Company grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label htmlFor="fullName" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                  Nombre completo
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  placeholder="María García"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text }}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Contrasena</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Minimo 6 caracteres"
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={showPassword ? 'Ocultar' : 'Mostrar'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+              <div className="space-y-1.5">
+                <label htmlFor="company" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                  Empresa
+                </label>
+                <input
+                  id="company"
+                  type="text"
+                  placeholder="Acme S.A."
+                  autoComplete="organization"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                  style={{ background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text }}
+                />
               </div>
+            </div>
 
-              {/* Plan selector */}
-              <div className="space-y-3">
-                <Label>Elegí tu plan</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {plans.map((plan) => {
-                    const Icon = plan.icon
-                    const isSelected = selectedPlan === plan.id
-                    return (
-                      <button
-                        key={plan.id}
-                        type="button"
-                        onClick={() => setSelectedPlan(plan.id)}
-                        className={cn(
-                          'relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                          isSelected
-                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 ring-1 ring-indigo-500'
-                            : 'border-border hover:border-indigo-300 hover:bg-accent',
-                          plan.highlighted && !isSelected && 'border-indigo-300'
-                        )}
-                        aria-pressed={isSelected}
-                      >
-                        {plan.highlighted && (
-                          <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
-                            Mas popular
-                          </span>
-                        )}
-                        <div className="flex items-center justify-between w-full">
-                          <Icon
-                            className={cn(
-                              'h-4 w-4',
-                              isSelected
-                                ? 'text-indigo-600'
-                                : 'text-muted-foreground'
-                            )}
-                          />
-                          <span
-                            className={cn(
-                              'text-xs font-medium',
-                              isSelected
-                                ? 'text-indigo-600'
-                                : 'text-muted-foreground'
-                            )}
-                          >
-                            {plan.price}
-                            <span className="font-normal">/mes</span>
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm text-foreground">
-                            {plan.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {plan.description}
-                          </p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                Email de trabajo
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="maria@empresa.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Creando cuenta...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="h-4 w-4" />
-                    Crear cuenta gratis
-                  </>
-                )}
-              </Button>
-            </form>
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                style={{ background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text }}
+              />
+            </div>
 
-            <p className="text-xs text-center text-muted-foreground">
-              Al registrarte aceptas nuestros{' '}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terminos de servicio
-              </Link>{' '}
-              y{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Politica de privacidad
-              </Link>
-              .
-            </p>
-          </div>
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none"
+                  style={{ background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: S.textMuted }}
+                  aria-label={showPassword ? 'Ocultar' : 'Mostrar'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Plan selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                Elegí tu plan
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {plans.map((plan) => {
+                  const Icon = plan.icon
+                  const isSelected = selectedPlan === plan.id
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlan(plan.id)}
+                      aria-pressed={isSelected}
+                      className="relative flex flex-col items-start gap-1.5 rounded-xl p-3 text-left transition-all"
+                      style={{
+                        background: isSelected ? 'rgba(93,80,214,0.18)' : S.inputBg,
+                        border: `1px solid ${isSelected ? S.accent : S.inputBorder}`,
+                        outline: isSelected ? `1px solid ${S.accent}` : 'none',
+                      }}
+                    >
+                      {plan.highlighted && (
+                        <span
+                          className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                          style={{ background: S.accent, color: '#fff' }}
+                        >
+                          MÁS POPULAR
+                        </span>
+                      )}
+                      <div className="flex items-center justify-between w-full">
+                        <Icon className="h-3.5 w-3.5" style={{ color: isSelected ? S.accentSoft : S.textMuted }} />
+                        <span className="text-xs font-semibold" style={{ color: isSelected ? S.accentSoft : S.textSec }}>
+                          {plan.price}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold" style={{ color: S.text }}>{plan.name}</p>
+                      <p className="text-[10px] leading-tight" style={{ color: S.textMuted }}>{plan.description}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-xl py-3 text-sm font-semibold transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{ background: S.accent, color: '#fff' }}
+            >
+              {isLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Creando cuenta...</>
+              ) : (
+                <><Zap className="h-4 w-4" /> Crear cuenta gratis</>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <p className="text-xs text-center" style={{ color: S.textMuted }}>
+            Al registrarte aceptás nuestros{' '}
+            <Link href="/terms" className="hover:underline" style={{ color: S.textSec }}>Términos</Link>
+            {' '}y{' '}
+            <Link href="/privacy" className="hover:underline" style={{ color: S.textSec }}>Privacidad</Link>
+            {' · '}
+            <Link href="/login" className="hover:underline" style={{ color: S.accentSoft }}>Ya tengo cuenta</Link>
+          </p>
         </div>
       </div>
     </div>
