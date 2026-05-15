@@ -12,17 +12,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type {
   Interview, Candidate, Vacancy, InterviewType, InterviewStatus,
   MeetingPlatform, Scorecard, Recommendation
 } from '@/types'
-
-const TENANT_ID = 'demo'
-const getTenantId = () => {
-  try { const r = localStorage.getItem('ct_user'); if (r) return JSON.parse(r).tenantId ?? TENANT_ID } catch {}
-  return TENANT_ID
-}
 
 const TYPE_COLORS: Record<InterviewType, string> = {
   'Técnica': 'bg-blue-100 text-blue-700',
@@ -51,7 +46,7 @@ function SchedulerModal({
   vacancies: Vacancy[]
   onSaved: (i: Interview) => void
 }) {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState({
     candidateId: '',
     vacancyId: '',
@@ -162,7 +157,7 @@ function ScorecardModal({
   candidateName: string
   onComplete: (i: Interview) => void
 }) {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [scores, setScores] = React.useState({ technicalSkills: 70, communication: 70, culturalFit: 70, motivation: 70 })
   const [overallRating, setOverallRating] = React.useState<1|2|3|4|5>(3)
   const [strengths, setStrengths] = React.useState('')
@@ -349,7 +344,7 @@ function InterviewCard({
   candidateMap: Map<string, Candidate>
   vacancyMap: Map<string, Vacancy>
   onComplete: (i: Interview) => void
-  onCancel: (id: string) => void
+  onCancel: (id: string) => void | Promise<void>
 }) {
   const [showScorecard, setShowScorecard] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
@@ -431,10 +426,11 @@ export default function InterviewsPage() {
   const [showScheduler, setShowScheduler] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState('proximas')
 
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
-  const tid = getTenantId()
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
+    const tid = user?.tenantId ?? ''
     const [iRes, cRes, vRes] = await Promise.all([
       provider.getInterviews(),
       provider.getCandidates(tid),
@@ -444,7 +440,7 @@ export default function InterviewsPage() {
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
     setLoading(false)
-  }, [provider, tid])
+  }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 

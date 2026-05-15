@@ -1,19 +1,33 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ToastProvider } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionTimeout } from '@/lib/hooks/useSessionTimeout'
+import { UserContext } from '@/lib/context/user-context'
 import type { User } from '@/types'
+
+const TITLE_MAP: Record<string, string> = {
+  '/pipeline': 'Procesos de reclutamiento',
+  '/vacancies': 'Gestión de Vacantes',
+  '/candidates': 'Candidatos',
+  '/interviews': 'Entrevistas',
+  '/templates': 'Plantillas',
+  '/integrations': 'Integraciones',
+  '/reports': 'Informes',
+}
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
 
   useSessionTimeout()
+
+  const pageTitle = TITLE_MAP[pathname] ?? ''
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -100,9 +114,11 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
 
   return (
     <ToastProvider>
-      <AppLayout user={user}>
-        {children}
-      </AppLayout>
+      <UserContext.Provider value={{ user }}>
+        <AppLayout user={user} pageTitle={pageTitle}>
+          {children}
+        </AppLayout>
+      </UserContext.Provider>
     </ToastProvider>
   )
 }

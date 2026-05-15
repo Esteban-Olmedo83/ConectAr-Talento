@@ -11,15 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Vacancy, VacancyModality, VacancyPriority } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
-
-const TENANT_ID = 'demo'
-const getTenantId = () => {
-  try { const r = localStorage.getItem('ct_user'); if (r) return JSON.parse(r).tenantId ?? TENANT_ID } catch {}
-  return TENANT_ID
-}
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; cls: string }> = {
   Alta: { label: 'Alta', cls: 'bg-red-100 text-red-700 border-red-200' },
@@ -42,7 +37,8 @@ function VacancyFormDialog({
   vacancy?: Vacancy
   onSave: (v: Vacancy) => void
 }) {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState({
     title: vacancy?.title ?? '',
     department: vacancy?.department ?? '',
@@ -103,7 +99,7 @@ function VacancyFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const tenantId = getTenantId()
+    const tenantId = user?.tenantId ?? ''
     const input = {
       tenantId,
       title: form.title,
@@ -246,7 +242,7 @@ function VacancyFormDialog({
 function VacancyCard({ vacancy, onEdit, onArchive }: {
   vacancy: Vacancy
   onEdit: () => void
-  onArchive: () => void
+  onArchive: () => void | Promise<void>
 }) {
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
@@ -337,14 +333,15 @@ export default function VacanciesPage() {
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
 
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
-    const tid = getTenantId()
+    const tid = user?.tenantId ?? ''
     const res = await provider.getVacancies(tid)
     setVacancies(res.data ?? [])
     setLoading(false)
-  }, [provider])
+  }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 

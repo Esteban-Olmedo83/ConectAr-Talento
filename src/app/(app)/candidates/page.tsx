@@ -11,14 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { LocalStorageProvider } from '@/lib/providers/data-provider'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useUser } from '@/lib/context/user-context'
 import type { Candidate, Vacancy, CandidateSource } from '@/types'
-
-const TENANT_ID = 'demo'
-const getTenantId = () => {
-  try { const r = localStorage.getItem('ct_user'); if (r) return JSON.parse(r).tenantId ?? TENANT_ID } catch { /**/ }
-  return TENANT_ID
-}
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
@@ -83,7 +78,8 @@ function AddCandidateDialog({
   prefill?: Partial<Candidate>
   onSave: (c: Candidate) => void
 }) {
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState({
     fullName: prefill?.fullName ?? '',
     email: prefill?.email ?? '',
@@ -116,7 +112,7 @@ function AddCandidateDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const tenantId = getTenantId()
+    const tenantId = user?.tenantId ?? ''
     const result = await provider.createCandidate({
       tenantId,
       fullName: form.fullName,
@@ -319,10 +315,11 @@ export default function CandidatesPage() {
   const [filterSource, setFilterSource] = React.useState('all')
   const [showAdd, setShowAdd] = React.useState(false)
 
-  const provider = React.useMemo(() => new LocalStorageProvider(), [])
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
-    const tid = getTenantId()
+    const tid = user?.tenantId ?? ''
     const [cRes, vRes] = await Promise.all([
       provider.getCandidates(tid),
       provider.getVacancies(tid),
@@ -330,7 +327,7 @@ export default function CandidatesPage() {
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
     setLoading(false)
-  }, [provider])
+  }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 
