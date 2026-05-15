@@ -72,7 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       email?: string
       display_name?: string
     }
-    accountName = profile.display_name ?? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || accountName
+    accountName = profile.display_name ?? (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || accountName)
     accountEmail = profile.email
   }
 
