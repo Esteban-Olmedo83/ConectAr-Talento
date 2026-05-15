@@ -43,7 +43,7 @@ export default function LoginPage() {
     const checkAuth = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) router.push('/pipeline')
+      if (user) router.push('/dashboard')
     }
     checkAuth()
   }, [router])
@@ -67,7 +67,7 @@ export default function LoginPage() {
       setIsLoading(false)
       return
     }
-    router.push('/pipeline')
+    router.push('/dashboard')
     router.refresh()
   }
 

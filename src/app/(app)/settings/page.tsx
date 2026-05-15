@@ -918,7 +918,9 @@ function ConexionIAsTab() {
 // ─── Datos Tab ────────────────────────────────────────────────────────────────
 function DatosTab() {
   const [loading, setLoading] = React.useState(false)
+  const [resetting, setResetting] = React.useState(false)
   const [result, setResult] = React.useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null)
+  const [hasAttempted, setHasAttempted] = React.useState(false)
 
   async function handleSeedDemo() {
     setLoading(true)
@@ -926,6 +928,7 @@ function DatosTab() {
     try {
       const res = await fetch('/api/demo/seed', { method: 'POST' })
       const data = await res.json()
+      setHasAttempted(true)
       if (data.ok) {
         setResult({ type: 'success', message: 'Datos demo cargados. ¡Recargá el Dashboard!' })
       } else if (data.message === 'Ya tenés datos cargados') {
@@ -935,8 +938,27 @@ function DatosTab() {
       }
     } catch {
       setResult({ type: 'error', message: 'No se pudo conectar con el servidor' })
+      setHasAttempted(true)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResetDemo() {
+    setResetting(true)
+    setResult(null)
+    try {
+      const res = await fetch('/api/demo/seed?reset=true', { method: 'POST' })
+      const data = await res.json()
+      if (data.ok) {
+        setResult({ type: 'success', message: 'Datos demo recargados correctamente. ¡Recargá el Dashboard!' })
+      } else {
+        setResult({ type: 'error', message: data.message || 'Ocurrió un error inesperado' })
+      }
+    } catch {
+      setResult({ type: 'error', message: 'No se pudo conectar con el servidor' })
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -956,26 +978,50 @@ function DatosTab() {
           Cargá un conjunto de candidatos, vacantes y postulaciones de ejemplo para explorar todas las funcionalidades de la plataforma.
         </p>
 
-        <button
-          onClick={handleSeedDemo}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{
-            background: 'var(--accent)',
-            color: '#fff',
-          }}
-        >
-          {loading ? (
-            <>
-              <span
-                className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
-              />
-              Cargando...
-            </>
-          ) : (
-            'Cargar datos demo'
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSeedDemo}
+            disabled={loading || resetting}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: 'var(--accent)',
+              color: '#fff',
+            }}
+          >
+            {loading ? (
+              <>
+                <span
+                  className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
+                />
+                Cargando...
+              </>
+            ) : (
+              'Cargar datos demo'
+            )}
+          </button>
+
+          {hasAttempted && (
+            <button
+              onClick={handleResetDemo}
+              disabled={loading || resetting}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: 'transparent',
+                color: 'var(--muted2)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {resetting ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+                  Recargando...
+                </>
+              ) : (
+                'Recargar datos demo'
+              )}
+            </button>
           )}
-        </button>
+        </div>
 
         {result && (
           <div

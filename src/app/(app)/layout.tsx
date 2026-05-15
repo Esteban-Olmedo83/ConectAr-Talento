@@ -58,6 +58,7 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
               full_name: meta.full_name ?? meta.name ?? '',
               company_name: meta.company_name ?? '',
               plan: meta.plan ?? 'free',
+              tenant_id: session.user.id,
             })
             .select()
             .single()
@@ -77,7 +78,7 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
           fullName: profile.full_name,
           companyName: profile.company_name,
           plan: profile.plan,
-          tenantId: profile.tenant_id,
+          tenantId: profile.tenant_id ?? session.user.id,
           avatarUrl: profile.avatar_url ?? undefined,
           googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
           googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
