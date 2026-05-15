@@ -4,7 +4,6 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, Bell, Search } from 'lucide-react'
 import { Sidebar } from './sidebar'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@/types'
@@ -12,10 +11,11 @@ import type { User } from '@/types'
 interface AppLayoutProps {
   children: React.ReactNode
   pageTitle?: string
+  pageSubtitle?: string
   user: User | null
 }
 
-export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
+export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayoutProps) {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
@@ -27,8 +27,21 @@ export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
     router.refresh()
   }, [router])
 
+  const initials = user
+    ? user.fullName
+        .trim()
+        .split(/\s+/)
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : ''
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: 'var(--bg)' }}
+    >
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -40,72 +53,102 @@ export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
       />
 
       {/* Main content area */}
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        {/* Top header bar */}
-        <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b bg-background shrink-0">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* Glass topbar */}
+        <header
+          className="flex items-center justify-between shrink-0 glass"
+          style={{
+            background: 'var(--topbar-bg)',
+            borderBottom: '1px solid var(--border)',
+            padding: '14px 28px',
+          }}
+        >
           <div className="flex items-center gap-3">
             {/* Hamburger for mobile */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
+            <button
+              className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
               onClick={() => setSidebarOpen(true)}
-              aria-label="Abrir menu"
+              aria-label="Abrir menú"
+              style={{ color: 'var(--muted)' }}
             >
               <Menu className="h-5 w-5" />
-            </Button>
+            </button>
 
-            {/* Page title */}
+            {/* Page title + subtitle */}
             {pageTitle && (
-              <h1 className="text-lg font-semibold text-foreground hidden sm:block">
-                {pageTitle}
-              </h1>
+              <div>
+                <h1
+                  className="leading-tight"
+                  style={{
+                    fontFamily: 'var(--font-nunito)',
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: 'var(--text)',
+                  }}
+                >
+                  {pageTitle}
+                </h1>
+                {pageSubtitle && (
+                  <p
+                    className="text-xs leading-tight mt-0.5"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    {pageSubtitle}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Search button */}
-            <Button
-              variant="ghost"
-              size="icon"
+            {/* Search */}
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
               aria-label="Buscar"
-              className="text-muted-foreground hover:text-foreground"
+              style={{ color: 'var(--muted)' }}
             >
-              <Search className="h-5 w-5" />
-            </Button>
+              <Search className="h-4 w-4" />
+            </button>
 
             {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
+              className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
               aria-label="Notificaciones"
-              className="relative text-muted-foreground hover:text-foreground"
+              style={{ color: 'var(--muted)' }}
             >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
+                <span
+                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                  style={{ background: 'var(--accent)' }}
+                />
+                <span
+                  className="relative inline-flex rounded-full h-1.5 w-1.5"
+                  style={{ background: 'var(--accent)' }}
+                />
               </span>
-            </Button>
+            </button>
 
             {/* User avatar */}
             {user && (
               <button
                 className={cn(
-                  'flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                  'flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2'
                 )}
-                aria-label="Menu de usuario"
+                aria-label="Menú de usuario"
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500 text-white text-xs font-bold shrink-0">
-                  {user.fullName
-                    .trim()
-                    .split(/\s+/)
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase()}
+                <div
+                  className="flex items-center justify-center w-8 h-8 rounded-full text-white text-xs font-bold shrink-0"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                  }}
+                >
+                  {initials}
                 </div>
-                <span className="hidden md:block text-sm font-medium text-foreground max-w-[120px] truncate">
+                <span
+                  className="hidden md:block text-sm font-medium max-w-[120px] truncate"
+                  style={{ color: 'var(--text)' }}
+                >
                   {user.fullName}
                 </span>
               </button>
@@ -115,7 +158,7 @@ export function AppLayout({ children, pageTitle, user }: AppLayoutProps) {
 
         {/* Scrollable page content */}
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6"
+          className="flex-1 overflow-y-auto p-6"
           id="main-content"
           tabIndex={-1}
         >

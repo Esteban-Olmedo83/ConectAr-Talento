@@ -1,21 +1,24 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { DM_Sans, Nunito } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const nunito = Nunito({
+  variable: '--font-nunito',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
   title: 'ConectAr Talento — ATS para LATAM',
   description:
-    'El talento que buscos, conectado en un solo lugar. Plataforma ATS moderna para reclutadores latinoamericanos.',
+    'El talento que buscás, conectado en un solo lugar. Plataforma ATS moderna para reclutadores latinoamericanos.',
   keywords: ['ATS', 'reclutamiento', 'LATAM', 'candidatos', 'vacantes', 'HR'],
 }
 
@@ -27,9 +30,11 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth`}
+      className={`${dmSans.variable} ${nunito.variable} h-full scroll-smooth`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }
