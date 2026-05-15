@@ -3,27 +3,33 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { AuthLeftPanel } from '@/components/auth/AuthLeftPanel'
 import { BrandLogo } from '@/components/brand'
 
-const features = [
-  {
-    title: 'IA para analisis de CVs',
-    description: 'Puntuacion automatica y deteccion de skills con inteligencia artificial.',
-  },
-  {
-    title: 'Procesos de reclutamiento',
-    description: 'Gestioná candidatos con drag & drop en tiempo real.',
-  },
-  {
-    title: 'Publicacion en +10 job boards',
-    description: 'LinkedIn, Indeed, Computrabajo, ZonaJobs y mas con un clic.',
-  },
-]
+const LEFT_PANEL = {
+  headline: 'El talento que buscás, <em>conectado en un solo lugar.</em>',
+  subtitle: 'La plataforma ATS diseñada para reclutadores latinoamericanos.',
+  features: [
+    { title: 'IA para análisis de CVs', desc: 'Puntuación automática y detección de skills.' },
+    { title: 'Procesos de reclutamiento', desc: 'Gestioná candidatos con drag & drop en tiempo real.' },
+    { title: 'Publicación en +10 job boards', desc: 'LinkedIn, Indeed, Computrabajo, ZonaJobs y más.' },
+  ],
+}
+
+const S = {
+  bg: '#0B0B14',
+  panel: 'rgba(255,255,255,0.03)',
+  border: 'rgba(255,255,255,0.07)',
+  accent: '#5D50D6',
+  accentSoft: '#8B7EFF',
+  text: '#ffffff',
+  textSec: 'rgba(255,255,255,0.45)',
+  textMuted: 'rgba(255,255,255,0.25)',
+  inputBg: 'rgba(255,255,255,0.06)',
+  inputBorder: 'rgba(255,255,255,0.12)',
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -37,14 +43,11 @@ export default function LoginPage() {
     const checkAuth = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        router.push('/pipeline')
-      }
+      if (user) router.push('/pipeline')
     }
     checkAuth()
   }, [router])
 
-  // Show error from OAuth callback if present in URL
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('error') === 'auth_callback_failed') {
@@ -55,102 +58,58 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    if (!email || !password) {
-      setError('Por favor completá todos los campos.')
-      return
-    }
-
+    if (!email || !password) { setError('Por favor completá todos los campos.'); return }
     setIsLoading(true)
     const supabase = createClient()
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-
     if (authError) {
-      setError(
-        authError.message === 'Invalid login credentials'
-          ? 'Email o contraseña incorrectos.'
-          : authError.message
-      )
+      setError(authError.message === 'Invalid login credentials' ? 'Email o contraseña incorrectos.' : authError.message)
       setIsLoading(false)
       return
     }
-
     router.push('/pipeline')
     router.refresh()
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* LEFT PANEL — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-gradient-to-br from-indigo-900 via-indigo-800 to-violet-900 relative overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
-
-        {/* Top: logo */}
-        <div className="relative">
-          <BrandLogo onDark href="/" size="md" iconSize={32} />
-        </div>
-
-        {/* Center: tagline + features */}
-        <div className="relative space-y-8">
-          <div>
-            <h2 className="text-4xl font-bold text-white leading-tight">
-              El talento que buscas,
-              <br />
-              <span className="text-indigo-300">conectado en un solo lugar.</span>
-            </h2>
-            <p className="mt-4 text-indigo-200 text-lg">
-              La plataforma ATS disenada para reclutadores latinoamericanos.
-            </p>
-          </div>
-
-          <ul className="space-y-4">
-            {features.map((f) => (
-              <li key={f.title} className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-indigo-300 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-white font-medium">{f.title}</p>
-                  <p className="text-indigo-300 text-sm">{f.description}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Bottom: social proof */}
-        <div className="relative">
-          <p className="text-indigo-300 text-sm">
-            Confiado por reclutadores en Argentina, Mexico, Colombia y Chile.
-          </p>
-        </div>
+    <div className="flex min-h-screen" style={{ background: S.bg }}>
+      {/* Left panel */}
+      <div className="flex-1">
+        <AuthLeftPanel {...LEFT_PANEL} />
       </div>
 
-      {/* RIGHT PANEL — login form */}
-      <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12 bg-background">
+      {/* Right panel */}
+      <div
+        className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12 relative"
+        style={{
+          background: S.panel,
+          backdropFilter: 'blur(24px)',
+          borderLeft: `1px solid ${S.border}`,
+        }}
+      >
         {/* Mobile logo */}
-        <div className="lg:hidden mb-8">
-          <BrandLogo onDark={false} href="/" size="md" iconSize={28} />
+        <div className="md:hidden mb-8">
+          <BrandLogo onDark href="/" size="md" iconSize={28} />
         </div>
 
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-sm space-y-7">
+          {/* Heading */}
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">Bienvenido de vuelta</h1>
-            <p className="text-muted-foreground text-sm">
-              Ingresa a tu cuenta para continuar
+            <h1 className="text-2xl font-bold" style={{ color: S.text }}>
+              Bienvenido de vuelta
+            </h1>
+            <p className="text-sm" style={{ color: S.textSec }}>
+              Ingresá a tu cuenta para continuar
             </p>
           </div>
 
           {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                o con email
-              </span>
-            </div>
+          <div className="relative flex items-center gap-3">
+            <div className="flex-1 h-px" style={{ background: S.border }} />
+            <span className="text-xs font-medium tracking-widest" style={{ color: S.textMuted }}>
+              CON EMAIL
+            </span>
+            <div className="flex-1 h-px" style={{ background: S.border }} />
           </div>
 
           {/* Form */}
@@ -158,15 +117,19 @@ export default function LoginPage() {
             {error && (
               <div
                 role="alert"
-                className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive"
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}
               >
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                Email
+              </label>
+              <input
                 id="email"
                 type="email"
                 placeholder="tu@empresa.com"
@@ -175,21 +138,31 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-colors"
+                style={{
+                  background: S.inputBg,
+                  border: `1px solid ${S.inputBorder}`,
+                  color: S.text,
+                }}
               />
             </div>
 
-            <div className="space-y-2">
+            {/* Password */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contrasena</Label>
+                <label htmlFor="password" className="text-xs font-medium uppercase tracking-wide" style={{ color: S.textSec }}>
+                  Contraseña
+                </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs hover:underline"
+                  style={{ color: S.accentSoft }}
                 >
-                  Olvidaste tu contrasena?
+                  ¿Olvidaste tu contraseña?
                 </Link>
               </div>
               <div className="relative">
-                <Input
+                <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
@@ -198,48 +171,46 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="pr-10"
+                  className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none transition-colors"
+                  style={{
+                    background: S.inputBg,
+                    border: `1px solid ${S.inputBorder}`,
+                    color: S.text,
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: S.textMuted }}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Ingresando...
-                </>
-              ) : (
-                'Ingresar'
-              )}
-            </Button>
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-xl py-3 text-sm font-semibold transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{ background: S.accent, color: '#fff' }}
+            >
+              {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Ingresando...</> : 'Ingresar'}
+            </button>
           </form>
 
-          {/* Links */}
-          <div className="space-y-3 text-center">
-            <p className="text-sm text-muted-foreground">
-              No tenes cuenta?{' '}
-              <Link
-                href="/signup"
-                className="text-primary font-medium hover:underline"
-              >
+          {/* Footer links */}
+          <div className="text-center space-y-1.5">
+            <p className="text-sm" style={{ color: S.textSec }}>
+              ¿No tenés cuenta?{' '}
+              <Link href="/signup" className="font-medium hover:underline" style={{ color: S.accentSoft }}>
                 Registrate gratis
               </Link>
             </p>
-            <p className="text-xs text-muted-foreground">
-              Sin tarjeta de credito requerida.
+            <p className="text-xs" style={{ color: S.textMuted }}>
+              Sin tarjeta de crédito requerida
             </p>
           </div>
         </div>
