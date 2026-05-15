@@ -18,6 +18,7 @@ import {
   Lock,
   Globe,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react'
 
 /* LinkedIn pseudo-icon since lucide-react doesn't export Linkedin */
@@ -138,6 +139,116 @@ function ConnectedAccountRow({
   )
 }
 
+/* ─── Job board instructions per platform ────────────────────── */
+const JOB_BOARD_INSTRUCTIONS: Record<string, { steps: string[]; apiKeyLabel: string; apiKeyHelp: string; apiKeyPlaceholder: string; contractNote?: string }> = {
+  computrabajo: {
+    steps: [
+      'Iniciá sesión en tu cuenta de empresa en computrabajo.com',
+      'Ir a Panel de control → Configuración → Integraciones API',
+      'Solicitá acceso a la API Enterprise (requiere plan de publicación activo)',
+      'Una vez aprobado, copiá tu API Key desde el panel',
+    ],
+    apiKeyLabel: 'API Key de Computrabajo',
+    apiKeyHelp: 'La API key tiene formato largo (ej: CT-xxxx-xxxx-xxxx). Solo disponible en planes Enterprise.',
+    apiKeyPlaceholder: 'CT-xxxx-xxxx-xxxx',
+    contractNote: 'Computrabajo requiere un contrato enterprise activo para habilitar el acceso API. Contactá a tu ejecutivo de cuenta o escribí a api@computrabajo.com para solicitarlo.',
+  },
+  zonajobs: {
+    steps: [
+      'Iniciá sesión en tu cuenta empresa en zonajobs.com.ar',
+      'Ir a Mi cuenta → Herramientas → Acceso API',
+      'Completá el formulario de solicitud de acceso API (revisión en 3-5 días hábiles)',
+      'Recibirás tu token por email una vez aprobado',
+    ],
+    apiKeyLabel: 'Token de API ZonaJobs',
+    apiKeyHelp: 'El token tiene 40 caracteres. Solo disponible para cuentas con plan activo.',
+    apiKeyPlaceholder: 'zj_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    contractNote: 'ZonaJobs no tiene API pública autodidacta. El acceso requiere aprobación manual del equipo comercial. Podés escribir a tecnologia@zonajobs.com.ar para acelerar el proceso.',
+  },
+  bumeran: {
+    steps: [
+      'Iniciá sesión en tu cuenta empresa en bumeran.com',
+      'Ir a Configuración de empresa → API y Webhooks',
+      'Solicitá tu API key (disponible solo para planes Premium y Enterprise)',
+      'Copiá el token generado desde el panel de desarrolladores',
+    ],
+    apiKeyLabel: 'API Key de Bumeran',
+    apiKeyHelp: 'Formato: bm_live_xxxxxxxxxxxx. Requiere plan Premium activo.',
+    apiKeyPlaceholder: 'bm_live_xxxxxxxxxxxx',
+    contractNote: 'Bumeran restringe el acceso API a clientes con plan Premium o Enterprise. Si no ves la opción en tu panel, contactá a soporte@bumeran.com o a tu ejecutivo de cuenta.',
+  },
+  occ: {
+    steps: [
+      'Iniciá sesión en tu cuenta empresa en occ.com.mx',
+      'Ir a Administración → Integraciones → API',
+      'Solicitá acceso API enviando un email a integraciones@occ.com.mx',
+      'El equipo técnico de OCC te enviará las credenciales en 5-7 días hábiles',
+    ],
+    apiKeyLabel: 'API Key de OCC Mundial',
+    apiKeyHelp: 'OCC entrega un Client ID y un Secret. Ingresá el Client ID aquí.',
+    apiKeyPlaceholder: 'occ_client_xxxxxxxx',
+    contractNote: 'OCC Mundial opera principalmente en México y requiere que tu empresa esté registrada con RFC mexicano para el acceso API comercial.',
+  },
+  indeed: {
+    steps: [
+      'Creá una cuenta de empleador en indeed.com/hire',
+      'Ir a indeed.com/publisher para solicitar acceso al Publisher Program',
+      'Completá la verificación de empresa (suele demorar 1-2 días)',
+      'Desde el panel de Publisher, generá tu Publisher ID y API Key',
+    ],
+    apiKeyLabel: 'Publisher ID de Indeed',
+    apiKeyHelp: 'El Publisher ID es un número de 8-12 dígitos que encontrás en tu panel de Publisher.',
+    apiKeyPlaceholder: '1234567890',
+    contractNote: 'Indeed requiere aprobación a través del Indeed Publisher Program. Las cuentas con pocos anuncios pueden ser rechazadas. Visitá indeed.com/publisher para más información.',
+  },
+  linkedin_jobs: {
+    steps: [
+      'Accedé a LinkedIn Talent Solutions como administrador de tu página de empresa',
+      'Ir a linkedin.com/talent/api para solicitar acceso a la Talent Solutions API',
+      'Completá el formulario de Partnership Application (proceso de 2-4 semanas)',
+      'Una vez aprobado, generá el token desde el LinkedIn Developer Portal',
+    ],
+    apiKeyLabel: 'Access Token de LinkedIn Jobs',
+    apiKeyHelp: 'El token OAuth 2.0 tiene formato largo. Obtenelo desde el LinkedIn Developer Portal bajo tu aplicación.',
+    apiKeyPlaceholder: 'AQV...',
+    contractNote: 'La API de LinkedIn Jobs está reservada para Talent Solutions Partners. El proceso de aprobación incluye revisión de caso de uso y firma de acuerdo de partnership. Para publicación de empleos masiva, considerá usar LinkedIn Recruiter System Connect (RSC).',
+  },
+  getonboard: {
+    steps: [
+      'Creá o iniciá sesión en tu cuenta empresa en getonbrd.com',
+      'Ir a Configuración → API Keys',
+      'Hacé click en "Generar nueva API Key"',
+      'Copiá la key generada (solo se muestra una vez)',
+    ],
+    apiKeyLabel: 'API Key de GetOnBoard',
+    apiKeyHelp: 'GetOnBoard tiene API pública REST. La key se genera instantáneamente desde tu panel.',
+    apiKeyPlaceholder: 'gob_xxxxxxxxxxxxxxxx',
+  },
+  infojobs: {
+    steps: [
+      'Iniciá sesión en tu cuenta empresa en infojobs.net',
+      'Ir a Área de empresa → Desarrolladores → API',
+      'Registrá tu aplicación para obtener las credenciales OAuth',
+      'Usá el Client ID como API Key aquí',
+    ],
+    apiKeyLabel: 'Client ID de InfoJobs',
+    apiKeyHelp: 'InfoJobs usa OAuth 2.0. El Client ID lo obtenés al registrar tu app en el portal de desarrolladores de InfoJobs.',
+    apiKeyPlaceholder: 'ij_client_xxxxxxxxxx',
+  },
+}
+
+const DEFAULT_INSTRUCTIONS = {
+  steps: [
+    'Iniciá sesión en tu cuenta de empresa en el portal',
+    'Buscá la sección de API o Integraciones en la configuración',
+    'Solicitá o generá una API key',
+    'Copiá la key e ingresala aquí',
+  ],
+  apiKeyLabel: 'API Key',
+  apiKeyHelp: 'Ingresá la API key provista por el portal.',
+  apiKeyPlaceholder: 'Ingresá tu API key',
+}
+
 /* ─── Job board modal ────────────────────────────────────────── */
 function JobBoardModal({
   platform,
@@ -153,6 +264,9 @@ function JobBoardModal({
   const [apiKey, setApiKey] = React.useState('')
   const [accountEmail, setAccountEmail] = React.useState('')
   const [loading, setLoading] = React.useState(false)
+  const [showSteps, setShowSteps] = React.useState(true)
+
+  const instructions = JOB_BOARD_INSTRUCTIONS[platform] ?? DEFAULT_INSTRUCTIONS
 
   async function handleSubmit() {
     setLoading(true)
@@ -177,16 +291,53 @@ function JobBoardModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold text-foreground">Conectar {name}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} className="rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <h2 className="font-semibold" style={{ color: 'var(--text)', fontFamily: 'var(--font-nunito)' }}>Conectar {name}</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Integración mediante API key</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--muted)' }}>
             <X className="h-4 w-4" />
           </button>
         </div>
+
         <div className="p-5 space-y-4">
+          {/* Contract / access note */}
+          {instructions.contractNote && (
+            <div className="rounded-lg p-3 flex gap-2.5" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
+              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text)' }}>{instructions.contractNote}</p>
+            </div>
+          )}
+
+          {/* Step-by-step instructions */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
+            <button
+              onClick={() => setShowSteps(!showSteps)}
+              className="flex items-center gap-2 text-xs font-medium mb-2 transition-colors"
+              style={{ color: 'var(--accent-2)' }}
+            >
+              <ChevronDown className="h-3.5 w-3.5 transition-transform" style={{ transform: showSteps ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
+              Cómo obtener tu API key en {name}
+            </button>
+            {showSteps && (
+              <ol className="space-y-2 rounded-lg p-3" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                {instructions.steps.map((step, i) => (
+                  <li key={i} className="flex gap-2.5 text-xs" style={{ color: 'var(--text)' }}>
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)' }}>
+                      {i + 1}
+                    </span>
+                    <span className="leading-relaxed pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          {/* Form fields */}
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wide block mb-1" style={{ color: 'var(--muted)' }}>
               Email de la cuenta
             </label>
             <input
@@ -194,41 +345,43 @@ function JobBoardModal({
               value={accountEmail}
               onChange={(e) => setAccountEmail(e.target.value)}
               placeholder="cuenta@empresa.com"
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
-              API Key
+            <label className="text-xs font-medium uppercase tracking-wide block mb-1" style={{ color: 'var(--muted)' }}>
+              {instructions.apiKeyLabel}
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Ingresá tu API key"
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder={instructions.apiKeyPlaceholder}
+              className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
+            <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{instructions.apiKeyHelp}</p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
+
+          <div className="flex items-center gap-2 text-xs rounded-lg p-3" style={{ background: 'var(--surface2)', color: 'var(--muted)' }}>
             <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-            <span>Tus credenciales se guardan encriptadas y nunca se comparten.</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
-            <Globe className="h-3.5 w-3.5 flex-shrink-0" />
-            <span>Necesitás una cuenta de empleador activa en el portal para obtener tu API key.</span>
+            <span>Tus credenciales se guardan encriptadas y nunca se comparten con terceros.</span>
           </div>
         </div>
-        <div className="flex gap-2 justify-end p-5 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+
+        <div className="flex gap-2 justify-end p-5" style={{ borderTop: '1px solid var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 text-sm transition-colors" style={{ color: 'var(--muted)' }}>
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || (!apiKey && !accountEmail)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ background: 'var(--accent)', color: '#fff' }}
           >
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Conectar
+            Guardar conexión
           </button>
         </div>
       </div>
