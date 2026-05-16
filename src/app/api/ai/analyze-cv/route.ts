@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CvExtractionError, extractCvText } from '@/lib/cv/extract-text'
+
+export const runtime = 'nodejs'
 
 interface AnalyzeCvRequest {
   cvText: string
@@ -65,8 +68,44 @@ FORMATO JSON REQUERIDO:
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = (await request.json()) as AnalyzeCvRequest
-    const { cvText, vacancyRequirements } = body
+    const contentType = request.headers.get('content-type') ?? ''
+    let cvText = ''
+    let vacancyRequirements: string[] | undefined
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      const file = formData.get('file')
+      const rawRequirements = formData.get('vacancyRequirements')
+
+      if (!(file instanceof File)) {
+        return NextResponse.json({ error: 'No se recibió ningún archivo de CV.' }, { status: 400 })
+      }
+
+      try {
+        cvText = await extractCvText(file)
+      } catch (error) {
+        const message = error instanceof CvExtractionError
+          ? error.message
+          : 'No se pudo extraer texto del CV.'
+
+        return NextResponse.json({ error: message }, { status: 400 })
+      }
+
+      if (typeof rawRequirements === 'string' && rawRequirements.trim()) {
+        try {
+          const parsed = JSON.parse(rawRequirements) as unknown
+          vacancyRequirements = Array.isArray(parsed)
+            ? parsed.map((item) => String(item)).filter(Boolean)
+            : undefined
+        } catch {
+          vacancyRequirements = undefined
+        }
+      }
+    } else {
+      const body = (await request.json()) as AnalyzeCvRequest
+      cvText = body.cvText
+      vacancyRequirements = body.vacancyRequirements
+    }
 
     if (!cvText || cvText.trim().length < 50) {
       return NextResponse.json({ error: 'El texto del CV es demasiado corto o está vacío.' }, { status: 400 })

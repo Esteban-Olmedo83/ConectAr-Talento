@@ -255,14 +255,19 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
 
   async function analyzeFile(file: File) {
     setStatus('analyzing')
-    const text = await file.text()
     try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('vacancyRequirements', JSON.stringify([]))
+
       const res = await fetch('/api/ai/analyze-cv', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvText: text, vacancyRequirements: [] }),
+        body: formData,
       })
       const data = await res.json()
+      if (!res.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'No se pudo analizar el CV.')
+      }
       setPrefill({
         fullName: data.fullName ?? '',
         email: data.email ?? '',
@@ -300,7 +305,7 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
           background: isDragging ? 'var(--accent-soft)' : 'var(--surface2)',
         }}
       >
-        <input ref={inputRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
+        <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.rtf,.txt,.md" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) analyzeFile(f) }} />
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"

@@ -29,6 +29,7 @@ const ACCEPTED_TYPES = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/rtf',
   'text/plain',
 ]
 
@@ -56,15 +57,6 @@ function getProgressValue(state: UploadState): number {
   }
 }
 
-async function readFileAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => resolve((e.target?.result as string) ?? '')
-    reader.onerror = () => reject(new Error('Error leyendo el archivo'))
-    reader.readAsText(file, 'utf-8')
-  })
-}
-
 export function CvUploadAnalyzer({
   vacancyRequirements,
   onAnalysisComplete,
@@ -78,8 +70,8 @@ export function CvUploadAnalyzer({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = useCallback((selectedFile: File) => {
-    if (!ACCEPTED_TYPES.includes(selectedFile.type) && !selectedFile.name.match(/\.(pdf|doc|docx|txt)$/i)) {
-      setError('Formato no válido. Acepta: PDF, DOC, DOCX, TXT')
+    if (!ACCEPTED_TYPES.includes(selectedFile.type) && !selectedFile.name.match(/\.(pdf|doc|docx|txt|rtf|md)$/i)) {
+      setError('Formato no válido. Acepta: PDF, DOC, DOCX, TXT, RTF, MD')
       setState('error')
       return
     }
@@ -121,18 +113,16 @@ export function CvUploadAnalyzer({
     setError(null)
 
     try {
-      setState('extracting')
-      // Read file as text (works well for .txt; for PDF gives raw bytes but Gemini can still extract)
-      const text = await readFileAsText(file)
-
       setState('analyzing')
+      const formData = new FormData()
+      formData.append('file', file)
+      if (vacancyRequirements?.length) {
+        formData.append('vacancyRequirements', JSON.stringify(vacancyRequirements))
+      }
+
       const res = await fetch('/api/ai/analyze-cv', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cvText: text.slice(0, 15000), // cap at 15k chars
-          vacancyRequirements,
-        }),
+        body: formData,
       })
 
       if (!res.ok) {
@@ -231,12 +221,12 @@ export function CvUploadAnalyzer({
           <Upload className={cn('h-8 w-8', isDragOver ? 'text-primary' : 'text-muted-foreground')} />
           <div className="text-center">
             <p className="text-sm font-medium">Arrastrá el CV aquí o hacé clic para elegir</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">PDF, DOC, DOCX hasta 10MB</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">PDF, DOC, DOCX, RTF, TXT hasta 10MB</p>
           </div>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,.doc,.docx,.rtf,.txt,.md"
             className="hidden"
             onChange={handleInputChange}
           />
