@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+
 const PLAN_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
@@ -109,13 +111,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     try {
       if (lowerName.endsWith('.pdf')) {
-        // Dynamically import to avoid Next.js build-time issues with pdf-parse
-        // pdf-parse v2 ESM has no .default; CJS interop wraps it — handle both
+        // pdf-parse v2 exports a class `PDFParse` (not a function like v1).
+        // Dynamic import is required to avoid Turbopack/Next.js build-time issues;
+        // serverExternalPackages ensures pdfjs-dist is bundled as an external at runtime.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod = await import('pdf-parse') as any
-        const pdfParse: (b: Buffer) => Promise<{ text: string }> = mod.default ?? mod
-        const parsed = await pdfParse(buffer)
-        cvText = parsed.text
+        const { PDFParse } = await import('pdf-parse') as any
+        const parser = new PDFParse({ data: new Uint8Array(buffer) })
+        const result = await parser.getText()
+        await parser.destroy()
+        cvText = result.text as string
       } else {
         // TXT / DOCX fallback — plain UTF-8 text extraction
         cvText = buffer.toString('utf-8')
