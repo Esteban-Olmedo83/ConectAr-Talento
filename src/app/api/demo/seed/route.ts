@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
     console.error('[seed] profiles lookup error:', profileError.message)
   }
 
-  // If profile doesn't exist, use user.id directly as tenant_id (matches UserContext behaviour)
   const tenant_id: string = profile?.tenant_id ?? user.id
 
   // 3. Check if data already exists (or reset if requested)
@@ -36,11 +35,31 @@ export async function POST(request: NextRequest) {
     if (!reset) {
       return NextResponse.json({ ok: false, message: 'Ya tenés datos cargados' })
     }
-    // Delete existing demo data for this tenant before re-seeding
-    await supabase.from('interviews').delete().eq('tenant_id', tenant_id)
-    await supabase.from('applications').delete().eq('tenant_id', tenant_id)
+    // applications and interviews don't have tenant_id column — filter by FK
+    const { data: vacancyRows } = await supabase
+      .from('vacancies')
+      .select('id')
+      .eq('tenant_id', tenant_id)
+    const vIds = (vacancyRows ?? []).map((v: { id: string }) => v.id)
+
+    const { data: candidateRows } = await supabase
+      .from('candidates')
+      .select('id')
+      .eq('tenant_id', tenant_id)
+    const cIds = (candidateRows ?? []).map((c: { id: string }) => c.id)
+
+    if (cIds.length > 0) {
+      await supabase.from('interviews').delete().in('candidate_id', cIds)
+    }
+    if (vIds.length > 0) {
+      await supabase.from('applications').delete().in('vacancy_id', vIds)
+    }
     await supabase.from('candidates').delete().eq('tenant_id', tenant_id)
-    await supabase.from('vacancies').delete().eq('tenant_id', tenant_id)
+    const { error: delVacErr } = await supabase.from('vacancies').delete().eq('tenant_id', tenant_id)
+    if (delVacErr) {
+      console.error('[seed] delete vacancies error:', delVacErr.message)
+      return NextResponse.json({ ok: false, message: 'Error al limpiar datos previos: ' + delVacErr.message }, { status: 500 })
+    }
   }
 
   // 4. Insert demo data
@@ -107,25 +126,20 @@ export async function POST(request: NextRequest) {
     joaquinId,   // 11
   ] = insertedCandidates.map(c => c.id)
 
-  // Applications
+  // Applications — no tenant_id column in this table
   const applicationsData = [
-    // Frontend Dev: candidates 0,1,6,10
-    { candidate_id: valentinaId, vacancy_id: frontendId, status: 'En Proceso', tenant_id },
-    { candidate_id: matiasId, vacancy_id: frontendId, status: 'En Proceso', tenant_id },
-    { candidate_id: florenciaId, vacancy_id: frontendId, status: 'En Proceso', tenant_id },
-    { candidate_id: martinaId, vacancy_id: frontendId, status: 'En Proceso', tenant_id },
-    // Product Manager: candidate 5
-    { candidate_id: agustinId, vacancy_id: pmId, status: 'Nuevas Vacantes', tenant_id },
-    // UX/UI Designer: candidates 2,9
-    { candidate_id: camilaId, vacancy_id: uxuiId, status: 'Entrevistas', tenant_id },
-    { candidate_id: santiagoId, vacancy_id: uxuiId, status: 'Entrevistas', tenant_id },
-    // Data Analyst: candidates 3,7,11
-    { candidate_id: lucasId, vacancy_id: dataId, status: 'Oferta Enviada', tenant_id },
-    { candidate_id: tomasId, vacancy_id: dataId, status: 'Oferta Enviada', tenant_id },
-    { candidate_id: joaquinId, vacancy_id: dataId, status: 'Oferta Enviada', tenant_id },
-    // DevOps Engineer: candidates 4,8
-    { candidate_id: sofiaId, vacancy_id: devopsId, status: 'Contratado', tenant_id },
-    { candidate_id: isabellaId, vacancy_id: devopsId, status: 'Contratado', tenant_id },
+    { candidate_id: valentinaId, vacancy_id: frontendId, status: 'En Proceso' },
+    { candidate_id: matiasId, vacancy_id: frontendId, status: 'En Proceso' },
+    { candidate_id: florenciaId, vacancy_id: frontendId, status: 'En Proceso' },
+    { candidate_id: martinaId, vacancy_id: frontendId, status: 'En Proceso' },
+    { candidate_id: agustinId, vacancy_id: pmId, status: 'Nuevas Vacantes' },
+    { candidate_id: camilaId, vacancy_id: uxuiId, status: 'Entrevistas' },
+    { candidate_id: santiagoId, vacancy_id: uxuiId, status: 'Entrevistas' },
+    { candidate_id: lucasId, vacancy_id: dataId, status: 'Oferta Enviada' },
+    { candidate_id: tomasId, vacancy_id: dataId, status: 'Oferta Enviada' },
+    { candidate_id: joaquinId, vacancy_id: dataId, status: 'Oferta Enviada' },
+    { candidate_id: sofiaId, vacancy_id: devopsId, status: 'Contratado' },
+    { candidate_id: isabellaId, vacancy_id: devopsId, status: 'Contratado' },
   ]
 
   const { error: applicationsError } = await supabase
@@ -137,7 +151,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Error al insertar postulaciones: ' + applicationsError.message }, { status: 500 })
   }
 
-  // Interviews
+  // Interviews — no tenant_id column in this table
   const interviewsData = [
     {
       candidate_id: camilaId,
@@ -147,7 +161,6 @@ export async function POST(request: NextRequest) {
       interviewer_name: 'Ana García',
       status: 'scheduled',
       meeting_platform: 'Google Meet',
-      tenant_id,
     },
     {
       candidate_id: lucasId,
@@ -157,7 +170,6 @@ export async function POST(request: NextRequest) {
       interviewer_name: 'Carlos Ruiz',
       status: 'scheduled',
       meeting_platform: 'Zoom',
-      tenant_id,
     },
   ]
 
@@ -174,6 +186,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     message: 'Datos demo cargados correctamente',
-    counts: { vacancies: 5, candidates: 12, applications: 11, interviews: 2 },
+    counts: { vacancies: 5, candidates: 12, applications: 12, interviews: 2 },
   })
 }
