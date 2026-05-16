@@ -118,6 +118,8 @@ function AddCandidateDialog({
     experienceYears: prefill?.experienceYears ?? '',
     education: prefill?.education ?? '',
     atsScore: prefill?.atsScore ?? '',
+    cvUrl: prefill?.cvUrl ?? '',
+    cvFileName: prefill?.cvFileName ?? '',
   })
   const [saving, setSaving] = React.useState(false)
 
@@ -132,6 +134,8 @@ function AddCandidateDialog({
         experienceYears: prefill.experienceYears ?? f.experienceYears,
         education: prefill.education ?? f.education,
         atsScore: prefill.atsScore ?? f.atsScore,
+        cvUrl: prefill.cvUrl ?? f.cvUrl,
+        cvFileName: prefill.cvFileName ?? f.cvFileName,
       }))
     }
   }, [prefill])
@@ -152,6 +156,8 @@ function AddCandidateDialog({
       education: form.education || undefined,
       atsScore: Number(form.atsScore) || undefined,
       appliedAt: new Date().toISOString(),
+      cvUrl: form.cvUrl || undefined,
+      cvFileName: form.cvFileName || undefined,
     })
     setSaving(false)
     if (result.data) {
@@ -231,6 +237,13 @@ function AddCandidateDialog({
             <label className={labelCls}>Notas</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'resize-none h-16')} placeholder="Notas internas sobre el candidato..." />
           </div>
+          {form.cvFileName && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid var(--accent)' }}>
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+              <span>CV adjunto: <strong>{form.cvFileName}</strong></span>
+              {form.cvUrl && <a href={form.cvUrl} target="_blank" rel="noopener noreferrer" className="ml-auto underline hover:opacity-80">Ver</a>}
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={saving}>
@@ -248,42 +261,47 @@ function AddCandidateDialog({
 function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
-  const [errorMessage, setErrorMessage] = React.useState('')
+  const [errorMsg, setErrorMsg] = React.useState('')
   const [prefill, setPrefill] = React.useState<Partial<Candidate> | null>(null)
   const [showAdd, setShowAdd] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   async function analyzeFile(file: File) {
     setStatus('analyzing')
-    setErrorMessage('')
+    setErrorMsg('')
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('vacancyRequirements', JSON.stringify([]))
 
-      const res = await fetch('/api/ai/analyze-cv', {
-        method: 'POST',
-        body: formData,
-      })
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(typeof data?.error === 'string' ? data.error : 'No se pudo analizar el CV.')
+
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error ?? 'Error al analizar el CV')
+        setStatus('error')
+        setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
+        return
       }
+
+      const { analysis, cvUrl, cvFileName } = data
       setPrefill({
-        fullName: data.fullName ?? '',
-        email: data.email ?? '',
-        phone: data.phone ?? '',
-        skills: data.skills ?? [],
-        experienceYears: data.experienceYears,
-        education: data.education ?? '',
-        atsScore: data.atsScore,
+        fullName: analysis.fullName ?? '',
+        email: analysis.email ?? '',
+        phone: analysis.phone ?? '',
+        skills: analysis.skills ?? [],
+        experienceYears: analysis.experienceYears,
+        education: analysis.education ?? '',
+        atsScore: analysis.atsScore,
+        cvUrl,
+        cvFileName,
       })
       setStatus('done')
       setShowAdd(true)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Error al analizar el CV.')
+      setErrorMsg(error instanceof Error ? error.message : 'Error de red. Verificá tu conexión e intentá de nuevo.')
       setStatus('error')
-      setTimeout(() => setStatus('idle'), 3000)
+      setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
     }
   }
 
@@ -297,7 +315,7 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
   return (
     <>
       <div
-        title={status === 'error' && errorMessage ? errorMessage : undefined}
+        title={status === 'error' && errorMsg ? errorMsg : undefined}
         onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
@@ -319,13 +337,13 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
            <Upload className="h-5 w-5" style={{ color: 'var(--accent-2)' }} />}
         </div>
         <div>
-          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-            {status === 'analyzing' ? 'Analizando CV con IA...' :
+          <p className="text-sm font-medium" style={{ color: status === 'error' ? 'var(--coral)' : 'var(--text)' }}>
+            {status === 'analyzing' ? 'Subiendo y analizando CV con IA...' :
              status === 'done' ? '¡CV analizado! Abriendo formulario...' :
-             status === 'error' ? 'Error al analizar. Intentá de nuevo.' :
+             status === 'error' ? (errorMsg || 'Error al analizar. Intentá de nuevo.') :
              'Arrastrá un CV aquí o hacé clic para seleccionar'}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>PDF, DOCX o TXT · La IA extrae nombre, skills y calcula score ATS</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>PDF o TXT · La IA extrae nombre, skills y calcula score ATS · El archivo queda adjunto en la ficha</p>
         </div>
         <div className="ml-auto">
           <span

@@ -239,6 +239,8 @@ export class SupabaseProvider implements DataProvider {
         source: input.source,
         notes: input.notes ?? null,
         applied_at: input.appliedAt,
+        cv_url: input.cvUrl ?? null,
+        cv_file_name: input.cvFileName ?? null,
       })
       .select()
       .single()
