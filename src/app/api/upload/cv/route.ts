@@ -110,7 +110,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       if (lowerName.endsWith('.pdf')) {
         // Dynamically import to avoid Next.js build-time issues with pdf-parse
-        const pdfParse = (await import('pdf-parse')).default
+        // pdf-parse v2 ESM has no .default; CJS interop wraps it — handle both
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mod = await import('pdf-parse') as any
+        const pdfParse: (b: Buffer) => Promise<{ text: string }> = mod.default ?? mod
         const parsed = await pdfParse(buffer)
         cvText = parsed.text
       } else {
