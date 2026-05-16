@@ -36,11 +36,16 @@ export async function POST(request: NextRequest) {
     if (!reset) {
       return NextResponse.json({ ok: false, message: 'Ya tenés datos cargados' })
     }
-    // Delete existing demo data for this tenant before re-seeding
-    await supabase.from('interviews').delete().eq('tenant_id', tenant_id)
-    await supabase.from('applications').delete().eq('tenant_id', tenant_id)
-    await supabase.from('candidates').delete().eq('tenant_id', tenant_id)
-    await supabase.from('vacancies').delete().eq('tenant_id', tenant_id)
+    // Delete existing data for this tenant before re-seeding
+    const { error: delErr1 } = await supabase.from('interviews').delete().eq('tenant_id', tenant_id)
+    const { error: delErr2 } = await supabase.from('applications').delete().eq('tenant_id', tenant_id)
+    const { error: delErr3 } = await supabase.from('candidates').delete().eq('tenant_id', tenant_id)
+    const { error: delErr4 } = await supabase.from('vacancies').delete().eq('tenant_id', tenant_id)
+    const delError = delErr1 || delErr2 || delErr3 || delErr4
+    if (delError) {
+      console.error('[seed] delete error:', delError.message)
+      return NextResponse.json({ ok: false, message: 'Error al limpiar datos previos: ' + delError.message }, { status: 500 })
+    }
   }
 
   // 4. Insert demo data

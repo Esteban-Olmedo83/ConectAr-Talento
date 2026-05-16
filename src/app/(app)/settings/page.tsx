@@ -918,47 +918,26 @@ function ConexionIAsTab() {
 // ─── Datos Tab ────────────────────────────────────────────────────────────────
 function DatosTab() {
   const [loading, setLoading] = React.useState(false)
-  const [resetting, setResetting] = React.useState(false)
-  const [result, setResult] = React.useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null)
-  const [hasAttempted, setHasAttempted] = React.useState(false)
+  const [result, setResult] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   async function handleSeedDemo() {
     setLoading(true)
     setResult(null)
     try {
-      const res = await fetch('/api/demo/seed', { method: 'POST' })
-      const data = await res.json()
-      setHasAttempted(true)
-      if (data.ok) {
-        setResult({ type: 'success', message: 'Datos demo cargados. ¡Recargá el Dashboard!' })
-      } else if (data.message === 'Ya tenés datos cargados') {
-        setResult({ type: 'info', message: 'Ya tenés datos cargados en el sistema' })
-      } else {
-        setResult({ type: 'error', message: data.message || 'Ocurrió un error inesperado' })
-      }
-    } catch {
-      setResult({ type: 'error', message: 'No se pudo conectar con el servidor' })
-      setHasAttempted(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleResetDemo() {
-    setResetting(true)
-    setResult(null)
-    try {
       const res = await fetch('/api/demo/seed?reset=true', { method: 'POST' })
       const data = await res.json()
       if (data.ok) {
-        setResult({ type: 'success', message: 'Datos demo recargados correctamente. ¡Recargá el Dashboard!' })
+        setResult({
+          type: 'success',
+          message: `Datos demo cargados: ${data.counts?.vacancies ?? 0} vacantes, ${data.counts?.candidates ?? 0} candidatos, ${data.counts?.applications ?? 0} postulaciones. ¡Andá al Dashboard!`,
+        })
       } else {
         setResult({ type: 'error', message: data.message || 'Ocurrió un error inesperado' })
       }
     } catch {
       setResult({ type: 'error', message: 'No se pudo conectar con el servidor' })
     } finally {
-      setResetting(false)
+      setLoading(false)
     }
   }
 
@@ -975,13 +954,13 @@ function DatosTab() {
           Datos de demostración
         </h3>
         <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
-          Cargá un conjunto de candidatos, vacantes y postulaciones de ejemplo para explorar todas las funcionalidades de la plataforma.
+          Cargá 5 vacantes, 12 candidatos y 11 postulaciones de ejemplo para explorar todas las funcionalidades. Si ya tenés datos previos, se reemplazarán por los datos demo.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleSeedDemo}
-            disabled={loading || resetting}
+            disabled={loading}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               background: 'var(--accent)',
@@ -996,31 +975,9 @@ function DatosTab() {
                 Cargando...
               </>
             ) : (
-              'Cargar datos demo'
+              'Cargar datos de demostración'
             )}
           </button>
-
-          {hasAttempted && (
-            <button
-              onClick={handleResetDemo}
-              disabled={loading || resetting}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{
-                background: 'transparent',
-                color: 'var(--muted2)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {resetting ? (
-                <>
-                  <span className="w-3 h-3 rounded-full border-2 border-current/30 border-t-current animate-spin" />
-                  Recargando...
-                </>
-              ) : (
-                'Recargar datos demo'
-              )}
-            </button>
-          )}
         </div>
 
         {result && (
@@ -1030,20 +987,14 @@ function DatosTab() {
               background:
                 result.type === 'success'
                   ? 'color-mix(in srgb, var(--emerald) 15%, transparent)'
-                  : result.type === 'info'
-                  ? 'color-mix(in srgb, var(--sky) 15%, transparent)'
                   : 'color-mix(in srgb, var(--coral) 15%, transparent)',
               color:
                 result.type === 'success'
                   ? 'var(--emerald)'
-                  : result.type === 'info'
-                  ? 'var(--sky)'
                   : 'var(--coral)',
               border: `1px solid ${
                 result.type === 'success'
                   ? 'color-mix(in srgb, var(--emerald) 30%, transparent)'
-                  : result.type === 'info'
-                  ? 'color-mix(in srgb, var(--sky) 30%, transparent)'
                   : 'color-mix(in srgb, var(--coral) 30%, transparent)'
               }`,
             }}

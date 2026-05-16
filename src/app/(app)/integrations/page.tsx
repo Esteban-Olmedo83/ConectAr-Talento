@@ -41,19 +41,6 @@ const PLAN_LIMITS: Record<string, number> = {
   enterprise: 999,
 }
 
-/* ─── Platform configuration status ─────────────────────────── */
-// Next.js inlines NEXT_PUBLIC_* env vars at build time.
-// Set NEXT_PUBLIC_<PLATFORM>_CONFIGURED=true in .env.local to enable real OAuth buttons.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _proc = (typeof (globalThis as any).process !== 'undefined' ? (globalThis as any).process : { env: {} }) as { env: Record<string, string | undefined> }
-const PLATFORM_CONFIGURED: Record<string, boolean> = {
-  linkedin: Boolean(_proc.env.NEXT_PUBLIC_LINKEDIN_CONFIGURED),
-  google: Boolean(_proc.env.NEXT_PUBLIC_GOOGLE_CONFIGURED),
-  microsoft: Boolean(_proc.env.NEXT_PUBLIC_MICROSOFT_CONFIGURED),
-  zoom: Boolean(_proc.env.NEXT_PUBLIC_ZOOM_CONFIGURED),
-  meta: Boolean(_proc.env.NEXT_PUBLIC_META_CONFIGURED),
-}
-
 /* ─── status config ──────────────────────────────────────────── */
 const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }> = {
   connected: { label: 'Conectado', icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: 'text-green-600 bg-green-100' },
@@ -549,24 +536,6 @@ export default function IntegrationsPage() {
   }) {
     const config = OAUTH_ROUTES[platformKey]
     if (!config) return null
-
-    const configured = PLATFORM_CONFIGURED[config.configKey]
-
-    if (!configured) {
-      return (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
-              <AlertCircle className="h-3 w-3" />
-              Requiere configuración
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Variables de entorno necesarias: <code className="font-mono text-xs">{config.envVars.join(', ')}</code>
-          </p>
-        </div>
-      )
-    }
 
     return (
       <a
