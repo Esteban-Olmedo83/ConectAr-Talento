@@ -1,5 +1,7 @@
+import { createRequire } from 'node:module'
 import mammoth from 'mammoth'
-import { PDFParse } from 'pdf-parse'
+
+const require = createRequire(import.meta.url)
 
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: false })
 const LATIN1_DECODER = new TextDecoder('latin1', { fatal: false })
@@ -63,14 +65,40 @@ function salvageTextFromBinary(buffer: ArrayBuffer): string {
 }
 
 async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
-  const parser = new PDFParse({ data: new Uint8Array(buffer) })
+  const PDFParser = require('pdf2json') as new (context?: unknown, needRawText?: boolean, password?: string) => unknown
 
-  try {
-    const result = await parser.getText()
-    return normalizeWhitespace(result.text)
-  } finally {
-    await parser.destroy()
-  }
+  return await new Promise<string>((resolve, reject) => {
+    const parser: {
+      on: (event: string, listener: (...args: unknown[]) => void) => unknown
+      parseBuffer: (pdfBuffer: Buffer, verbosity?: number) => void
+      getRawTextContent: () => string
+      destroy?: () => void
+    } = new PDFParser(null, true) as {
+      on: (event: string, listener: (...args: unknown[]) => void) => unknown
+      parseBuffer: (pdfBuffer: Buffer, verbosity?: number) => void
+      getRawTextContent: () => string
+      destroy?: () => void
+    }
+
+    parser.on('pdfParser_dataError', (...args: unknown[]) => {
+      const error = args[0] as { parserError?: Error } | Error
+      parser.destroy?.()
+      reject(error instanceof Error ? error : error.parserError ?? new Error('No se pudo parsear el PDF.'))
+    })
+
+    parser.on('pdfParser_dataReady', () => {
+      try {
+        const text = normalizeWhitespace(parser.getRawTextContent())
+        parser.destroy?.()
+        resolve(text)
+      } catch (error) {
+        parser.destroy?.()
+        reject(error)
+      }
+    })
+
+    parser.parseBuffer(Buffer.from(buffer), 0)
+  })
 }
 
 async function extractDocxText(buffer: ArrayBuffer): Promise<string> {

@@ -6,9 +6,8 @@ import {
   Grid3X3, List, ChevronDown, Trash2, Calendar, Eye,
   X, Loader2, CheckCircle2
 } from 'lucide-react'
-import { cn, formatDate, formatRelativeDate, getInitials, generateId } from '@/lib/utils'
+import { cn, formatRelativeDate, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
@@ -249,12 +248,14 @@ function AddCandidateDialog({
 function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = React.useState('')
   const [prefill, setPrefill] = React.useState<Partial<Candidate> | null>(null)
   const [showAdd, setShowAdd] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   async function analyzeFile(file: File) {
     setStatus('analyzing')
+    setErrorMessage('')
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -279,7 +280,8 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
       })
       setStatus('done')
       setShowAdd(true)
-    } catch {
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Error al analizar el CV.')
       setStatus('error')
       setTimeout(() => setStatus('idle'), 3000)
     }
@@ -295,6 +297,7 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
   return (
     <>
       <div
+        title={status === 'error' && errorMessage ? errorMessage : undefined}
         onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
@@ -358,6 +361,7 @@ export default function CandidatesPage() {
   const [filterScore, setFilterScore] = React.useState('all')
   const [filterSource, setFilterSource] = React.useState('all')
   const [showAdd, setShowAdd] = React.useState(false)
+  const [metricsNowIso] = React.useState(() => new Date().toISOString())
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -393,10 +397,10 @@ export default function CandidatesPage() {
     const avgScore = withScore > 0
       ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / withScore)
       : 0
-    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+    const weekAgo = new Date(new Date(metricsNowIso).getTime() - 7 * 86400000).toISOString()
     const newThisWeek = candidates.filter(c => c.createdAt >= weekAgo).length
     return { total, withScore, avgScore, newThisWeek }
-  }, [candidates])
+  }, [candidates, metricsNowIso])
 
   async function handleDelete(id: string) {
     if (!confirm('¿Eliminar este candidato?')) return
