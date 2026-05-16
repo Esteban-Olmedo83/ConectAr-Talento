@@ -33,7 +33,6 @@ const SETTINGS_TABS = [
   { id: 'cuenta', label: 'Cuenta' },
   { id: 'notificaciones', label: 'Notificaciones' },
   { id: 'ia', label: 'Conexión con IAs' },
-  { id: 'datos', label: 'Datos' },
 ]
 
 function applyTheme(theme: string) {
@@ -583,13 +582,22 @@ interface IAOption {
 
 const IA_OPTIONS: IAOption[] = [
   {
+    id: 'groq',
+    name: 'Groq — Llama 3.3 70B',
+    badge: 'Gratis · Por defecto',
+    badgeType: 'green',
+    description: '14.400 req/día gratis · Sin tarjeta · La más rápida del mercado',
+    keyLink: 'https://console.groq.com/keys',
+    keyLinkLabel: 'Obtener API key gratis en console.groq.com/keys',
+  },
+  {
     id: 'gemini',
     name: 'Gemini (Google)',
     badge: 'Gratis',
     badgeType: 'green',
-    description: '2M tokens/día en plan gratuito',
+    description: '1.500 req/día en plan gratuito de AI Studio',
     keyLink: 'https://aistudio.google.com',
-    keyLinkLabel: 'Obtener API key gratis en aistudio.google.com',
+    keyLinkLabel: 'aistudio.google.com',
   },
   {
     id: 'openai',
@@ -609,15 +617,6 @@ const IA_OPTIONS: IAOption[] = [
     keyLink: 'https://console.anthropic.com',
     keyLinkLabel: 'console.anthropic.com',
   },
-  {
-    id: 'groq',
-    name: 'Llama (Meta / Groq)',
-    badge: 'Gratis (Groq)',
-    badgeType: 'green',
-    description: 'Via Groq API, extremadamente rápido',
-    keyLink: 'https://console.groq.com/keys',
-    keyLinkLabel: 'console.groq.com/keys',
-  },
 ]
 
 interface AIConfig {
@@ -626,7 +625,7 @@ interface AIConfig {
 }
 
 function ConexionIAsTab() {
-  const [selected, setSelected] = React.useState<IAProvider>('gemini')
+  const [selected, setSelected] = React.useState<IAProvider>('groq')
   const [apiKey, setApiKey] = React.useState('')
   const [showKey, setShowKey] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
@@ -639,7 +638,7 @@ function ConexionIAsTab() {
       const raw = localStorage.getItem('ct_ai_config')
       if (raw) {
         const config = JSON.parse(raw) as AIConfig
-        setSelected(config.provider || 'gemini')
+        setSelected(config.provider || 'groq')
         setApiKey(config.apiKey || '')
         setHasSavedKey(!!config.apiKey)
       }
@@ -685,8 +684,30 @@ function ConexionIAsTab() {
     setTesting(true)
     setTestResult(null)
     try {
-      if (selected === 'gemini') {
-        // Try gemini-1.5-flash first (higher free-tier quota), fall back to gemini-2.0-flash
+      if (selected === 'groq') {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: 'Di hola en una palabra.' }],
+            max_tokens: 10,
+          }),
+        })
+        const data = await res.json()
+        if (res.ok && data.choices?.[0]?.message?.content) {
+          setTestResult({ ok: true, message: `Conexión exitosa con Groq · Llama 3.3 70B. Respuesta: "${data.choices[0].message.content.trim()}"` })
+        } else {
+          const msg: string = data.error?.message || 'Respuesta inesperada'
+          if (res.status === 401) {
+            setTestResult({ ok: false, message: 'API key inválida. Verificá en console.groq.com/keys.' })
+          } else if (res.status === 429) {
+            setTestResult({ ok: false, message: 'Límite de rate alcanzado. Esperá unos segundos e intentá de nuevo.' })
+          } else {
+            setTestResult({ ok: false, message: msg })
+          }
+        }
+      } else if (selected === 'gemini') {
         const models = ['gemini-1.5-flash', 'gemini-2.0-flash']
         let lastError = ''
         let success = false
@@ -695,9 +716,7 @@ function ConexionIAsTab() {
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'Di hola en una palabra.' }] }],
-            }),
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'Di hola en una palabra.' }] }] }),
           })
           const data = await res.json()
           if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
@@ -707,19 +726,15 @@ function ConexionIAsTab() {
           }
           const rawMsg: string = data.error?.message || ''
           if (rawMsg.toLowerCase().includes('quota') || rawMsg.toLowerCase().includes('rate') || res.status === 429) {
-            lastError = 'Cuota gratuita agotada. El plan gratuito de Gemini tiene límite diario. Revisá tu uso en ai.dev/rate-limit o esperá al reinicio de cuota (medianoche PT). Si necesitás más cuota, habilitá facturación en console.cloud.google.com.'
-          } else if (res.status === 400 && rawMsg.toLowerCase().includes('api key')) {
-            lastError = 'API key inválida. Verificá que la key sea correcta en aistudio.google.com.'
-            break
+            lastError = 'Cuota gratuita agotada. Esperá al reinicio (medianoche PT) o habilitá facturación en console.cloud.google.com.'
           } else {
             lastError = rawMsg || 'Respuesta inesperada de la API'
+            break
           }
         }
-        if (!success) {
-          setTestResult({ ok: false, message: lastError })
-        }
+        if (!success) setTestResult({ ok: false, message: lastError })
       } else {
-        setTestResult({ ok: true, message: 'API key guardada. La prueba directa está disponible para Gemini.' })
+        setTestResult({ ok: true, message: 'API key guardada correctamente.' })
       }
     } catch (e) {
       setTestResult({ ok: false, message: e instanceof Error ? e.message : 'Error de red' })
@@ -1063,7 +1078,6 @@ export default function SettingsPage() {
         {activeTab === 'cuenta' && <CuentaTab />}
         {activeTab === 'notificaciones' && <NotificacionesTab />}
         {activeTab === 'ia' && <ConexionIAsTab />}
-        {activeTab === 'datos' && <DatosTab />}
       </main>
     </div>
   )

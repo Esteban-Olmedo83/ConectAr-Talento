@@ -261,8 +261,8 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           <span
             className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
             style={{
-              background: PRIORITY_CONFIG[vacancy.priority].bg,
-              color: PRIORITY_CONFIG[vacancy.priority].color,
+              background: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).bg,
+              color: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).color,
             }}
           >
             {vacancy.priority}
