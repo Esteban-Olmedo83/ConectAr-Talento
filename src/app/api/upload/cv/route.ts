@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { extractCvText, CvExtractionError } from '@/lib/cv/extract-text'
 
 export const runtime = 'nodejs'
 
@@ -105,30 +106,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Extract text from file (server-side)
+    // Extract text from file using the shared utility (pdf2json, mammoth, etc.)
     let cvText = ''
-    const lowerName = file.name.toLowerCase()
 
     try {
-      if (lowerName.endsWith('.pdf')) {
-        // pdf-parse v2 exports a class `PDFParse` (not a function like v1).
-        // Dynamic import is required to avoid Turbopack/Next.js build-time issues;
-        // serverExternalPackages ensures pdfjs-dist is bundled as an external at runtime.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { PDFParse } = await import('pdf-parse') as any
-        const parser = new PDFParse({ data: new Uint8Array(buffer) })
-        const result = await parser.getText()
-        await parser.destroy()
-        cvText = result.text as string
-      } else {
-        // TXT / DOCX fallback — plain UTF-8 text extraction
-        cvText = buffer.toString('utf-8')
-      }
+      cvText = await extractCvText(file)
     } catch (e) {
       console.error('[upload-cv] text extraction error:', e)
-      return NextResponse.json({
-        error: 'No se pudo leer el archivo. Asegurate de que sea un PDF de texto (no escaneado) o un archivo TXT.',
-      }, { status: 400 })
+      const message = e instanceof CvExtractionError
+        ? e.message
+        : 'No se pudo leer el archivo. Asegurate de que sea un PDF de texto (no escaneado), DOCX, RTF o TXT.'
+      return NextResponse.json({ error: message }, { status: 400 })
     }
 
     if (!cvText || cvText.trim().length < 50) {
