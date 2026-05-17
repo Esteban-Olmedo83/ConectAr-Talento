@@ -279,6 +279,17 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
+  async updateCandidateNotes(id: string, notes: string): Promise<DataResult<Candidate>> {
+    const { data, error } = await this.sb
+      .from('candidates')
+      .update({ notes })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapCandidate(data as Record<string, unknown>))
+  }
+
   async getApplications(vacancyId?: string, _tenantId?: string): Promise<DataResult<Application[]>> {
     let q = this.sb
       .from('applications')
@@ -315,6 +326,26 @@ export class SupabaseProvider implements DataProvider {
       .single()
     if (error) return err(error.message)
     return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  // Stage mapping used by the pipeline drag-and-drop.
+  // The DB stores the Spanish VacancyStatus labels directly, so we just
+  // delegate to updateApplicationStatus after mapping the short key.
+  private static readonly STAGE_MAP: Record<string, VacancyStatus> = {
+    new: 'Nuevas Vacantes',
+    screening: 'En Proceso',
+    interview: 'Entrevistas',
+    offer: 'Oferta Enviada',
+    hired: 'Contratado',
+  }
+
+  async updateApplicationStage(applicationId: string, stage: string): Promise<void> {
+    const vacancyStatus: VacancyStatus =
+      SupabaseProvider.STAGE_MAP[stage] ?? (stage as VacancyStatus)
+    await this.sb
+      .from('applications')
+      .update({ status: vacancyStatus, updated_at: new Date().toISOString() })
+      .eq('id', applicationId)
   }
 
   async getInterviews(candidateId?: string, _tenantId?: string): Promise<DataResult<Interview[]>> {

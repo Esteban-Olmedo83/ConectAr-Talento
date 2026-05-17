@@ -27,12 +27,26 @@ import {
   ChevronDown,
   Mail,
   MessageCircle,
+  X,
+  Copy,
+  CheckCircle2,
+  Loader2,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { Application, Candidate, Vacancy, VacancyStatus } from '@/types'
+import type {
+  Application,
+  Candidate,
+  Vacancy,
+  VacancyStatus,
+  MessageTemplate,
+  InterviewType,
+  MeetingPlatform,
+} from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -175,13 +189,804 @@ function StagePillsBar({
   )
 }
 
+// ─── Email Modal ───────────────────────────────────────────────────────────────
+function EmailModal({
+  candidate,
+  templates,
+  onClose,
+}: {
+  candidate: Candidate
+  templates: MessageTemplate[]
+  onClose: () => void
+}) {
+  const emailTemplates = templates.filter(t => t.channel === 'email')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [subject, setSubject] = React.useState('')
+  const [body, setBody] = React.useState('')
+  const [copied, setCopied] = React.useState(false)
+
+  const selectedTemplate = emailTemplates.find(t => t.id === selectedTemplateId)
+
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      setSubject(selectedTemplate.subject ?? '')
+      // Pre-fill nombre_candidato variable if present
+      const filledBody = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      setBody(filledBody)
+    }
+  }, [selectedTemplate, candidate.fullName])
+
+  function handleCopyEmail() {
+    navigator.clipboard.writeText(candidate.email).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const mailtoHref = `mailto:${candidate.email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}${body ? `${subject ? '&' : '?'}body=${encodeURIComponent(body)}` : ''}`
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 13,
+    padding: '8px 12px',
+    outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--muted)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    display: 'block',
+    marginBottom: 4,
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 520,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Mail style={{ width: 15, height: 15, color: '#818cf8' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Enviar email</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Candidate email */}
+          <div>
+            <label style={labelStyle}>Email del candidato</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ ...inputStyle, flex: 1, color: 'var(--accent-2)', fontWeight: 500 }}>
+                {candidate.email}
+              </div>
+              <button
+                onClick={handleCopyEmail}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: copied ? 'rgba(52,211,153,0.15)' : 'var(--surface2)',
+                  border: '1px solid var(--border)',
+                  color: copied ? '#34d399' : 'var(--muted)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap' as const,
+                }}
+              >
+                <Copy style={{ width: 12, height: 12 }} />
+                {copied ? 'Copiado' : 'Copiar email'}
+              </button>
+            </div>
+          </div>
+
+          {/* Template selector */}
+          {emailTemplates.length > 0 && (
+            <div>
+              <label style={labelStyle}>Template (opcional)</label>
+              <select
+                value={selectedTemplateId}
+                onChange={e => setSelectedTemplateId(e.target.value)}
+                style={{ ...inputStyle, appearance: 'none' as const }}
+              >
+                <option value="">Sin template</option>
+                {emailTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Subject */}
+          <div>
+            <label style={labelStyle}>Asunto</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder="Asunto del email..."
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Body */}
+          <div>
+            <label style={labelStyle}>Mensaje</label>
+            <textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Escribí tu mensaje..."
+              rows={6}
+              style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Cancelar
+          </button>
+          <a
+            href={mailtoHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: 'var(--accent)',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+            }}
+          >
+            <Mail style={{ width: 13, height: 13 }} />
+            Abrir cliente de email
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── WhatsApp Modal ────────────────────────────────────────────────────────────
+function WhatsAppModal({
+  candidate,
+  templates,
+  onClose,
+}: {
+  candidate: Candidate
+  templates: MessageTemplate[]
+  onClose: () => void
+}) {
+  const waTemplates = templates.filter(t => t.channel === 'whatsapp')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [message, setMessage] = React.useState('')
+
+  const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
+
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      const filled = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      setMessage(filled)
+    } else {
+      setMessage(`Hola ${candidate.fullName}! 👋\n\nMe comunico desde el equipo de Talento. ¿Tenés un momento para charlar?`)
+    }
+  }, [selectedTemplate, candidate.fullName])
+
+  function formatPhone(phone: string): string {
+    // Strip all non-numeric chars
+    let digits = phone.replace(/\D/g, '')
+    // If starts with 0, remove leading 0 and prepend Argentina country code 54
+    if (digits.startsWith('0')) {
+      digits = '54' + digits.slice(1)
+    }
+    // If doesn't start with a country code (no +), prepend 54
+    if (!phone.startsWith('+') && !digits.startsWith('54')) {
+      digits = '54' + digits
+    }
+    return digits
+  }
+
+  const phone = candidate.phone ? formatPhone(candidate.phone) : null
+  const waUrl = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    : null
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 13,
+    padding: '8px 12px',
+    outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--muted)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    display: 'block',
+    marginBottom: 4,
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 480,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageCircle style={{ width: 15, height: 15, color: '#4ade80' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>WhatsApp</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {!candidate.phone && (
+            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', fontSize: 12, color: '#fbbf24' }}>
+              Este candidato no tiene teléfono registrado. Podés editarlo desde la sección de candidatos.
+            </div>
+          )}
+          {candidate.phone && (
+            <div>
+              <label style={labelStyle}>Teléfono</label>
+              <div style={{ ...inputStyle, color: '#4ade80', fontWeight: 500 }}>
+                {candidate.phone}
+              </div>
+            </div>
+          )}
+
+          {waTemplates.length > 0 && (
+            <div>
+              <label style={labelStyle}>Template (opcional)</label>
+              <select
+                value={selectedTemplateId}
+                onChange={e => setSelectedTemplateId(e.target.value)}
+                style={{ ...inputStyle, appearance: 'none' as const }}
+              >
+                <option value="">Sin template</option>
+                {waTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label style={labelStyle}>Mensaje</label>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              rows={5}
+              style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Cancelar
+          </button>
+          {waUrl ? (
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                background: '#16a34a',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                textDecoration: 'none',
+              }}
+            >
+              <MessageCircle style={{ width: 13, height: 13 }} />
+              Abrir WhatsApp
+            </a>
+          ) : (
+            <button
+              disabled
+              style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'not-allowed', fontSize: 13 }}
+            >
+              Sin teléfono
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Schedule Interview Modal ─────────────────────────────────────────────────
+function ScheduleInterviewModal({
+  candidate,
+  vacancies,
+  provider,
+  onClose,
+  onScheduled,
+}: {
+  candidate: Candidate
+  vacancies: Vacancy[]
+  provider: SupabaseProvider
+  onClose: () => void
+  onScheduled?: () => void
+}) {
+  const { user } = useUser()
+  const [form, setForm] = React.useState({
+    scheduledAt: '',
+    type: 'RRHH' as InterviewType,
+    vacancyId: '',
+    interviewerName: user?.fullName ?? '',
+    interviewerEmail: user?.email ?? '',
+    meetingPlatform: 'presencial' as MeetingPlatform,
+    meetingLink: '',
+    notes: '',
+  })
+  const [saving, setSaving] = React.useState(false)
+  const [saved, setSaved] = React.useState(false)
+  const [error, setError] = React.useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    const result = await provider.createInterview({
+      candidateId: candidate.id,
+      vacancyId: form.vacancyId || (vacancies[0]?.id ?? ''),
+      scheduledAt: new Date(form.scheduledAt).toISOString(),
+      type: form.type,
+      interviewerName: form.interviewerName,
+      interviewerEmail: form.interviewerEmail || undefined,
+      status: 'Programada',
+      meetingPlatform: form.meetingPlatform,
+      meetingLink: form.meetingLink || undefined,
+      notes: form.notes || undefined,
+    })
+    setSaving(false)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setSaved(true)
+      onScheduled?.()
+      setTimeout(onClose, 1200)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 13,
+    padding: '8px 12px',
+    outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--muted)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    display: 'block',
+    marginBottom: 4,
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 480,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar style={{ width: 15, height: 15, color: '#a78bfa' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Agendar entrevista</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          {saved ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 0' }}>
+              <CheckCircle2 style={{ width: 40, height: 40, color: '#34d399' }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>¡Entrevista agendada!</p>
+            </div>
+          ) : (
+            <form id="schedule-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Fecha y hora *</label>
+                <input
+                  required
+                  type="datetime-local"
+                  value={form.scheduledAt}
+                  onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Tipo *</label>
+                  <select
+                    value={form.type}
+                    onChange={e => setForm(f => ({ ...f, type: e.target.value as InterviewType }))}
+                    style={{ ...inputStyle, appearance: 'none' as const }}
+                  >
+                    <option value="RRHH">RRHH</option>
+                    <option value="Técnica">Técnica</option>
+                    <option value="Con Hiring Manager">Con Hiring Manager</option>
+                    <option value="Cultural">Cultural</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Modalidad *</label>
+                  <select
+                    value={form.meetingPlatform}
+                    onChange={e => setForm(f => ({ ...f, meetingPlatform: e.target.value as MeetingPlatform }))}
+                    style={{ ...inputStyle, appearance: 'none' as const }}
+                  >
+                    <option value="presencial">Presencial</option>
+                    <option value="zoom">Zoom</option>
+                    <option value="google_meet">Google Meet</option>
+                    <option value="teams">Teams</option>
+                  </select>
+                </div>
+              </div>
+              {vacancies.length > 0 && (
+                <div>
+                  <label style={labelStyle}>Vacante</label>
+                  <select
+                    value={form.vacancyId}
+                    onChange={e => setForm(f => ({ ...f, vacancyId: e.target.value }))}
+                    style={{ ...inputStyle, appearance: 'none' as const }}
+                  >
+                    <option value="">Sin vacante específica</option>
+                    {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+                  </select>
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Entrevistador *</label>
+                  <input
+                    required
+                    value={form.interviewerName}
+                    onChange={e => setForm(f => ({ ...f, interviewerName: e.target.value }))}
+                    placeholder="Nombre"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email entrevistador</label>
+                  <input
+                    type="email"
+                    value={form.interviewerEmail}
+                    onChange={e => setForm(f => ({ ...f, interviewerEmail: e.target.value }))}
+                    placeholder="email@empresa.com"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+              {(form.meetingPlatform === 'zoom' || form.meetingPlatform === 'google_meet' || form.meetingPlatform === 'teams') && (
+                <div>
+                  <label style={labelStyle}>Link de la reunión</label>
+                  <input
+                    value={form.meetingLink}
+                    onChange={e => setForm(f => ({ ...f, meetingLink: e.target.value }))}
+                    placeholder="https://..."
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+              <div>
+                <label style={labelStyle}>Notas</label>
+                <textarea
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={3}
+                  placeholder="Temas a tratar, preparación necesaria..."
+                  style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }}
+                />
+              </div>
+              {error && (
+                <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  {error}
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!saved && (
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="schedule-form"
+              disabled={saving}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                background: 'var(--accent)',
+                border: 'none',
+                color: '#fff',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Calendar style={{ width: 13, height: 13 }} />}
+              Agendar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Notes Modal ──────────────────────────────────────────────────────────────
+function NotesModal({
+  candidate,
+  provider,
+  onClose,
+  onSaved,
+}: {
+  candidate: Candidate
+  provider: SupabaseProvider
+  onClose: () => void
+  onSaved?: (notes: string) => void
+}) {
+  const [notes, setNotes] = React.useState(candidate.notes ?? '')
+  const [saving, setSaving] = React.useState(false)
+  const [saved, setSaved] = React.useState(false)
+  const [error, setError] = React.useState('')
+
+  async function handleSave() {
+    setSaving(true)
+    setError('')
+    const result = await provider.updateCandidateNotes(candidate.id, notes)
+    setSaving(false)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setSaved(true)
+      onSaved?.(notes)
+      setTimeout(() => setSaved(false), 2000)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 13,
+    padding: '10px 12px',
+    outline: 'none',
+    resize: 'vertical' as const,
+    fontFamily: 'inherit',
+    minHeight: 160,
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 460,
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText style={{ width: 15, height: 15, color: '#fbbf24' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Notas</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <textarea
+            value={notes}
+            onChange={e => { setNotes(e.target.value); setSaved(false) }}
+            placeholder="Agregá notas sobre este candidato..."
+            style={inputStyle}
+          />
+          {error && (
+            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Cerrar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: saved ? 'rgba(52,211,153,0.2)' : 'var(--accent)',
+              border: 'none',
+              color: saved ? '#34d399' : '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              opacity: saving ? 0.7 : 1,
+              transition: 'all 0.15s',
+            }}
+          >
+            {saving ? (
+              <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
+            ) : saved ? (
+              <CheckCircle2 style={{ width: 13, height: 13 }} />
+            ) : (
+              <FileText style={{ width: 13, height: 13 }} />
+            )}
+            {saved ? 'Guardado' : 'Guardar notas'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Action modal state ───────────────────────────────────────────────────────
+type ActiveModal =
+  | { type: 'email'; candidate: Candidate }
+  | { type: 'whatsapp'; candidate: Candidate }
+  | { type: 'schedule'; candidate: Candidate }
+  | { type: 'notes'; candidate: Candidate }
+  | null
+
 // ─── Candidate card ───────────────────────────────────────────────────────────
 interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
+  onAction: (modal: ActiveModal) => void
 }
 
-function CandidateCard({ app, isDragging }: CardProps) {
+function CandidateCard({ app, isDragging, onAction }: CardProps) {
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
@@ -368,7 +1173,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
           }}
         >
           <button
-            onClick={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }}
             style={{
               width: 22,
               height: 22,
@@ -386,7 +1191,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
             <Mail style={{ width: 11, height: 11 }} />
           </button>
           <button
-            onClick={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c }) }}
             style={{
               width: 22,
               height: 22,
@@ -404,7 +1209,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
             <Calendar style={{ width: 11, height: 11 }} />
           </button>
           <button
-            onClick={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }}
             style={{
               width: 22,
               height: 22,
@@ -421,6 +1226,24 @@ function CandidateCard({ app, isDragging }: CardProps) {
           >
             <MessageCircle style={{ width: 11, height: 11 }} />
           </button>
+          <button
+            onClick={e => { e.stopPropagation(); onAction({ type: 'notes', candidate: c }) }}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--muted2)',
+            }}
+            title="Notas"
+          >
+            <FileText style={{ width: 11, height: 11 }} />
+          </button>
         </div>
       </div>
     </div>
@@ -428,7 +1251,7 @@ function CandidateCard({ app, isDragging }: CardProps) {
 }
 
 // ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app }: { app: HydratedApplication }) {
+function SortableCard({ app, onAction }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: app.id })
   const style = {
@@ -437,7 +1260,7 @@ function SortableCard({ app }: { app: HydratedApplication }) {
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} />
+      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} />
     </div>
   )
 }
@@ -446,9 +1269,11 @@ function SortableCard({ app }: { app: HydratedApplication }) {
 function Lane({
   stage,
   apps,
+  onAction,
 }: {
   stage: VacancyStatus
   apps: HydratedApplication[]
+  onAction: (modal: ActiveModal) => void
 }) {
   const stageColor = STAGE_COLORS[stage]
   return (
@@ -520,7 +1345,7 @@ function Lane({
             </div>
           )}
           {apps.map(app => (
-            <SortableCard key={app.id} app={app} />
+            <SortableCard key={app.id} app={app} onAction={onAction} />
           ))}
         </div>
       </SortableContext>
@@ -569,30 +1394,30 @@ function Skeleton() {
 export default function PipelinePage() {
   const [applications, setApplications] = React.useState<HydratedApplication[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [loading, setLoading] = React.useState(true)
   const [activeApp, setActiveApp] = React.useState<HydratedApplication | null>(null)
   const [filterVacancy, setFilterVacancy] = React.useState<string>('all')
   const [filterScore, setFilterScore] = React.useState<string>('all')
   const [searchText, setSearchText] = React.useState('')
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
+  const [activeModal, setActiveModal] = React.useState<ActiveModal>(null)
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const pathname = usePathname()
 
   const load = React.useCallback(async () => {
-    // Wait until the auth session and user profile are resolved before loading.
-    // The layout sets user after fetching the Supabase profile, so if user is
-    // still null we bail out — the effect will re-run once user is set.
     if (!user) return
 
     const tenantId = user.tenantId
     setLoading(true)
-    const [appsResult, vacResult, candResult, intResult] = await Promise.all([
+    const [appsResult, vacResult, candResult, intResult, tplResult] = await Promise.all([
       provider.getApplications(),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
       provider.getInterviews(),
+      provider.getTemplates(tenantId),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
@@ -607,7 +1432,6 @@ export default function PipelinePage() {
 
     // Hydrate real applications
     const hydrated: HydratedApplication[] = realApps.map(a => {
-      // If candidate has an interview and is still in early stages, promote to Entrevistas
       const effectiveStatus: VacancyStatus =
         candidateIdsWithInterview.has(a.candidateId) &&
         (a.status === 'Nuevas Vacantes' || a.status === 'En Proceso')
@@ -626,7 +1450,6 @@ export default function PipelinePage() {
     const virtualApps: HydratedApplication[] = allCandidates
       .filter(c => !candidateIdsWithApp.has(c.id))
       .map(c => {
-        // Place in Entrevistas if they have an interview, otherwise Nuevas Vacantes
         const stage: VacancyStatus = candidateIdsWithInterview.has(c.id)
           ? 'Entrevistas'
           : 'Nuevas Vacantes'
@@ -645,19 +1468,16 @@ export default function PipelinePage() {
 
     setApplications([...hydrated, ...virtualApps])
     setVacancies(vacs)
+    setTemplates(tplResult.data ?? [])
     setLoading(false)
   }, [provider, user])
 
-  // Initial load + refetch whenever the pathname resolves to /pipeline (covers
-  // Next.js router-cache hits where the component does not fully remount).
   React.useEffect(() => {
     if (pathname === '/pipeline') {
       load()
     }
   }, [load, pathname])
 
-  // Also refetch when the browser tab regains focus (handles new-tab or
-  // window-switch scenarios where the user created a vacancy elsewhere).
   React.useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
@@ -668,10 +1488,6 @@ export default function PipelinePage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [load])
 
-  // Refetch when a vacancy is created or updated from another page in the same
-  // session (e.g. /vacancies → /pipeline via sidebar SPA navigation where the
-  // pipeline component may remain alive in the Next.js router cache and therefore
-  // does not remount).
   React.useEffect(() => {
     function handleVacancyChange() {
       load()
@@ -702,7 +1518,6 @@ export default function PipelinePage() {
     })
   }, [applications, activeStage, filterVacancy, filterScore, searchText])
 
-  // Counts per stage (from ALL applications, not filtered, for pills)
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {
       'Nuevas Vacantes': 0,
@@ -752,18 +1567,41 @@ export default function PipelinePage() {
     }
     if (!newStage || newStage === draggedApp.status) return
 
-    // Optimistically update UI
     setApplications(prev =>
       prev.map(a => a.id === draggedApp.id ? { ...a, status: newStage! } : a)
     )
 
-    // Virtual applications (no vacancy assigned) have no real DB record.
-    // We update state optimistically; a real record can only be persisted once
-    // the candidate is linked to a vacancy.
     const isVirtual = draggedApp.id.startsWith('virtual-')
     if (!isVirtual) {
       await provider.updateApplicationStatus(draggedApp.id, newStage)
     }
+  }
+
+  // When an interview is scheduled, promote the candidate's status to Entrevistas
+  function handleInterviewScheduled(candidateId: string) {
+    setApplications(prev =>
+      prev.map(a => {
+        if (
+          a.candidateId === candidateId &&
+          (a.status === 'Nuevas Vacantes' || a.status === 'En Proceso')
+        ) {
+          return { ...a, status: 'Entrevistas' as VacancyStatus }
+        }
+        return a
+      })
+    )
+  }
+
+  // Update notes on the in-memory candidate object
+  function handleNotesSaved(candidateId: string, notes: string) {
+    setApplications(prev =>
+      prev.map(a => {
+        if (a.candidate && a.candidate.id === candidateId) {
+          return { ...a, candidate: { ...a.candidate, notes } }
+        }
+        return a
+      })
+    )
   }
 
   if (loading) return (
@@ -881,14 +1719,47 @@ export default function PipelinePage() {
         >
           <div className="flex gap-4 h-full">
             {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} />
+              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} />
             ))}
           </div>
           <DragOverlay>
-            {activeApp && <CandidateCard app={activeApp} isDragging />}
+            {activeApp && <CandidateCard app={activeApp} isDragging onAction={() => {}} />}
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Modals */}
+      {activeModal?.type === 'email' && (
+        <EmailModal
+          candidate={activeModal.candidate}
+          templates={templates}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+      {activeModal?.type === 'whatsapp' && (
+        <WhatsAppModal
+          candidate={activeModal.candidate}
+          templates={templates}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+      {activeModal?.type === 'schedule' && (
+        <ScheduleInterviewModal
+          candidate={activeModal.candidate}
+          vacancies={vacancies}
+          provider={provider}
+          onClose={() => setActiveModal(null)}
+          onScheduled={() => handleInterviewScheduled(activeModal.candidate.id)}
+        />
+      )}
+      {activeModal?.type === 'notes' && (
+        <NotesModal
+          candidate={activeModal.candidate}
+          provider={provider}
+          onClose={() => setActiveModal(null)}
+          onSaved={(notes) => handleNotesSaved(activeModal.candidate.id, notes)}
+        />
+      )}
     </div>
   )
 }
