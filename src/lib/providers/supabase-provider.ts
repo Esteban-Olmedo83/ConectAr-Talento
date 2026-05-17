@@ -216,10 +216,11 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
-  async getCandidates(_tenantId: string): Promise<DataResult<Candidate[]>> {
+  async getCandidates(tenantId: string): Promise<DataResult<Candidate[]>> {
     const { data, error } = await this.sb
       .from('candidates')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapCandidate))
@@ -278,12 +279,13 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
-  async getApplications(vacancyId?: string): Promise<DataResult<Application[]>> {
+  async getApplications(vacancyId?: string, tenantId?: string): Promise<DataResult<Application[]>> {
     let q = this.sb
       .from('applications')
-      .select('*, candidate:candidates(*)')
+      .select('*, candidate:candidates!inner(*)')
       .order('applied_at', { ascending: false })
     if (vacancyId) q = q.eq('vacancy_id', vacancyId)
+    if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapApplication))
@@ -315,12 +317,13 @@ export class SupabaseProvider implements DataProvider {
     return ok(mapApplication(data as Record<string, unknown>))
   }
 
-  async getInterviews(candidateId?: string): Promise<DataResult<Interview[]>> {
+  async getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>> {
     let q = this.sb
       .from('interviews')
-      .select('*, scorecard:scorecards(*)')
+      .select('*, scorecard:scorecards(*), candidate:candidates!inner(tenant_id)')
       .order('scheduled_at', { ascending: false })
     if (candidateId) q = q.eq('candidate_id', candidateId)
+    if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapInterview))

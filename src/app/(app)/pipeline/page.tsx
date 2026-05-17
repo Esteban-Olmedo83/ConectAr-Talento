@@ -583,10 +583,10 @@ export default function PipelinePage() {
   const load = React.useCallback(async () => {
     const tenantId = user?.tenantId ?? ''
     const [appsResult, vacResult, candResult, intResult] = await Promise.all([
-      provider.getApplications(),
+      provider.getApplications(undefined, tenantId),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
-      provider.getInterviews(),
+      provider.getInterviews(undefined, tenantId),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
