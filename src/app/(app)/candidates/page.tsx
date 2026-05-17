@@ -461,6 +461,23 @@ function KpiCard({ icon: Icon, label, value, sub, accentColor }: {
   )
 }
 
+// ─── Plan limit toast ─────────────────────────────────────────────────────────
+function PlanLimitToast({ message, onClose }: { message: string; onClose: () => void }) {
+  React.useEffect(() => {
+    const t = setTimeout(onClose, 6000)
+    return () => clearTimeout(t)
+  }, [onClose])
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm">
+      <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" /></svg>
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity flex-shrink-0">
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+  )
+}
+
 // ─── Add candidate dialog ─────────────────────────────────────────────────────
 function AddCandidateDialog({
   open,
@@ -628,7 +645,7 @@ function AddCandidateDialog({
 }
 
 // ─── CV Analyzer Drop Zone ────────────────────────────────────────────────────
-function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void }) {
+function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -637,6 +654,7 @@ function CvDropZone({ vacancies, onCandidateAdded }: { vacancies: Vacancy[]; onC
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   async function analyzeFile(file: File) {
+    if (onLimitReached()) return
     setStatus('analyzing')
     setErrorMsg('')
     try {
@@ -749,6 +767,7 @@ export default function CandidatesPage() {
   const [filterScore, setFilterScore] = React.useState('all')
   const [filterSource, setFilterSource] = React.useState('all')
   const [showAdd, setShowAdd] = React.useState(false)
+  const [limitToast, setLimitToast] = React.useState<string | null>(null)
   const [metricsNowIso] = React.useState(() => new Date().toISOString())
 
   // Action dialog state
@@ -759,6 +778,7 @@ export default function CandidatesPage() {
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const planLimits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
@@ -796,6 +816,24 @@ export default function CandidatesPage() {
     return { total, withScore, avgScore, newThisWeek }
   }, [candidates, metricsNowIso])
 
+  function checkCandidateLimit(): boolean {
+    if (candidates.length >= planLimits.candidates) {
+      const limit = planLimits.candidates === Infinity ? '' : `(${planLimits.candidates} candidatos)`
+      setLimitToast(
+        planLimits.candidates === Infinity
+          ? 'Límite alcanzado.'
+          : `Límite de tu plan alcanzado ${limit}. Actualizá para agregar más candidatos.`
+      )
+      return true
+    }
+    return false
+  }
+
+  function handleOpenAddCandidate() {
+    if (checkCandidateLimit()) return
+    setShowAdd(true)
+  }
+
   async function handleDeleteConfirm() {
     if (!deleteCandidate) return
     setDeleting(true)
@@ -817,13 +855,14 @@ export default function CandidatesPage() {
 
   return (
     <div className="p-6 space-y-5">
+      {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Candidatos</h1>
           <p className="text-sm text-muted-foreground">{kpis.total} candidatos en la base de datos</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-1.5">
+        <Button onClick={handleOpenAddCandidate} className="gap-1.5">
           <Plus className="h-4 w-4" /> Agregar candidato
         </Button>
       </div>
@@ -837,7 +876,7 @@ export default function CandidatesPage() {
       </div>
 
       {/* CV Drop Zone */}
-      <CvDropZone vacancies={vacancies} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} />
+      <CvDropZone vacancies={vacancies} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} onLimitReached={checkCandidateLimit} />
 
       {/* Filters + View Toggle */}
       <div className="flex items-center gap-3 flex-wrap">

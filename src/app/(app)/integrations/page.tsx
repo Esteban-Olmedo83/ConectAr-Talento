@@ -559,10 +559,22 @@ export default function IntegrationsPage() {
     const config = OAUTH_ROUTES[platformKey]
     if (!config) return null
 
+    function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+      if (disabled) { e.preventDefault(); return }
+      // Check limit before navigating; if at limit show toast and abort
+      if (!canConnect('linkedin' as IntegrationPlatform)) {
+        e.preventDefault()
+        setLimitToast(
+          `Límite de tu plan alcanzado (${limit} integración${limit !== 1 ? 'es' : ''}). Actualizá para conectar más.`
+        )
+      }
+    }
+
     return (
       <a
         href={disabled ? undefined : config.href}
         aria-disabled={disabled}
+        onClick={handleClick}
         className={`inline-flex items-center gap-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg transition-colors ${disabled ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}
       >
         <ExternalLink className="h-3.5 w-3.5" />
@@ -632,7 +644,7 @@ export default function IntegrationsPage() {
             ))}
 
             {/* Connect button */}
-            <OAuthConnectButton platformKey="gmail" disabled={false} />
+            <OAuthConnectButton platformKey="gmail" disabled={!canConnect('gmail' as IntegrationPlatform)} />
 
             {/* Feature list */}
             <div
