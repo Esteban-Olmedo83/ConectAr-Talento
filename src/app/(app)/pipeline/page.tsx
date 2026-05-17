@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   DndContext,
   DragOverlay,
@@ -577,6 +578,7 @@ export default function PipelinePage() {
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const pathname = usePathname()
 
   const load = React.useCallback(async () => {
     const tenantId = user?.tenantId ?? ''
@@ -595,7 +597,25 @@ export default function PipelinePage() {
     setLoading(false)
   }, [provider, user])
 
-  React.useEffect(() => { load() }, [load])
+  // Initial load + refetch whenever the pathname resolves to /pipeline (covers
+  // Next.js router-cache hits where the component does not fully remount).
+  React.useEffect(() => {
+    if (pathname === '/pipeline') {
+      load()
+    }
+  }, [load, pathname])
+
+  // Also refetch when the browser tab regains focus (handles new-tab or
+  // window-switch scenarios where the user created a vacancy elsewhere).
+  React.useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        load()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [load])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
