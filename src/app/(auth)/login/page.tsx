@@ -73,14 +73,14 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen" style={{ background: S.bg }}>
-      {/* Left panel */}
-      <div className="flex-1">
+      {/* Left panel — hidden on mobile */}
+      <div className="hidden md:flex md:flex-1">
         <AuthLeftPanel {...LEFT_PANEL} />
       </div>
 
-      {/* Right panel */}
+      {/* Right panel — full width on mobile, half on desktop */}
       <div
-        className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12 relative"
+        className="flex w-full md:flex-1 flex-col items-center justify-center px-6 py-10 sm:px-10 relative"
         style={{
           background: S.panel,
           backdropFilter: 'blur(24px)',
