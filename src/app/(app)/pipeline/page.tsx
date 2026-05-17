@@ -581,12 +581,18 @@ export default function PipelinePage() {
   const pathname = usePathname()
 
   const load = React.useCallback(async () => {
-    const tenantId = user?.tenantId ?? ''
+    // Wait until the auth session and user profile are resolved before loading.
+    // The layout sets user after fetching the Supabase profile, so if user is
+    // still null we bail out — the effect will re-run once user is set.
+    if (!user) return
+
+    const tenantId = user.tenantId
+    setLoading(true)
     const [appsResult, vacResult, candResult, intResult] = await Promise.all([
-      provider.getApplications(undefined, tenantId),
+      provider.getApplications(),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
-      provider.getInterviews(undefined, tenantId),
+      provider.getInterviews(),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
