@@ -432,7 +432,7 @@ export default function InterviewsPage() {
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
     const [iRes, cRes, vRes] = await Promise.all([
-      provider.getInterviews(),
+      provider.getInterviews(undefined, tid),
       provider.getCandidates(tid),
       provider.getVacancies(tid),
     ])

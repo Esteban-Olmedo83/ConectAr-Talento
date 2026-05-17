@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCvText, CvExtractionError } from '@/lib/cv/extract-text'
+import { getPlanLimits } from '@/lib/plan-limits'
 
 export const runtime = 'nodejs'
 
-const PLAN_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
+// Monthly CV-analysis limit (separate from total candidate limit)
+const MONTHLY_ANALYSIS_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
   const reqSection = vacancyRequirements.length > 0
@@ -68,8 +70,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const plan: string = (profile?.plan as string) ?? 'free'
     const tenantId: string = (profile?.tenant_id as string) ?? user.id
 
-    // Plan-based monthly limit
-    const monthlyLimit = PLAN_LIMITS[plan] ?? 10
+    // Plan-based total candidate limit
+    const planLimits = getPlanLimits(plan)
+    if (isFinite(planLimits.candidates)) {
+      const { count: totalCount } = await supabase
+        .from('candidates')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+      if ((totalCount ?? 0) >= planLimits.candidates) {
+        return NextResponse.json({
+          error: `Límite de candidatos del plan ${plan} alcanzado (${planLimits.candidates} candidatos). Actualizá tu plan para agregar más.`,
+        }, { status: 429 })
+      }
+    }
+
+    // Plan-based monthly CV-analysis limit
+    const monthlyLimit = MONTHLY_ANALYSIS_LIMITS[plan] ?? 10
     if (isFinite(monthlyLimit)) {
       const startOfMonth = new Date()
       startOfMonth.setDate(1)

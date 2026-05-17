@@ -268,8 +268,8 @@ export default function ReportsPage() {
       const [vResult, cResult, appResult, intResult] = await Promise.all([
         provider.getVacancies(tenantId),
         provider.getCandidates(tenantId),
-        provider.getApplications(),
-        provider.getInterviews(),
+        provider.getApplications(undefined, tenantId),
+        provider.getInterviews(undefined, tenantId),
       ])
       setVacancies(vResult.data ?? [])
       setCandidates(cResult.data ?? [])

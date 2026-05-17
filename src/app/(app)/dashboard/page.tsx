@@ -225,7 +225,7 @@ export default function DashboardPage() {
       const tenantId = user!.tenantId ?? user!.id
       const [candResult, appResult] = await Promise.all([
         provider.getCandidates(tenantId),
-        provider.getApplications(),
+        provider.getApplications(undefined, tenantId),
       ])
       setData({
         candidates: candResult.data ?? [],
