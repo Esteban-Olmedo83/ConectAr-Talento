@@ -1284,6 +1284,7 @@ function Lane({
         border: '1px solid var(--border)',
         '--lane-color': stageColor,
         overflow: 'hidden',
+        height: '100%',
       } as React.CSSProperties}
     >
       {/* Lane header — 3px top bar + title row */}
@@ -1335,7 +1336,7 @@ function Lane({
       </div>
 
       <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1, minHeight: 120 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1, minHeight: 120, overflowY: 'auto' }}>
           {apps.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1717,7 +1718,7 @@ export default function PipelinePage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 h-full">
+          <div className="flex gap-4" style={{ minHeight: '100%' }}>
             {STAGES.map(stage => (
               <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} />
             ))}

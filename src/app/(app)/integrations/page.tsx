@@ -433,6 +433,33 @@ function PlanLimitToast({ message, onClose }: { message: string; onClose: () => 
 }
 
 /* ─── main page ──────────────────────────────────────────────── */
+const ERROR_MESSAGES: Record<string, string> = {
+  google_not_configured: 'Google OAuth no está configurado. Para activarlo, el administrador debe configurar GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en las variables de entorno del servidor.',
+  google_denied: 'Denegaste el acceso a Google. Podés intentarlo de nuevo cuando quieras.',
+  google_state_mismatch: 'Error de seguridad en la autenticación de Google. Intentá de nuevo.',
+  google_no_code: 'No se recibió el código de Google. Intentá de nuevo.',
+  google_token_error: 'Error al obtener el token de Google. Verificá la configuración OAuth.',
+  linkedin_not_configured: 'LinkedIn OAuth no está configurado. El administrador debe configurar LINKEDIN_CLIENT_ID y LINKEDIN_CLIENT_SECRET.',
+  linkedin_denied: 'Denegaste el acceso a LinkedIn. Podés intentarlo de nuevo.',
+  microsoft_not_configured: 'Microsoft OAuth no está configurado. El administrador debe configurar MICROSOFT_CLIENT_ID y MICROSOFT_CLIENT_SECRET.',
+  zoom_not_configured: 'Zoom OAuth no está configurado. El administrador debe configurar ZOOM_CLIENT_ID y ZOOM_CLIENT_SECRET.',
+  meta_not_configured: 'WhatsApp Business (Meta) OAuth no está configurado. El administrador debe configurar META_APP_ID y META_APP_SECRET.',
+  invalid_state: 'Error de seguridad en la autenticación. Por favor, intentá de nuevo.',
+  callback_failed: 'Error al completar la conexión. Revisá que la app OAuth esté configurada correctamente.',
+}
+
+function ErrorBanner({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 bg-red-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm">
+      <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+      <span className="text-sm leading-relaxed">{message}</span>
+      <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity flex-shrink-0">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
 export default function IntegrationsPage() {
   const { user } = useUser()
   const searchParams = useSearchParams()
@@ -440,16 +467,25 @@ export default function IntegrationsPage() {
   const [activeJobBoardModal, setActiveJobBoardModal] = React.useState<IntegrationPlatform | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
+  const [errorBanner, setErrorBanner] = React.useState<string | null>(null)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
-  // Handle ?connected= query param
+  // Handle ?connected= and ?error= query params
   React.useEffect(() => {
     const connected = searchParams.get('connected')
+    const error = searchParams.get('error')
+    const url = new URL(window.location.href)
+
     if (connected) {
       setToast(connected)
-      // Remove query param from URL without reload
-      const url = new URL(window.location.href)
       url.searchParams.delete('connected')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    if (error) {
+      const msg = ERROR_MESSAGES[error] ?? `Error al conectar: ${error}. Verificá la configuración del servidor.`
+      setErrorBanner(msg)
+      url.searchParams.delete('error')
       window.history.replaceState({}, '', url.toString())
     }
   }, [searchParams])
@@ -593,6 +629,8 @@ export default function IntegrationsPage() {
       {toast && <SuccessToast platform={toast} onClose={() => setToast(null)} />}
       {/* plan limit toast */}
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
+      {/* error banner */}
+      {errorBanner && <ErrorBanner message={errorBanner} onClose={() => setErrorBanner(null)} />}
 
       {/* header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">
