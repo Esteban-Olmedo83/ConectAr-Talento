@@ -4,7 +4,8 @@ import * as React from 'react'
 import {
   Search, Plus, Upload, Users, Brain, TrendingUp, Clock,
   Grid3X3, List, ChevronDown, Trash2, Calendar, Eye,
-  X, Loader2, CheckCircle2
+  X, Loader2, CheckCircle2, Mail, Phone, FileText, AlertTriangle,
+  ExternalLink, Award, Briefcase, BookOpen
 } from 'lucide-react'
 import { cn, formatRelativeDate, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { Candidate, Vacancy, CandidateSource } from '@/types'
+import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform } from '@/types'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
@@ -60,6 +61,374 @@ const SOURCE_TEXT: Record<string, string> = {
   Computrabajo: '#f87171',
   ZonaJobs: '#2dd4bf',
   Bumeran: '#38bdf8',
+}
+
+// ─── View Profile Dialog ──────────────────────────────────────────────────────
+function ViewProfileDialog({ candidate, open, onClose }: {
+  candidate: Candidate | null
+  open: boolean
+  onClose: () => void
+}) {
+  if (!candidate) return null
+  const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background'
+  const labelCls = 'text-xs font-medium mb-1 block'
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Perfil del candidato</DialogTitle>
+        </DialogHeader>
+        <div className="mt-2 space-y-4">
+          {/* Avatar + name */}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
+            >
+              {getInitials(candidate.fullName)}
+            </div>
+            <div>
+              <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
+              {candidate.education && (
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>{candidate.education}</p>
+              )}
+              <div className="mt-1"><ScoreBadge score={candidate.atsScore} /></div>
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <Mail className="inline h-3 w-3 mr-1" />Email
+              </label>
+              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.email}</p>
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <Phone className="inline h-3 w-3 mr-1" />Teléfono
+              </label>
+              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.phone || '—'}</p>
+            </div>
+          </div>
+
+          {/* Experience + Source */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <Briefcase className="inline h-3 w-3 mr-1" />Experiencia
+              </label>
+              <p className={inputCls} style={{ color: 'var(--text)' }}>
+                {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
+              </p>
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <Award className="inline h-3 w-3 mr-1" />Fuente
+              </label>
+              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.source}</p>
+            </div>
+          </div>
+
+          {/* Education */}
+          {candidate.education && (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <BookOpen className="inline h-3 w-3 mr-1" />Educación
+              </label>
+              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
+            </div>
+          )}
+
+          {/* Skills */}
+          {candidate.skills.length > 0 && (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
+              <div className="flex gap-1.5 flex-wrap mt-1">
+                {candidate.skills.map(s => (
+                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {candidate.notes && (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>Notas</label>
+              <p className="text-sm px-3 py-2 rounded-md border border-input bg-background whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{candidate.notes}</p>
+            </div>
+          )}
+
+          {/* CV */}
+          {candidate.cvUrl && (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>
+                <FileText className="inline h-3 w-3 mr-1" />CV adjunto
+              </label>
+              <a
+                href={candidate.cvUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-opacity hover:opacity-80"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {candidate.cvFileName || 'Ver CV'}
+                <ExternalLink className="h-3 w-3 ml-auto" />
+              </a>
+            </div>
+          )}
+
+          {/* Dates */}
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Agregado {formatRelativeDate(candidate.createdAt)}
+          </p>
+
+          <div className="flex justify-end pt-1">
+            <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Schedule Interview Dialog ────────────────────────────────────────────────
+function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider }: {
+  candidate: Candidate | null
+  vacancies: Vacancy[]
+  open: boolean
+  onClose: () => void
+  provider: SupabaseProvider
+}) {
+  const { user } = useUser()
+  const [form, setForm] = React.useState({
+    scheduledAt: '',
+    type: 'RRHH' as InterviewType,
+    vacancyId: '',
+    interviewerName: '',
+    interviewerEmail: '',
+    meetingPlatform: 'presencial' as MeetingPlatform,
+    meetingLink: '',
+    notes: '',
+  })
+  const [saving, setSaving] = React.useState(false)
+  const [saved, setSaved] = React.useState(false)
+  const [error, setError] = React.useState('')
+
+  React.useEffect(() => {
+    if (open) {
+      setForm({
+        scheduledAt: '',
+        type: 'RRHH',
+        vacancyId: '',
+        interviewerName: user?.fullName ?? '',
+        interviewerEmail: user?.email ?? '',
+        meetingPlatform: 'presencial',
+        meetingLink: '',
+        notes: '',
+      })
+      setSaved(false)
+      setError('')
+    }
+  }, [open, user])
+
+  if (!candidate) return null
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!candidate) return
+    setSaving(true)
+    setError('')
+    const result = await provider.createInterview({
+      candidateId: candidate.id,
+      vacancyId: form.vacancyId || (vacancies[0]?.id ?? ''),
+      scheduledAt: new Date(form.scheduledAt).toISOString(),
+      type: form.type,
+      interviewerName: form.interviewerName,
+      interviewerEmail: form.interviewerEmail || undefined,
+      status: 'Programada',
+      meetingPlatform: form.meetingPlatform,
+      meetingLink: form.meetingLink || undefined,
+      notes: form.notes || undefined,
+    })
+    setSaving(false)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setSaved(true)
+      setTimeout(onClose, 1200)
+    }
+  }
+
+  const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
+  const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Agendar entrevista</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-1">
+          Candidato: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
+        </p>
+        {saved ? (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <CheckCircle2 className="h-10 w-10" style={{ color: '#34d399' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>¡Entrevista agendada!</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+            <div>
+              <label className={labelCls}>Fecha y hora *</label>
+              <input
+                required
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Tipo de entrevista *</label>
+                <select
+                  value={form.type}
+                  onChange={e => setForm(f => ({ ...f, type: e.target.value as InterviewType }))}
+                  className={inputCls}
+                >
+                  <option value="RRHH">RRHH</option>
+                  <option value="Técnica">Técnica</option>
+                  <option value="Con Hiring Manager">Con Hiring Manager</option>
+                  <option value="Cultural">Cultural</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Modalidad *</label>
+                <select
+                  value={form.meetingPlatform}
+                  onChange={e => setForm(f => ({ ...f, meetingPlatform: e.target.value as MeetingPlatform }))}
+                  className={inputCls}
+                >
+                  <option value="presencial">Presencial</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="google_meet">Google Meet</option>
+                  <option value="teams">Teams</option>
+                </select>
+              </div>
+            </div>
+            {vacancies.length > 0 && (
+              <div>
+                <label className={labelCls}>Vacante</label>
+                <select
+                  value={form.vacancyId}
+                  onChange={e => setForm(f => ({ ...f, vacancyId: e.target.value }))}
+                  className={inputCls}
+                >
+                  <option value="">Sin vacante específica</option>
+                  {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Entrevistador *</label>
+                <input
+                  required
+                  value={form.interviewerName}
+                  onChange={e => setForm(f => ({ ...f, interviewerName: e.target.value }))}
+                  className={inputCls}
+                  placeholder="Nombre"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Email entrevistador</label>
+                <input
+                  type="email"
+                  value={form.interviewerEmail}
+                  onChange={e => setForm(f => ({ ...f, interviewerEmail: e.target.value }))}
+                  className={inputCls}
+                  placeholder="email@empresa.com"
+                />
+              </div>
+            </div>
+            {(form.meetingPlatform === 'zoom' || form.meetingPlatform === 'google_meet' || form.meetingPlatform === 'teams') && (
+              <div>
+                <label className={labelCls}>Link de la reunión</label>
+                <input
+                  value={form.meetingLink}
+                  onChange={e => setForm(f => ({ ...f, meetingLink: e.target.value }))}
+                  className={inputCls}
+                  placeholder="https://..."
+                />
+              </div>
+            )}
+            <div>
+              <label className={labelCls}>Notas</label>
+              <textarea
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                className={cn(inputCls, 'resize-none h-16')}
+                placeholder="Temas a tratar, preparación necesaria..."
+              />
+            </div>
+            {error && (
+              <p className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                {error}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Calendar className="h-4 w-4 mr-2" />}
+                Agendar
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Delete Confirmation Dialog ───────────────────────────────────────────────
+function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: {
+  candidate: Candidate | null
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+  deleting: boolean
+}) {
+  if (!candidate) return null
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />
+            Eliminar candidato
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm" style={{ color: 'var(--text)' }}>
+          ¿Estás seguro de que querés eliminar a <strong>{candidate.fullName}</strong>?
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex justify-end gap-2 mt-2">
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="bg-red-600 hover:bg-red-700 text-white border-0"
+          >
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            Eliminar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -381,6 +750,12 @@ export default function CandidatesPage() {
   const [showAdd, setShowAdd] = React.useState(false)
   const [metricsNowIso] = React.useState(() => new Date().toISOString())
 
+  // Action dialog state
+  const [viewCandidate, setViewCandidate] = React.useState<Candidate | null>(null)
+  const [scheduleCandidate, setScheduleCandidate] = React.useState<Candidate | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = React.useState<Candidate | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
+
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
@@ -420,10 +795,13 @@ export default function CandidatesPage() {
     return { total, withScore, avgScore, newThisWeek }
   }, [candidates, metricsNowIso])
 
-  async function handleDelete(id: string) {
-    if (!confirm('¿Eliminar este candidato?')) return
-    await provider.deleteCandidate(id)
-    setCandidates(prev => prev.filter(c => c.id !== id))
+  async function handleDeleteConfirm() {
+    if (!deleteCandidate) return
+    setDeleting(true)
+    await provider.deleteCandidate(deleteCandidate.id)
+    setCandidates(prev => prev.filter(c => c.id !== deleteCandidate.id))
+    setDeleting(false)
+    setDeleteCandidate(null)
   }
 
   if (loading) return (
@@ -571,13 +949,13 @@ export default function CandidatesPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{formatRelativeDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
+                      <button onClick={() => setViewCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
+                      <button onClick={() => setScheduleCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
                         <Calendar className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => handleDelete(c.id)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
+                      <button onClick={() => setDeleteCandidate(c)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -608,7 +986,7 @@ export default function CandidatesPage() {
                       <p className="text-xs text-muted-foreground truncate max-w-[120px]">{c.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                  <button onClick={() => setDeleteCandidate(c)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -642,6 +1020,31 @@ export default function CandidatesPage() {
         onClose={() => setShowAdd(false)}
         vacancies={vacancies}
         onSave={c => setCandidates(prev => [c, ...prev])}
+      />
+
+      {/* View profile dialog */}
+      <ViewProfileDialog
+        candidate={viewCandidate}
+        open={viewCandidate !== null}
+        onClose={() => setViewCandidate(null)}
+      />
+
+      {/* Schedule interview dialog */}
+      <ScheduleInterviewDialog
+        candidate={scheduleCandidate}
+        vacancies={vacancies}
+        open={scheduleCandidate !== null}
+        onClose={() => setScheduleCandidate(null)}
+        provider={provider}
+      />
+
+      {/* Delete confirmation dialog */}
+      <DeleteConfirmDialog
+        candidate={deleteCandidate}
+        open={deleteCandidate !== null}
+        onClose={() => setDeleteCandidate(null)}
+        onConfirm={handleDeleteConfirm}
+        deleting={deleting}
       />
     </div>
   )

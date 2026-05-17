@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   DndContext,
   DragOverlay,
@@ -577,6 +578,7 @@ export default function PipelinePage() {
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const pathname = usePathname()
 
   const load = React.useCallback(async () => {
     const tenantId = user?.tenantId ?? ''
@@ -595,7 +597,41 @@ export default function PipelinePage() {
     setLoading(false)
   }, [provider, user])
 
-  React.useEffect(() => { load() }, [load])
+  // Initial load + refetch whenever the pathname resolves to /pipeline (covers
+  // Next.js router-cache hits where the component does not fully remount).
+  React.useEffect(() => {
+    if (pathname === '/pipeline') {
+      load()
+    }
+  }, [load, pathname])
+
+  // Also refetch when the browser tab regains focus (handles new-tab or
+  // window-switch scenarios where the user created a vacancy elsewhere).
+  React.useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        load()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [load])
+
+  // Refetch when a vacancy is created or updated from another page in the same
+  // session (e.g. /vacancies → /pipeline via sidebar SPA navigation where the
+  // pipeline component may remain alive in the Next.js router cache and therefore
+  // does not remount).
+  React.useEffect(() => {
+    function handleVacancyChange() {
+      load()
+    }
+    window.addEventListener('vacancy:created', handleVacancyChange)
+    window.addEventListener('vacancy:updated', handleVacancyChange)
+    return () => {
+      window.removeEventListener('vacancy:created', handleVacancyChange)
+      window.removeEventListener('vacancy:updated', handleVacancyChange)
+    }
+  }, [load])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })

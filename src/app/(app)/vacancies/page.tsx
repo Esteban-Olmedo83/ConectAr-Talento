@@ -119,7 +119,13 @@ function VacancyFormDialog({
       ? await provider.updateVacancy(vacancy.id, input)
       : await provider.createVacancy(input)
     setSaving(false)
-    if (result.data) { onSave(result.data); onClose() }
+    if (result.data) {
+      // Notify any alive pipeline page instance so it refetches even when served
+      // from the Next.js router cache (no full remount occurs in that case).
+      window.dispatchEvent(new CustomEvent(vacancy ? 'vacancy:updated' : 'vacancy:created'))
+      onSave(result.data)
+      onClose()
+    }
   }
 
   const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
