@@ -438,7 +438,7 @@ function KpiCard({ icon: Icon, label, value, sub, accentColor }: {
 }) {
   return (
     <div
-      className="flex-1 min-w-[150px] rounded-xl border p-4 flex items-center gap-3 relative overflow-hidden"
+      className="rounded-xl border p-4 flex items-center gap-3 relative overflow-hidden"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* top accent bar */}
@@ -844,7 +844,7 @@ export default function CandidatesPage() {
   }
 
   if (loading) return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <div className="h-8 w-48 bg-muted rounded animate-pulse" />
       <div className="flex gap-4">
         {[0,1,2,3].map(i => <div key={i} className="h-20 flex-1 bg-muted rounded-lg animate-pulse" />)}
@@ -854,25 +854,25 @@ export default function CandidatesPage() {
   )
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="space-y-5">
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Candidatos</h1>
           <p className="text-sm text-muted-foreground">{kpis.total} candidatos en la base de datos</p>
         </div>
-        <Button onClick={handleOpenAddCandidate} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Agregar candidato
+        <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Agregar candidato</span><span className="sm:hidden">Agregar</span>
         </Button>
       </div>
 
       {/* KPIs */}
-      <div className="flex gap-4 flex-wrap">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={Users} label="Total Candidatos" value={kpis.total} accentColor="var(--accent)" />
-        <KpiCard icon={Brain} label="CVs Analizados con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} accentColor="var(--accent-2)" />
+        <KpiCard icon={Brain} label="CVs con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} accentColor="var(--accent-2)" />
         <KpiCard icon={TrendingUp} label="Score Promedio" value={kpis.avgScore} sub="sobre 100" accentColor="#34d399" />
-        <KpiCard icon={Clock} label="Nuevos Esta Semana" value={kpis.newThisWeek} accentColor="#fbbf24" />
+        <KpiCard icon={Clock} label="Esta Semana" value={kpis.newThisWeek} accentColor="#fbbf24" />
       </div>
 
       {/* CV Drop Zone */}

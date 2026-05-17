@@ -485,7 +485,7 @@ export default function InterviewsPage() {
   }
 
   if (loading) return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <div className="h-8 w-48 bg-muted rounded animate-pulse" />
       {[0,1,2].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
     </div>
@@ -501,14 +501,14 @@ export default function InterviewsPage() {
   const activeList = tabs[activeTab as keyof typeof tabs] ?? []
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Agenda de Entrevistas</h1>
+          <h1 className="text-xl font-bold text-foreground">Entrevistas</h1>
           <p className="text-sm text-muted-foreground">{tabs.proximas.length} entrevistas programadas</p>
         </div>
-        <Button onClick={() => setShowScheduler(true)} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Agendar entrevista
+        <Button onClick={() => setShowScheduler(true)} className="gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Agendar entrevista</span><span className="sm:hidden">Agendar</span>
         </Button>
       </div>
 
@@ -523,13 +523,13 @@ export default function InterviewsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabList.map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap',
               activeTab === t.id
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-muted-foreground hover:text-foreground'

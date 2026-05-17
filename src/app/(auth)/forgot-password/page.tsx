@@ -268,11 +268,12 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen" style={{ background: S.bg }}>
-      <div className="flex-1">
+      {/* Left panel — hidden on mobile */}
+      <div className="hidden md:flex md:flex-1">
         <AuthLeftPanel {...LEFT_PANEL} />
       </div>
       <div
-        className="flex flex-1 flex-col items-center justify-center p-6 sm:p-12"
+        className="flex w-full md:flex-1 flex-col items-center justify-center px-6 py-10 sm:px-10"
         style={{
           background: S.panel,
           backdropFilter: 'blur(24px)',

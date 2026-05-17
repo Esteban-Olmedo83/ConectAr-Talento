@@ -55,7 +55,7 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
           style={{
             background: 'var(--topbar-bg)',
             borderBottom: '1px solid var(--border)',
-            padding: '14px 28px',
+            padding: '12px 16px',
           }}
         >
           <div className="flex items-center gap-3">
@@ -153,7 +153,7 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
 
         {/* Scrollable page content */}
         <main
-          className="flex-1 overflow-y-auto p-6"
+          className="flex-1 overflow-y-auto p-3 sm:p-6"
           id="main-content"
           tabIndex={-1}
         >

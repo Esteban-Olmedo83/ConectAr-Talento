@@ -430,29 +430,29 @@ export default function VacanciesPage() {
   }
 
   if (loading) return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[0,1,2,3].map(i => <div key={i} className="h-48 bg-muted rounded-xl animate-pulse" />)}
       </div>
     </div>
   )
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="space-y-5">
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Gestión de Vacantes</h1>
           <p className="text-sm text-muted-foreground">{kpis.open} vacantes abiertas</p>
         </div>
-        <Button onClick={openNewVacancyForm} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Nueva Vacante
+        <Button onClick={openNewVacancyForm} className="gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Vacante</span><span className="sm:hidden">Nueva</span>
         </Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { icon: Briefcase, label: 'Total Vacantes', value: kpis.total, accentColor: 'var(--accent)' },
           { icon: Globe, label: 'Abiertas', value: kpis.open, accentColor: '#34d399' },
