@@ -152,10 +152,11 @@ function mapIntegration(row: Record<string, unknown>): Integration {
 export class SupabaseProvider implements DataProvider {
   private get sb() { return createClient() }
 
-  async getVacancies(_tenantId: string): Promise<DataResult<Vacancy[]>> {
+  async getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>> {
     const { data, error } = await this.sb
       .from('vacancies')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapVacancy))

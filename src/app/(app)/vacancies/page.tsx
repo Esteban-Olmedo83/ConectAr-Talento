@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { getPlanLimits } from '@/lib/plan-limits'
 import type { Vacancy, VacancyModality, VacancyPriority } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
@@ -344,6 +345,23 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
   )
 }
 
+// ─── Plan limit toast ─────────────────────────────────────────────────────────
+function PlanLimitToast({ message, onClose }: { message: string; onClose: () => void }) {
+  React.useEffect(() => {
+    const t = setTimeout(onClose, 6000)
+    return () => clearTimeout(t)
+  }, [onClose])
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm">
+      <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" /></svg>
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity flex-shrink-0">
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function VacanciesPage() {
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
@@ -353,6 +371,7 @@ export default function VacanciesPage() {
   const [search, setSearch] = React.useState('')
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
+  const [limitToast, setLimitToast] = React.useState<string | null>(null)
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -381,6 +400,22 @@ export default function VacanciesPage() {
       : 0,
   }), [vacancies])
 
+  const planLimits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
+
+  function openNewVacancyForm() {
+    const activeCount = vacancies.filter(v => v.status !== 'Contratado').length
+    if (activeCount >= planLimits.vacancies) {
+      setLimitToast(
+        planLimits.vacancies === Infinity
+          ? 'Límite alcanzado.'
+          : `Límite de tu plan alcanzado (${planLimits.vacancies} vacantes activas). Actualizá para más.`
+      )
+      return
+    }
+    setEditVacancy(undefined)
+    setShowForm(true)
+  }
+
   async function handleArchive(id: string) {
     await provider.deleteVacancy(id)
     setVacancies(prev => prev.filter(v => v.id !== id))
@@ -405,12 +440,13 @@ export default function VacanciesPage() {
 
   return (
     <div className="p-6 space-y-5">
+      {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Gestión de Vacantes</h1>
           <p className="text-sm text-muted-foreground">{kpis.open} vacantes abiertas</p>
         </div>
-        <Button onClick={() => { setEditVacancy(undefined); setShowForm(true) }} className="gap-1.5">
+        <Button onClick={openNewVacancyForm} className="gap-1.5">
           <Plus className="h-4 w-4" /> Nueva Vacante
         </Button>
       </div>
@@ -475,7 +511,7 @@ export default function VacanciesPage() {
           <p className="text-sm text-muted-foreground max-w-sm mb-4">
             {search ? 'Probá con otros términos.' : 'Publicá una vacante y empezá a recibir candidatos hoy.'}
           </p>
-          {!search && <Button onClick={() => setShowForm(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Nueva Vacante</Button>}
+          {!search && <Button onClick={openNewVacancyForm} className="gap-1.5"><Plus className="h-4 w-4" /> Nueva Vacante</Button>}
         </div>
       )}
 

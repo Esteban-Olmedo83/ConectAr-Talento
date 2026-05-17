@@ -45,12 +45,12 @@ export interface DataProvider {
   deleteCandidate(id: string): Promise<DataResult<void>>
 
   // Applications
-  getApplications(vacancyId?: string): Promise<DataResult<Application[]>>
+  getApplications(vacancyId?: string, tenantId?: string): Promise<DataResult<Application[]>>
   createApplication(input: CreateApplicationInput): Promise<DataResult<Application>>
   updateApplicationStatus(id: string, status: VacancyStatus): Promise<DataResult<Application>>
 
   // Interviews
-  getInterviews(candidateId?: string): Promise<DataResult<Interview[]>>
+  getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>>
   createInterview(input: CreateInterviewInput): Promise<DataResult<Interview>>
   updateInterview(id: string, input: UpdateInterviewInput): Promise<DataResult<Interview>>
 
@@ -233,7 +233,7 @@ export class LocalStorageProvider implements DataProvider {
 
   // ── Applications ───────────────────────────────────────────────────────────
 
-  async getApplications(vacancyId?: string): Promise<DataResult<Application[]>> {
+  async getApplications(vacancyId?: string, _tenantId?: string): Promise<DataResult<Application[]>> {
     try {
       const all = readCollection<Application>(KEYS.applications)
       const result = vacancyId ? all.filter((a) => a.vacancyId === vacancyId) : all
@@ -292,7 +292,7 @@ export class LocalStorageProvider implements DataProvider {
 
   // ── Interviews ─────────────────────────────────────────────────────────────
 
-  async getInterviews(candidateId?: string): Promise<DataResult<Interview[]>> {
+  async getInterviews(candidateId?: string, _tenantId?: string): Promise<DataResult<Interview[]>> {
     try {
       const all = readCollection<Interview>(KEYS.interviews)
       const result = candidateId ? all.filter((i) => i.candidateId === candidateId) : all

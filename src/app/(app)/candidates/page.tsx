@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { getPlanLimits } from '@/lib/plan-limits'
 import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform } from '@/types'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
