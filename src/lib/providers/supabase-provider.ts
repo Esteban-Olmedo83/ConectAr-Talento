@@ -506,4 +506,25 @@ export class SupabaseProvider implements DataProvider {
     if (error) return err(error.message)
     return ok(undefined)
   }
+
+  async getApplicationsByCandidateId(candidateId: string): Promise<DataResult<Application[]>> {
+    const { data, error } = await this.sb
+      .from('applications')
+      .select('*, candidate:candidates(*)')
+      .eq('candidate_id', candidateId)
+      .order('applied_at', { ascending: false })
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapApplication))
+  }
+
+  async closeVacancy(id: string): Promise<DataResult<Vacancy>> {
+    const { data, error } = await this.sb
+      .from('vacancies')
+      .update({ status: 'Contratado', closing_date: new Date().toISOString().slice(0, 10) })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapVacancy(data as Record<string, unknown>))
+  }
 }

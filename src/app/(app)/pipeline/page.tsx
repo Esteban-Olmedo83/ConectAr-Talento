@@ -583,18 +583,22 @@ function ScheduleInterviewModal({
   provider,
   onClose,
   onScheduled,
+  applicationId,
+  vacancyId: preselectedVacancyId,
 }: {
   candidate: Candidate
   vacancies: Vacancy[]
   provider: SupabaseProvider
   onClose: () => void
   onScheduled?: () => void
+  applicationId?: string
+  vacancyId?: string
 }) {
   const { user } = useUser()
   const [form, setForm] = React.useState({
     scheduledAt: '',
     type: 'RRHH' as InterviewType,
-    vacancyId: '',
+    vacancyId: preselectedVacancyId ?? '',
     interviewerName: user?.fullName ?? '',
     interviewerEmail: user?.email ?? '',
     meetingPlatform: 'presencial' as MeetingPlatform,
@@ -625,6 +629,10 @@ function ScheduleInterviewModal({
     if (result.error) {
       setError(result.error)
     } else {
+      // Sync application status to 'Entrevistas' in DB
+      if (applicationId && !applicationId.startsWith('virtual-')) {
+        await provider.updateApplicationStatus(applicationId, 'Entrevistas')
+      }
       setSaved(true)
       onScheduled?.()
       setTimeout(onClose, 1200)
@@ -975,7 +983,7 @@ function NotesModal({
 type ActiveModal =
   | { type: 'email'; candidate: Candidate }
   | { type: 'whatsapp'; candidate: Candidate }
-  | { type: 'schedule'; candidate: Candidate }
+  | { type: 'schedule'; candidate: Candidate; applicationId: string; vacancyId: string }
   | { type: 'notes'; candidate: Candidate }
   | null
 
@@ -984,9 +992,10 @@ interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
   onAction: (modal: ActiveModal) => void
+  interviewDate?: string  // ISO string of next scheduled interview
 }
 
-function CandidateCard({ app, isDragging, onAction }: CardProps) {
+function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
@@ -1131,6 +1140,16 @@ function CandidateCard({ app, isDragging, onAction }: CardProps) {
         </div>
       )}
 
+      {/* Interview indicator */}
+      {interviewDate && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          <Calendar style={{ width: 10, height: 10, color: '#a78bfa', flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 500 }}>
+            Entrevista: {new Date(interviewDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      )}
+
       {/* Bottom meta row */}
       <div
         style={{
@@ -1191,7 +1210,7 @@ function CandidateCard({ app, isDragging, onAction }: CardProps) {
             <Mail style={{ width: 11, height: 11 }} />
           </button>
           <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c }) }}
+            onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
             style={{
               width: 22,
               height: 22,
@@ -1251,7 +1270,7 @@ function CandidateCard({ app, isDragging, onAction }: CardProps) {
 }
 
 // ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void }) {
+function SortableCard({ app, onAction, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; interviewDate?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: app.id })
   const style = {
@@ -1260,7 +1279,7 @@ function SortableCard({ app, onAction }: { app: HydratedApplication; onAction: (
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} />
+      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} interviewDate={interviewDate} />
     </div>
   )
 }
@@ -1270,10 +1289,12 @@ function Lane({
   stage,
   apps,
   onAction,
+  interviewsByCandidate,
 }: {
   stage: VacancyStatus
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
+  interviewsByCandidate: Map<string, string>
 }) {
   const stageColor = STAGE_COLORS[stage]
   return (
@@ -1346,7 +1367,7 @@ function Lane({
             </div>
           )}
           {apps.map(app => (
-            <SortableCard key={app.id} app={app} onAction={onAction} />
+            <SortableCard key={app.id} app={app} onAction={onAction} interviewDate={interviewsByCandidate.get(app.candidateId)} />
           ))}
         </div>
       </SortableContext>
@@ -1403,6 +1424,8 @@ export default function PipelinePage() {
   const [searchText, setSearchText] = React.useState('')
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
   const [activeModal, setActiveModal] = React.useState<ActiveModal>(null)
+  const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
+  const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -1430,6 +1453,18 @@ export default function PipelinePage() {
     // Build set of candidate IDs that have at least one interview scheduled
     const interviews = intResult.data ?? []
     const candidateIdsWithInterview = new Set(interviews.map(i => i.candidateId))
+
+    // Build map of candidateId → earliest upcoming interview date
+    const intMap = new Map<string, string>()
+    interviews.forEach(i => {
+      if (i.status === 'Programada') {
+        const existing = intMap.get(i.candidateId)
+        if (!existing || i.scheduledAt < existing) {
+          intMap.set(i.candidateId, i.scheduledAt)
+        }
+      }
+    })
+    setInterviewsByCandidate(intMap)
 
     // Hydrate real applications
     const hydrated: HydratedApplication[] = realApps.map(a => {
@@ -1575,10 +1610,14 @@ export default function PipelinePage() {
     const isVirtual = draggedApp.id.startsWith('virtual-')
     if (!isVirtual) {
       await provider.updateApplicationStatus(draggedApp.id, newStage)
+      // If hired and has a real vacancy, offer to close the vacancy
+      if (newStage === 'Contratado' && draggedApp.vacancyId) {
+        setHireDialog({ app: draggedApp })
+      }
     }
   }
 
-  // When an interview is scheduled, promote the candidate's status to Entrevistas
+  // When an interview is scheduled, promote the candidate's status to Entrevistas and reload data
   function handleInterviewScheduled(candidateId: string) {
     setApplications(prev =>
       prev.map(a => {
@@ -1591,6 +1630,14 @@ export default function PipelinePage() {
         return a
       })
     )
+    // Reload all data to get updated interview dates
+    load()
+  }
+
+  // When a vacancy is closed after hiring, remove it from the list
+  function handleVacancyClosed(vacancyId: string) {
+    setVacancies(prev => prev.filter(v => v.id !== vacancyId))
+    setHireDialog(null)
   }
 
   // Update notes on the in-memory candidate object
@@ -1720,7 +1767,7 @@ export default function PipelinePage() {
         >
           <div className="flex gap-4" style={{ minHeight: '100%' }}>
             {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} />
+              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} interviewsByCandidate={interviewsByCandidate} />
             ))}
           </div>
           <DragOverlay>
