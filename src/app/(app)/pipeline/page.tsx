@@ -617,6 +617,22 @@ export default function PipelinePage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [load])
 
+  // Refetch when a vacancy is created or updated from another page in the same
+  // session (e.g. /vacancies → /pipeline via sidebar SPA navigation where the
+  // pipeline component may remain alive in the Next.js router cache and therefore
+  // does not remount).
+  React.useEffect(() => {
+    function handleVacancyChange() {
+      load()
+    }
+    window.addEventListener('vacancy:created', handleVacancyChange)
+    window.addEventListener('vacancy:updated', handleVacancyChange)
+    return () => {
+      window.removeEventListener('vacancy:created', handleVacancyChange)
+      window.removeEventListener('vacancy:updated', handleVacancyChange)
+    }
+  }, [load])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
