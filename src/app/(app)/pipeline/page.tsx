@@ -1412,6 +1412,68 @@ function Skeleton() {
   )
 }
 
+// ─── Hire dialog ─────────────────────────────────────────────────────────────
+function HireDialog({
+  app,
+  provider,
+  onClose,
+  onVacancyClosed,
+}: {
+  app: HydratedApplication
+  provider: SupabaseProvider
+  onClose: () => void
+  onVacancyClosed: (vacancyId: string) => void
+}) {
+  const [closing, setClosing] = React.useState(false)
+  const candidateName = app.candidate?.fullName ?? 'el candidato'
+  const vacancyTitle = app.vacancyTitle
+
+  async function handleCloseVacancy() {
+    setClosing(true)
+    await provider.closeVacancy(app.vacancyId)
+    onVacancyClosed(app.vacancyId)
+    setClosing(false)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+        <div style={{ padding: '20px 20px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle2 style={{ width: 18, height: 18, color: '#34d399' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>¡{candidateName} contratado/a!</p>
+              {vacancyTitle && <p style={{ fontSize: 12, color: 'var(--muted)' }}>{vacancyTitle}</p>}
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
+            ¿Querés cerrar la vacante <strong style={{ color: 'var(--text)' }}>{vacancyTitle}</strong>? Esto la marcará como cubierta y no aparecerá en el pipeline.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, padding: '12px 20px 20px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Mantener abierta
+          </button>
+          <button
+            onClick={handleCloseVacancy}
+            disabled={closing}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: '#34d399', border: 'none', color: '#fff', cursor: closing ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: closing ? 0.7 : 1 }}
+          >
+            {closing && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+            Cerrar vacante
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function PipelinePage() {
   const [applications, setApplications] = React.useState<HydratedApplication[]>([])
@@ -1798,6 +1860,8 @@ export default function PipelinePage() {
           provider={provider}
           onClose={() => setActiveModal(null)}
           onScheduled={() => handleInterviewScheduled(activeModal.candidate.id)}
+          applicationId={activeModal.applicationId}
+          vacancyId={activeModal.vacancyId}
         />
       )}
       {activeModal?.type === 'notes' && (
@@ -1806,6 +1870,14 @@ export default function PipelinePage() {
           provider={provider}
           onClose={() => setActiveModal(null)}
           onSaved={(notes) => handleNotesSaved(activeModal.candidate.id, notes)}
+        />
+      )}
+      {hireDialog && (
+        <HireDialog
+          app={hireDialog.app}
+          provider={provider}
+          onClose={() => setHireDialog(null)}
+          onVacancyClosed={handleVacancyClosed}
         />
       )}
     </div>
