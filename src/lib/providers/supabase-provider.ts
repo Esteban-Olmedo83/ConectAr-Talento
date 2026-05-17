@@ -152,10 +152,11 @@ function mapIntegration(row: Record<string, unknown>): Integration {
 export class SupabaseProvider implements DataProvider {
   private get sb() { return createClient() }
 
-  async getVacancies(_tenantId: string): Promise<DataResult<Vacancy[]>> {
+  async getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>> {
     const { data, error } = await this.sb
       .from('vacancies')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapVacancy))
@@ -215,10 +216,11 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
-  async getCandidates(_tenantId: string): Promise<DataResult<Candidate[]>> {
+  async getCandidates(tenantId: string): Promise<DataResult<Candidate[]>> {
     const { data, error } = await this.sb
       .from('candidates')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapCandidate))
@@ -277,12 +279,13 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
-  async getApplications(vacancyId?: string): Promise<DataResult<Application[]>> {
+  async getApplications(vacancyId?: string, _tenantId?: string): Promise<DataResult<Application[]>> {
     let q = this.sb
       .from('applications')
       .select('*, candidate:candidates(*)')
       .order('applied_at', { ascending: false })
     if (vacancyId) q = q.eq('vacancy_id', vacancyId)
+    // Tenant isolation is handled by RLS on the applications and candidates tables
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapApplication))
@@ -314,12 +317,13 @@ export class SupabaseProvider implements DataProvider {
     return ok(mapApplication(data as Record<string, unknown>))
   }
 
-  async getInterviews(candidateId?: string): Promise<DataResult<Interview[]>> {
+  async getInterviews(candidateId?: string, _tenantId?: string): Promise<DataResult<Interview[]>> {
     let q = this.sb
       .from('interviews')
       .select('*, scorecard:scorecards(*)')
       .order('scheduled_at', { ascending: false })
     if (candidateId) q = q.eq('candidate_id', candidateId)
+    // Tenant isolation is handled by RLS on the interviews table
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapInterview))

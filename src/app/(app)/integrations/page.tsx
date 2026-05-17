@@ -31,15 +31,8 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { getPlanLimits } from '@/lib/plan-limits'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
-
-const PLAN_LIMITS: Record<string, number> = {
-  free: 1,
-  starter: 1,
-  pro: 3,
-  business: 5,
-  enterprise: 999,
-}
 
 /* ─── status config ──────────────────────────────────────────── */
 const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }> = {
@@ -422,6 +415,23 @@ const OAUTH_ROUTES: Record<string, { href: string; label: string; configKey: str
   },
 }
 
+/* ─── Plan limit toast ───────────────────────────────────────── */
+function PlanLimitToast({ message, onClose }: { message: string; onClose: () => void }) {
+  React.useEffect(() => {
+    const t = setTimeout(onClose, 6000)
+    return () => clearTimeout(t)
+  }, [onClose])
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm">
+      <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" /></svg>
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity flex-shrink-0">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
 /* ─── main page ──────────────────────────────────────────────── */
 export default function IntegrationsPage() {
   const { user } = useUser()
@@ -429,6 +439,7 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = React.useState<Integration[]>([])
   const [activeJobBoardModal, setActiveJobBoardModal] = React.useState<IntegrationPlatform | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
+  const [limitToast, setLimitToast] = React.useState<string | null>(null)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // Handle ?connected= query param
@@ -491,11 +502,22 @@ export default function IntegrationsPage() {
   }
 
   const plan = user?.plan ?? 'free'
-  const limit = PLAN_LIMITS[plan] ?? 1
+  const planLimits = React.useMemo(() => getPlanLimits(plan), [plan])
+  const limit = planLimits.integrations === Infinity ? 999 : planLimits.integrations
 
-  function canConnect(platform: IntegrationPlatform) {
-    const existing = getByPlatform(platform)
-    return existing.length < limit
+  function canConnect(_platform: IntegrationPlatform) {
+    // Check total integrations across all platforms
+    return integrations.length < planLimits.integrations
+  }
+
+  function handleConnectWithLimitCheck(action: () => void) {
+    if (!canConnect('linkedin' as IntegrationPlatform)) {
+      setLimitToast(
+        `Límite de tu plan alcanzado (${limit} integración${limit !== 1 ? 'es' : ''}). Actualizá para conectar más.`
+      )
+      return
+    }
+    action()
   }
 
   /* ── section component ── */
@@ -537,10 +559,22 @@ export default function IntegrationsPage() {
     const config = OAUTH_ROUTES[platformKey]
     if (!config) return null
 
+    function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+      if (disabled) { e.preventDefault(); return }
+      // Check limit before navigating; if at limit show toast and abort
+      if (!canConnect('linkedin' as IntegrationPlatform)) {
+        e.preventDefault()
+        setLimitToast(
+          `Límite de tu plan alcanzado (${limit} integración${limit !== 1 ? 'es' : ''}). Actualizá para conectar más.`
+        )
+      }
+    }
+
     return (
       <a
         href={disabled ? undefined : config.href}
         aria-disabled={disabled}
+        onClick={handleClick}
         className={`inline-flex items-center gap-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg transition-colors ${disabled ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}
       >
         <ExternalLink className="h-3.5 w-3.5" />
@@ -557,6 +591,8 @@ export default function IntegrationsPage() {
     <div className="flex flex-col h-full">
       {/* success toast */}
       {toast && <SuccessToast platform={toast} onClose={() => setToast(null)} />}
+      {/* plan limit toast */}
+      {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
 
       {/* header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">
@@ -608,7 +644,7 @@ export default function IntegrationsPage() {
             ))}
 
             {/* Connect button */}
-            <OAuthConnectButton platformKey="gmail" disabled={false} />
+            <OAuthConnectButton platformKey="gmail" disabled={!canConnect('gmail' as IntegrationPlatform)} />
 
             {/* Feature list */}
             <div
@@ -752,7 +788,7 @@ export default function IntegrationsPage() {
                     </div>
                   ) : jb.available ? (
                     <button
-                      onClick={() => setActiveJobBoardModal(jb.platform)}
+                      onClick={() => handleConnectWithLimitCheck(() => setActiveJobBoardModal(jb.platform))}
                       className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-lg transition-colors"
                     >
                       Conectar

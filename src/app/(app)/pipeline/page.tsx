@@ -581,18 +581,69 @@ export default function PipelinePage() {
   const pathname = usePathname()
 
   const load = React.useCallback(async () => {
-    const tenantId = user?.tenantId ?? ''
-    const [appsResult, vacResult] = await Promise.all([
+    // Wait until the auth session and user profile are resolved before loading.
+    // The layout sets user after fetching the Supabase profile, so if user is
+    // still null we bail out — the effect will re-run once user is set.
+    if (!user) return
+
+    const tenantId = user.tenantId
+    setLoading(true)
+    const [appsResult, vacResult, candResult, intResult] = await Promise.all([
       provider.getApplications(),
       provider.getVacancies(tenantId),
+      provider.getCandidates(tenantId),
+      provider.getInterviews(),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
-    const hydrated: HydratedApplication[] = (appsResult.data ?? []).map(a => ({
-      ...a,
-      vacancyTitle: vacMap.get(a.vacancyId) ?? '',
-    }))
-    setApplications(hydrated)
+
+    // Build set of candidate IDs that already have a real application
+    const realApps = appsResult.data ?? []
+    const candidateIdsWithApp = new Set(realApps.map(a => a.candidateId))
+
+    // Build set of candidate IDs that have at least one interview scheduled
+    const interviews = intResult.data ?? []
+    const candidateIdsWithInterview = new Set(interviews.map(i => i.candidateId))
+
+    // Hydrate real applications
+    const hydrated: HydratedApplication[] = realApps.map(a => {
+      // If candidate has an interview and is still in early stages, promote to Entrevistas
+      const effectiveStatus: VacancyStatus =
+        candidateIdsWithInterview.has(a.candidateId) &&
+        (a.status === 'Nuevas Vacantes' || a.status === 'En Proceso')
+          ? 'Entrevistas'
+          : a.status
+      return {
+        ...a,
+        status: effectiveStatus,
+        vacancyTitle: vacMap.get(a.vacancyId) ?? '',
+      }
+    })
+
+    // Create virtual applications for candidates that have no real application
+    const allCandidates = candResult.data ?? []
+    const now = new Date().toISOString()
+    const virtualApps: HydratedApplication[] = allCandidates
+      .filter(c => !candidateIdsWithApp.has(c.id))
+      .map(c => {
+        // Place in Entrevistas if they have an interview, otherwise Nuevas Vacantes
+        const stage: VacancyStatus = candidateIdsWithInterview.has(c.id)
+          ? 'Entrevistas'
+          : 'Nuevas Vacantes'
+        return {
+          id: `virtual-${c.id}`,
+          vacancyId: '',
+          candidateId: c.id,
+          candidate: c,
+          status: stage,
+          positionInStage: 0,
+          appliedAt: c.appliedAt ?? c.createdAt ?? now,
+          updatedAt: c.createdAt ?? now,
+          vacancyTitle: '',
+        }
+      })
+
+    setApplications([...hydrated, ...virtualApps])
     setVacancies(vacs)
     setLoading(false)
   }, [provider, user])
@@ -701,10 +752,18 @@ export default function PipelinePage() {
     }
     if (!newStage || newStage === draggedApp.status) return
 
+    // Optimistically update UI
     setApplications(prev =>
       prev.map(a => a.id === draggedApp.id ? { ...a, status: newStage! } : a)
     )
-    await provider.updateApplicationStatus(draggedApp.id, newStage)
+
+    // Virtual applications (no vacancy assigned) have no real DB record.
+    // We update state optimistically; a real record can only be persisted once
+    // the candidate is linked to a vacancy.
+    const isVirtual = draggedApp.id.startsWith('virtual-')
+    if (!isVirtual) {
+      await provider.updateApplicationStatus(draggedApp.id, newStage)
+    }
   }
 
   if (loading) return (
