@@ -34,6 +34,7 @@ function ClientFormDialog({
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [saving, setSaving] = React.useState(false)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState({
     name: client?.name ?? '',
     industry: client?.industry ?? '',
@@ -65,6 +66,7 @@ function ClientFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) return
+    setSaveError(null)
     setSaving(true)
     const input = {
       tenantId: user?.tenantId ?? '',
@@ -83,6 +85,8 @@ function ClientFormDialog({
     if (result.data) {
       onSave(result.data)
       onClose()
+    } else {
+      setSaveError(result.error ?? 'Error al guardar')
     }
   }
 
@@ -230,6 +234,12 @@ function ClientFormDialog({
               }}
             />
           </div>
+
+          {saveError && (
+            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
+              {saveError}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
