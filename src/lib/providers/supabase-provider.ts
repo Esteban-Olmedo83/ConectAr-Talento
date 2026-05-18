@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type {
   DataResult,
+  Client,
   Vacancy,
   Candidate,
   Application,
@@ -12,6 +13,8 @@ import type {
 } from '@/types'
 import type {
   DataProvider,
+  CreateClientInput,
+  UpdateClientInput,
   CreateVacancyInput,
   UpdateVacancyInput,
   CreateCandidateInput,
@@ -28,10 +31,29 @@ import type {
 function ok<T>(data: T): DataResult<T> { return { data, error: null } }
 function err<T>(msg: string): DataResult<T> { return { data: null, error: msg } }
 
+function mapClient(row: Record<string, unknown>): Client {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    name: row.name as string,
+    industry: (row.industry as string) ?? undefined,
+    contactName: (row.contact_name as string) ?? undefined,
+    contactEmail: (row.contact_email as string) ?? undefined,
+    contactPhone: (row.contact_phone as string) ?? undefined,
+    website: (row.website as string) ?? undefined,
+    logoUrl: (row.logo_url as string) ?? undefined,
+    notes: (row.notes as string) ?? undefined,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  }
+}
+
 function mapVacancy(row: Record<string, unknown>): Vacancy {
   return {
     id: row.id as string,
     tenantId: row.tenant_id as string,
+    clientId: (row.client_id as string) ?? undefined,
+    client: row.client ? mapClient(row.client as Record<string, unknown>) : undefined,
     title: row.title as string,
     department: row.department as string,
     status: row.status as VacancyStatus,
@@ -152,10 +174,73 @@ function mapIntegration(row: Record<string, unknown>): Integration {
 export class SupabaseProvider implements DataProvider {
   private get sb() { return createClient() }
 
+  // ── Clients ──────────────────────────────────────────────────────────────
+
+  async getClients(tenantId: string): Promise<DataResult<Client[]>> {
+    const { data, error } = await this.sb
+      .from('clients')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('name', { ascending: true })
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapClient))
+  }
+
+  async createClient(input: CreateClientInput): Promise<DataResult<Client>> {
+    const { data, error } = await this.sb
+      .from('clients')
+      .insert({
+        tenant_id: input.tenantId,
+        name: input.name,
+        industry: input.industry ?? null,
+        contact_name: input.contactName ?? null,
+        contact_email: input.contactEmail ?? null,
+        contact_phone: input.contactPhone ?? null,
+        website: input.website ?? null,
+        logo_url: input.logoUrl ?? null,
+        notes: input.notes ?? null,
+      })
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async updateClient(id: string, input: UpdateClientInput): Promise<DataResult<Client>> {
+    const patch: Record<string, unknown> = {}
+    if (input.name !== undefined) patch.name = input.name
+    if (input.industry !== undefined) patch.industry = input.industry
+    if (input.contactName !== undefined) patch.contact_name = input.contactName
+    if (input.contactEmail !== undefined) patch.contact_email = input.contactEmail
+    if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone
+    if (input.website !== undefined) patch.website = input.website
+    if (input.logoUrl !== undefined) patch.logo_url = input.logoUrl
+    if (input.notes !== undefined) patch.notes = input.notes
+    patch.updated_at = new Date().toISOString()
+    const { data, error } = await this.sb
+      .from('clients')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async deleteClient(id: string): Promise<DataResult<void>> {
+    // Unlink vacancies first
+    await this.sb.from('vacancies').update({ client_id: null }).eq('client_id', id)
+    const { error } = await this.sb.from('clients').delete().eq('id', id)
+    if (error) return err(error.message)
+    return ok(undefined)
+  }
+
+  // ── Vacancies ─────────────────────────────────────────────────────────────
+
   async getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>> {
     const { data, error } = await this.sb
       .from('vacancies')
-      .select('*')
+      .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
@@ -167,6 +252,7 @@ export class SupabaseProvider implements DataProvider {
       .from('vacancies')
       .insert({
         tenant_id: input.tenantId,
+        client_id: input.clientId ?? null,
         title: input.title,
         department: input.department,
         status: input.status,
@@ -180,7 +266,7 @@ export class SupabaseProvider implements DataProvider {
         priority: input.priority,
         closing_date: input.closingDate ?? null,
       })
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapVacancy(data as Record<string, unknown>))
@@ -188,6 +274,7 @@ export class SupabaseProvider implements DataProvider {
 
   async updateVacancy(id: string, input: UpdateVacancyInput): Promise<DataResult<Vacancy>> {
     const patch: Record<string, unknown> = {}
+    if (input.clientId !== undefined) patch.client_id = input.clientId ?? null
     if (input.title !== undefined) patch.title = input.title
     if (input.department !== undefined) patch.department = input.department
     if (input.status !== undefined) patch.status = input.status
@@ -204,7 +291,7 @@ export class SupabaseProvider implements DataProvider {
       .from('vacancies')
       .update(patch)
       .eq('id', id)
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapVacancy(data as Record<string, unknown>))

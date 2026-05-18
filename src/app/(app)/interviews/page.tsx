@@ -14,7 +14,7 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import type {
   Interview, Candidate, Vacancy, InterviewType, InterviewStatus,
-  MeetingPlatform, Recommendation
+  MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus
 } from '@/types'
 
 const TYPE_COLORS: Record<InterviewType, { bg: string; text: string; border: string }> = {
@@ -259,6 +259,7 @@ function ScorecardModal({
       aiSummary: aiSummary || undefined,
     })
     const updated = await provider.updateInterview(interview.id, { status: 'Completada' })
+    // Auto-advance application if recommendation is 'Avanzar'
     if (recommendation === 'Avanzar') {
       const appsResult = await provider.getApplicationsByCandidateId(interview.candidateId)
       const apps = appsResult.data ?? []

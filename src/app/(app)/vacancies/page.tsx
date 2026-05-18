@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Vacancy, VacancyModality, VacancyPriority, Candidate } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -40,7 +40,9 @@ function VacancyFormDialog({
 }) {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [clients, setClients] = React.useState<Client[]>([])
   const [form, setForm] = React.useState({
+    clientId: vacancy?.clientId ?? '',
     title: vacancy?.title ?? '',
     department: vacancy?.department ?? '',
     rubro: '',
@@ -57,6 +59,12 @@ function VacancyFormDialog({
   })
   const [generating, setGenerating] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open && user?.tenantId) {
+      provider.getClients(user.tenantId).then(r => { if (r.data) setClients(r.data) })
+    }
+  }, [open, user?.tenantId])
 
   const profileOptions = React.useMemo(() => {
     if (!form.rubro) return []
@@ -103,6 +111,7 @@ function VacancyFormDialog({
     const tenantId = user?.tenantId ?? ''
     const input = {
       tenantId,
+      clientId: form.clientId || undefined,
       title: form.title,
       department: form.department,
       status: 'Nuevas Vacantes' as const,
@@ -161,6 +170,21 @@ function VacancyFormDialog({
                 {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.perfil} · {p.nivel}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Client selector */}
+          <div>
+            <label className={labelCls}>Cliente (empresa)</label>
+            <select
+              value={form.clientId}
+              onChange={e => setForm(f => ({...f, clientId: e.target.value}))}
+              className={inputCls}
+            >
+              <option value="">Sin cliente asignado</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -288,6 +312,15 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
         <h3 className="font-bold text-base leading-tight mb-1 cursor-pointer transition-colors hover:opacity-80" style={{ color: 'var(--text)' }} onClick={onEdit}>
           {vacancy.title}
         </h3>
+
+        {vacancy.client && (
+          <div className="flex items-center gap-1 mb-1">
+            <Building2 className="h-3 w-3 shrink-0" style={{ color: 'var(--accent-2)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--accent-2)' }}>
+              {vacancy.client.name}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{vacancy.department}</span>

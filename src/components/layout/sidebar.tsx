@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Briefcase,
   Users,
+  Building2,
   Calendar,
   FileText,
   Plug,
@@ -23,6 +24,7 @@ import type { User } from '@/types'
 // ─── Nav structure ────────────────────────────────────────────────────────────
 const mainNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Clientes', href: '/clients', icon: Building2 },
   { label: 'Procesos', href: '/pipeline', icon: Columns3 },
   { label: 'Candidatos', href: '/candidates', icon: Users },
   { label: 'Vacantes', href: '/vacancies', icon: Briefcase },

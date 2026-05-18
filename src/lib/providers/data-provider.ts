@@ -1,5 +1,6 @@
 import type {
   DataResult,
+  Client,
   Vacancy,
   Candidate,
   Application,
@@ -12,8 +13,11 @@ import type {
 
 // ─── Input types (omit server-generated fields) ──────────────────────────────
 
-export type CreateVacancyInput = Omit<Vacancy, 'id' | 'createdAt' | 'applications'>
-export type UpdateVacancyInput = Partial<Omit<Vacancy, 'id' | 'createdAt' | 'tenantId'>>
+export type CreateClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdateClientInput = Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>>
+
+export type CreateVacancyInput = Omit<Vacancy, 'id' | 'createdAt' | 'applications' | 'client'>
+export type UpdateVacancyInput = Partial<Omit<Vacancy, 'id' | 'createdAt' | 'tenantId' | 'applications' | 'client'>>
 
 export type CreateCandidateInput = Omit<Candidate, 'id' | 'createdAt' | 'interviews'>
 export type UpdateCandidateInput = Partial<Omit<Candidate, 'id' | 'createdAt' | 'tenantId'>>
@@ -32,6 +36,12 @@ export type CreateIntegrationInput = Omit<Integration, 'id' | 'createdAt'>
 // ─── DataProvider interface ───────────────────────────────────────────────────
 
 export interface DataProvider {
+  // Clients
+  getClients(tenantId: string): Promise<DataResult<Client[]>>
+  createClient(input: CreateClientInput): Promise<DataResult<Client>>
+  updateClient(id: string, input: UpdateClientInput): Promise<DataResult<Client>>
+  deleteClient(id: string): Promise<DataResult<void>>
+
   // Vacancies
   getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>>
   createVacancy(input: CreateVacancyInput): Promise<DataResult<Vacancy>>
@@ -72,6 +82,7 @@ export interface DataProvider {
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 
 const KEYS = {
+  clients: 'ct_clients',
   vacancies: 'ct_vacancies',
   candidates: 'ct_candidates',
   applications: 'ct_applications',
@@ -118,6 +129,61 @@ function writeCollection<T>(key: string, items: T[]): void {
 // ─── LocalStorageProvider ─────────────────────────────────────────────────────
 
 export class LocalStorageProvider implements DataProvider {
+  // ── Clients ────────────────────────────────────────────────────────────────
+
+  async getClients(tenantId: string): Promise<DataResult<Client[]>> {
+    try {
+      const all = readCollection<Client>(KEYS.clients)
+      return ok(all.filter((c) => c.tenantId === tenantId))
+    } catch (e) {
+      return err(`getClients failed: ${String(e)}`)
+    }
+  }
+
+  async createClient(input: CreateClientInput): Promise<DataResult<Client>> {
+    try {
+      const client: Client = {
+        ...input,
+        id: generateId(),
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      const all = readCollection<Client>(KEYS.clients)
+      all.push(client)
+      writeCollection(KEYS.clients, all)
+      return ok(client)
+    } catch (e) {
+      return err(`createClient failed: ${String(e)}`)
+    }
+  }
+
+  async updateClient(id: string, input: UpdateClientInput): Promise<DataResult<Client>> {
+    try {
+      const all = readCollection<Client>(KEYS.clients)
+      const idx = all.findIndex((c) => c.id === id)
+      if (idx === -1) return err(`Client ${id} not found`)
+      const updated: Client = { ...all[idx], ...input, updatedAt: now() }
+      all[idx] = updated
+      writeCollection(KEYS.clients, all)
+      return ok(updated)
+    } catch (e) {
+      return err(`updateClient failed: ${String(e)}`)
+    }
+  }
+
+  async deleteClient(id: string): Promise<DataResult<void>> {
+    try {
+      const all = readCollection<Client>(KEYS.clients)
+      writeCollection(KEYS.clients, all.filter((c) => c.id !== id))
+      // Cascade: unlink vacancies
+      const vacancies = readCollection<Vacancy>(KEYS.vacancies)
+      writeCollection(KEYS.vacancies, vacancies.map((v) => v.clientId === id ? { ...v, clientId: undefined } : v))
+      return ok(undefined)
+    } catch (e) {
+      return err(`deleteClient failed: ${String(e)}`)
+    }
+  }
+
   // ── Vacancies ──────────────────────────────────────────────────────────────
 
   async getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>> {

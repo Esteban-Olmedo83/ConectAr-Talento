@@ -140,9 +140,26 @@ export interface Application {
   updatedAt: string
 }
 
+export interface Client {
+  id: string
+  tenantId: string
+  name: string
+  industry?: string
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  website?: string
+  logoUrl?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Vacancy {
   id: string
   tenantId: string
+  clientId?: string
+  client?: Client
   title: string
   department: string
   status: VacancyStatus
