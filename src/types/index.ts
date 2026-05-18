@@ -4,6 +4,7 @@ export type VacancyStatus =
   | 'Entrevistas'
   | 'Oferta Enviada'
   | 'Contratado'
+  | 'Descartado'
 
 export type VacancyModality = 'Presencial' | 'Remoto' | 'Híbrido'
 export type VacancyPriority = 'Alta' | 'Media' | 'Baja'

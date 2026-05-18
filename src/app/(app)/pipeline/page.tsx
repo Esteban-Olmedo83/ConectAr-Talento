@@ -30,8 +30,12 @@ import {
   X,
   Copy,
   CheckCircle2,
+  XCircle,
   Loader2,
   FileText,
+  ChevronUp,
+  UserX,
+  RotateCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -46,6 +50,7 @@ import type {
   MessageTemplate,
   InterviewType,
   MeetingPlatform,
+  Recommendation,
 } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,7 +68,14 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Entrevistas': '#a78bfa',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
+  'Descartado': '#6b7280',
 }
+
+const RECOMMENDATION_COLORS = {
+  Avanzar:    { bg: 'rgba(52,211,153,0.15)',  text: '#34d399' },
+  Considerar: { bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24' },
+  Rechazar:   { bg: 'rgba(248,113,113,0.15)', text: '#f87171' },
+} as const
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #6c63ff, #a78bfa)',
@@ -83,6 +95,7 @@ function avatarGradient(name: string): string {
 interface HydratedApplication extends Application {
   candidate?: Candidate
   vacancyTitle?: string
+  recommendation?: Recommendation
 }
 
 // ─── Source badge colors ──────────────────────────────────────────────────────
@@ -993,10 +1006,11 @@ interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
   onAction: (modal: ActiveModal) => void
+  onDecide?: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void
   interviewDate?: string  // ISO string of next scheduled interview
 }
 
-function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) {
+function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
@@ -1141,6 +1155,24 @@ function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) 
         </div>
       )}
 
+      {/* Scorecard recommendation badge (only in Entrevistas stage) */}
+      {app.status === 'Entrevistas' && app.recommendation && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 99,
+              fontWeight: 600,
+              background: RECOMMENDATION_COLORS[app.recommendation].bg,
+              color: RECOMMENDATION_COLORS[app.recommendation].text,
+            }}
+          >
+            Scorecard: {app.recommendation}
+          </span>
+        </div>
+      )}
+
       {/* Interview indicator */}
       {interviewDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
@@ -1266,12 +1298,60 @@ function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) 
           </button>
         </div>
       </div>
+
+      {/* Avanzar / Descartar — only visible on hover for Entrevistas stage */}
+      {app.status === 'Entrevistas' && onDecide && hovered && !isDragging && (
+        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'Oferta Enviada') }}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              padding: '4px 0',
+              borderRadius: 6,
+              fontSize: 10,
+              fontWeight: 700,
+              background: 'rgba(52,211,153,0.15)',
+              border: '1px solid rgba(52,211,153,0.3)',
+              color: '#34d399',
+              cursor: 'pointer',
+            }}
+            title="Avanzar a Oferta Enviada"
+          >
+            <CheckCircle2 style={{ width: 10, height: 10 }} /> Avanzar
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'Descartado') }}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              padding: '4px 0',
+              borderRadius: 6,
+              fontSize: 10,
+              fontWeight: 700,
+              background: 'rgba(248,113,113,0.15)',
+              border: '1px solid rgba(248,113,113,0.3)',
+              color: '#f87171',
+              cursor: 'pointer',
+            }}
+            title="Descartar candidato"
+          >
+            <XCircle style={{ width: 10, height: 10 }} /> Descartar
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; interviewDate?: string }) {
+function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void; interviewDate?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: app.id })
   const style = {
@@ -1280,7 +1360,7 @@ function SortableCard({ app, onAction, interviewDate }: { app: HydratedApplicati
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} interviewDate={interviewDate} />
+      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} onDecide={onDecide} interviewDate={interviewDate} />
     </div>
   )
 }
@@ -1290,11 +1370,13 @@ function Lane({
   stage,
   apps,
   onAction,
+  onDecide,
   interviewsByCandidate,
 }: {
   stage: VacancyStatus
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
+  onDecide: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void
   interviewsByCandidate: Map<string, string>
 }) {
   const stageColor = STAGE_COLORS[stage]
@@ -1368,7 +1450,7 @@ function Lane({
             </div>
           )}
           {apps.map(app => (
-            <SortableCard key={app.id} app={app} onAction={onAction} interviewDate={interviewsByCandidate.get(app.candidateId)} />
+            <SortableCard key={app.id} app={app} onAction={onAction} onDecide={onDecide} interviewDate={interviewsByCandidate.get(app.candidateId)} />
           ))}
         </div>
       </SortableContext>
@@ -1629,6 +1711,7 @@ export default function PipelinePage() {
       'Entrevistas': 0,
       'Oferta Enviada': 0,
       'Contratado': 0,
+      'Descartado': 0,
     }
     applications.forEach(a => {
       if (map[a.status] !== undefined) map[a.status]++
@@ -1643,6 +1726,7 @@ export default function PipelinePage() {
       'Entrevistas': [],
       'Oferta Enviada': [],
       'Contratado': [],
+      'Descartado': [],
     }
     filtered.forEach(a => {
       if (map[a.status]) map[a.status].push(a)
@@ -1700,6 +1784,15 @@ export default function PipelinePage() {
     )
     // Reload all data to get updated interview dates
     load()
+  }
+
+  async function handleDecide(appId: string, newStatus: 'Oferta Enviada' | 'Descartado') {
+    const isVirtual = appId.startsWith('virtual-')
+    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a))
+    if (!isVirtual) {
+      await provider.updateApplicationStatus(appId, newStatus)
+      window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    }
   }
 
   // When a vacancy is closed after hiring, remove it from the list
@@ -1835,7 +1928,7 @@ export default function PipelinePage() {
         >
           <div className="flex gap-4" style={{ minHeight: '100%' }}>
             {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} interviewsByCandidate={interviewsByCandidate} />
+              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} onDecide={handleDecide} interviewsByCandidate={interviewsByCandidate} />
             ))}
           </div>
           <DragOverlay>

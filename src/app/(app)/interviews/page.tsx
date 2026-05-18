@@ -259,16 +259,6 @@ function ScorecardModal({
       aiSummary: aiSummary || undefined,
     })
     const updated = await provider.updateInterview(interview.id, { status: 'Completada' })
-    // Auto-advance application if recommendation is 'Avanzar'
-    if (recommendation === 'Avanzar') {
-      const appsResult = await provider.getApplicationsByCandidateId(interview.candidateId)
-      const apps = appsResult.data ?? []
-      const activeApp = apps.find(a => a.status === 'Entrevistas' || a.status === 'En Proceso')
-      if (activeApp) {
-        await provider.updateApplicationStatus(activeApp.id, 'Oferta Enviada')
-        window.dispatchEvent(new CustomEvent('application:stage-changed'))
-      }
-    }
     setSaving(false)
     if (updated.data) onComplete(updated.data)
     onClose()
@@ -365,13 +355,15 @@ function ScorecardModal({
 
 // ─── Agenda: Interview card ───────────────────────────────────────────────────
 function InterviewCard({
-  interview, candidateMap, vacancyMap, onComplete, onCancel
+  interview, candidateMap, vacancyMap, onComplete, onCancel, onDecide, appStatus,
 }: {
   interview: Interview
   candidateMap: Map<string, Candidate>
   vacancyMap:   Map<string, Vacancy>
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
+  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  appStatus?: string
 }) {
   const [showScorecard, setShowScorecard] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
@@ -434,6 +426,30 @@ function InterviewCard({
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onCancel(interview.id)}>
                   Cancelar
                 </Button>
+              </div>
+            )}
+            {interview.status === 'Completada' && appStatus === 'Entrevistas' && (
+              <div
+                className="flex items-center gap-2 mt-3 pt-3 flex-wrap"
+                style={{ borderTop: '1px solid var(--border)' }}
+              >
+                <span className="text-xs font-medium shrink-0" style={{ color: 'var(--muted2)' }}>
+                  ¿Continúa?
+                </span>
+                <button
+                  onClick={() => onDecide(interview.candidateId, interview.vacancyId, 'Oferta Enviada')}
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+                >
+                  <CheckCircle2 className="h-3 w-3" /> Avanzar
+                </button>
+                <button
+                  onClick={() => onDecide(interview.candidateId, interview.vacancyId, 'Descartado')}
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
+                >
+                  <XCircle className="h-3 w-3" /> Descartar
+                </button>
               </div>
             )}
           </div>
@@ -545,7 +561,7 @@ function RoundChip({
 
 // ─── Por Vacante: Candidate row ───────────────────────────────────────────────
 function CandidateRoundRow({
-  candidateId, rounds, candidateMap, onComplete, onCancel, onScheduleNext,
+  candidateId, rounds, candidateMap, onComplete, onCancel, onScheduleNext, onDecide, appStatus,
 }: {
   candidateId: string
   rounds: Interview[]
@@ -553,13 +569,16 @@ function CandidateRoundRow({
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onScheduleNext: (candidateId: string, vacancyId: string) => void
+  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  appStatus?: string
 }) {
   const candidate = candidateMap.get(candidateId)
   const lastRound = rounds[rounds.length - 1]
   const canAddNext = lastRound?.status === 'Completada'
 
   return (
-    <div className="flex items-start gap-3 py-3 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+    <div className="py-3 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-start gap-3">
       {/* Candidate avatar + name */}
       <div className="flex items-center gap-2 shrink-0" style={{ minWidth: 140 }}>
         <div
@@ -621,13 +640,39 @@ function CandidateRoundRow({
           </button>
         )}
       </div>
+      </div>
+
+      {canAddNext && appStatus === 'Entrevistas' && (
+        <div
+          className="flex items-center gap-2 mt-2 pt-2 flex-wrap"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <span className="text-xs font-medium shrink-0" style={{ color: 'var(--muted2)' }}>
+            ¿Continúa en el proceso?
+          </span>
+          <button
+            onClick={() => onDecide(candidateId, rounds[0]?.vacancyId ?? '', 'Oferta Enviada')}
+            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+          >
+            <CheckCircle2 className="h-3 w-3" /> Avanzar a oferta
+          </button>
+          <button
+            onClick={() => onDecide(candidateId, rounds[0]?.vacancyId ?? '', 'Descartado')}
+            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
+          >
+            <XCircle className="h-3 w-3" /> Descartar
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Por Vacante: Vacancy group ───────────────────────────────────────────────
 function VacancyInterviewGroup({
-  vacancy, candidateGroups, candidateMap, onComplete, onCancel, onScheduleNext,
+  vacancy, candidateGroups, candidateMap, onComplete, onCancel, onScheduleNext, onDecide, appByCandidateVacancy,
 }: {
   vacancy?: Vacancy
   candidateGroups: Map<string, Interview[]>
@@ -635,6 +680,8 @@ function VacancyInterviewGroup({
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onScheduleNext: (candidateId: string, vacancyId: string) => void
+  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  appByCandidateVacancy: Map<string, Application>
 }) {
   const totalInterviews = Array.from(candidateGroups.values()).reduce((s, a) => s + a.length, 0)
   const pending = Array.from(candidateGroups.values()).flat().filter(i => i.status === 'Programada').length
@@ -677,6 +724,8 @@ function VacancyInterviewGroup({
             onComplete={onComplete}
             onCancel={onCancel}
             onScheduleNext={onScheduleNext}
+            onDecide={onDecide}
+            appStatus={appByCandidateVacancy.get(`${candId}_${vacancy?.id ?? ''}`)?.status}
           />
         ))}
       </div>
@@ -689,6 +738,7 @@ export default function InterviewsPage() {
   const [interviews, setInterviews]   = React.useState<Interview[]>([])
   const [candidates, setCandidates]   = React.useState<Candidate[]>([])
   const [vacancies, setVacancies]     = React.useState<Vacancy[]>([])
+  const [applications, setApplications] = React.useState<Application[]>([])
   const [loading, setLoading]         = React.useState(true)
   const [showScheduler, setShowScheduler] = React.useState(false)
   const [schedulePrefill, setSchedulePrefill] = React.useState<{ candidateId?: string; vacancyId?: string } | undefined>()
@@ -700,14 +750,16 @@ export default function InterviewsPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [iRes, cRes, vRes] = await Promise.all([
+    const [iRes, cRes, vRes, aRes] = await Promise.all([
       provider.getInterviews(undefined, tid),
       provider.getCandidates(tid),
       provider.getVacancies(tid),
+      provider.getApplications(undefined, tid),
     ])
     setInterviews(iRes.data ?? [])
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
+    setApplications(aRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
@@ -715,6 +767,14 @@ export default function InterviewsPage() {
 
   const candidateMap = React.useMemo(() => new Map(candidates.map(c => [c.id, c])), [candidates])
   const vacancyMap   = React.useMemo(() => new Map(vacancies.map(v => [v.id, v])), [vacancies])
+
+  const appByCandidateVacancy = React.useMemo(() => {
+    const map = new Map<string, Application>()
+    for (const a of applications) {
+      map.set(`${a.candidateId}_${a.vacancyId}`, a)
+    }
+    return map
+  }, [applications])
 
   // ── Agenda grouping ──
   const now   = new Date()
@@ -759,6 +819,15 @@ export default function InterviewsPage() {
 
   function handleComplete(updated: Interview) {
     setInterviews(prev => prev.map(i => i.id === updated.id ? updated : i))
+  }
+
+  async function handleDecide(candidateId: string, vacancyId: string, newStatus: 'Oferta Enviada' | 'Descartado') {
+    const key = `${candidateId}_${vacancyId}`
+    const app = appByCandidateVacancy.get(key)
+    if (!app || app.status !== 'Entrevistas') return
+    await provider.updateApplicationStatus(app.id, newStatus)
+    setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: newStatus } : a))
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
   }
 
   function openScheduleNext(candidateId: string, vacancyId: string) {
@@ -881,6 +950,8 @@ export default function InterviewsPage() {
                   vacancyMap={vacancyMap}
                   onComplete={handleComplete}
                   onCancel={handleCancel}
+                  onDecide={handleDecide}
+                  appStatus={appByCandidateVacancy.get(`${i.candidateId}_${i.vacancyId}`)?.status}
                 />
               ))}
             </div>
@@ -915,6 +986,8 @@ export default function InterviewsPage() {
                   onComplete={handleComplete}
                   onCancel={handleCancel}
                   onScheduleNext={openScheduleNext}
+                  onDecide={handleDecide}
+                  appByCandidateVacancy={appByCandidateVacancy}
                 />
               ))}
             </div>

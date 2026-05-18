@@ -41,6 +41,7 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Entrevistas': '#a78bfa',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
+  'Descartado': '#6b7280',
 }
 
 // ─── Card wrapper ─────────────────────────────────────────────────────────────
@@ -258,6 +259,7 @@ export default function DashboardPage() {
     'Entrevistas': 3,
     'Oferta Enviada': 4,
     'Contratado': 5,
+    'Descartado': 0,
   }
   const avgDaysPerStage = (() => {
     const valid = applications.filter(a => {
@@ -289,6 +291,7 @@ export default function DashboardPage() {
     'Entrevistas': 0,
     'Oferta Enviada': 0,
     'Contratado': 0,
+    'Descartado': 0,
   }
   applications.forEach(a => {
     if (funnelCounts[a.status] !== undefined) funnelCounts[a.status]++
