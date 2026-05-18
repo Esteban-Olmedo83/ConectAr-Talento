@@ -437,6 +437,24 @@ export class GoogleSheetsProvider implements DataProvider {
     this.spreadsheetId = spreadsheetId
   }
 
+  // ─── Clients (not supported in Google Sheets provider) ───────────────────
+
+  async getClients(_tenantId: string): Promise<DataResult<import('@/types').Client[]>> {
+    return { data: [], error: null }
+  }
+
+  async createClient(_input: import('./data-provider').CreateClientInput): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Clients not supported in Google Sheets provider' }
+  }
+
+  async updateClient(_id: string, _input: import('./data-provider').UpdateClientInput): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Clients not supported in Google Sheets provider' }
+  }
+
+  async deleteClient(_id: string): Promise<DataResult<void>> {
+    return { data: null, error: 'Clients not supported in Google Sheets provider' }
+  }
+
   // ─── Private HTTP helpers ────────────────────────────────────────────────
 
   private authHeaders(): HeadersInit {
