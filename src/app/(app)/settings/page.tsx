@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { Monitor, Sun, Moon, Check, Eye, EyeOff } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
@@ -209,7 +208,6 @@ function getInitials(name: string): string {
 
 function CuentaTab() {
   const { user } = useUser()
-  const router = useRouter()
   const [fullName, setFullName] = React.useState('')
   const [companyName, setCompanyName] = React.useState('')
   const [saving, setSaving] = React.useState(false)
@@ -244,9 +242,8 @@ function CuentaTab() {
 
   async function handleSignOut() {
     setSigningOut(true)
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    await fetch('/api/auth/signout', { method: 'POST' })
+    window.location.replace('/login')
   }
 
   const plan = user?.plan || 'free'

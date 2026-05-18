@@ -4,7 +4,7 @@ import * as React from 'react'
 import {
   Plus, Search, Briefcase, Users, Clock, BarChart2,
   ChevronDown, MapPin, Laptop, Building2, Pencil,
-  Archive, Rocket, MoreVertical, Globe
+  Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2
 } from 'lucide-react'
 import { cn, formatRelativeDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy, VacancyModality, VacancyPriority } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -273,10 +273,11 @@ function VacancyFormDialog({
 }
 
 // ─── Vacancy Card ─────────────────────────────────────────────────────────────
-function VacancyCard({ vacancy, onEdit, onArchive }: {
+function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
   vacancy: Vacancy
   onEdit: () => void
   onArchive: () => void | Promise<void>
+  onAssign: () => void
 }) {
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
@@ -369,12 +370,197 @@ function VacancyCard({ vacancy, onEdit, onArchive }: {
           <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = '/pipeline'}>
             Ver pipeline
           </Button>
-          <Button size="sm" className="flex-1 text-xs h-7 gap-1">
-            <Rocket className="h-3 w-3" /> Publicar
+          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={onAssign}>
+            <UserPlus className="h-3 w-3" /> Asignar
           </Button>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Assign Candidates Modal ──────────────────────────────────────────────────
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#6c63ff,#a78bfa)',
+  'linear-gradient(135deg,#0ea5e9,#38bdf8)',
+  'linear-gradient(135deg,#10b981,#34d399)',
+  'linear-gradient(135deg,#f59e0b,#fbbf24)',
+  'linear-gradient(135deg,#f43f5e,#fb7185)',
+]
+function candidateGradient(name: string) {
+  let s = 0; for (const c of name) s += c.charCodeAt(0)
+  return AVATAR_GRADIENTS[s % AVATAR_GRADIENTS.length]
+}
+function candidateInitials(name: string) {
+  const p = name.trim().split(/\s+/)
+  return (p[0][0] + (p[1]?.[0] ?? '')).toUpperCase()
+}
+
+function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
+  vacancy: Vacancy
+  onClose: () => void
+  onAssigned: (vacancyId: string, newCount: number) => void
+}) {
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+
+  const [candidates, setCandidates] = React.useState<Candidate[]>([])
+  const [assignedIds, setAssignedIds] = React.useState<Set<string>>(new Set())
+  const [loadingCandidates, setLoadingCandidates] = React.useState(true)
+  const [assigning, setAssigning] = React.useState<Set<string>>(new Set())
+  const [search, setSearch] = React.useState('')
+
+  React.useEffect(() => {
+    async function load() {
+      const tenantId = user?.tenantId ?? user?.id ?? ''
+      const [candRes, appRes] = await Promise.all([
+        provider.getCandidates(tenantId),
+        provider.getApplications(vacancy.id),
+      ])
+      setCandidates(candRes.data ?? [])
+      setAssignedIds(new Set((appRes.data ?? []).map(a => a.candidateId)))
+      setLoadingCandidates(false)
+    }
+    load()
+  }, [provider, user, vacancy.id])
+
+  const filtered = React.useMemo(() => {
+    const q = search.toLowerCase()
+    return candidates.filter(c =>
+      !q ||
+      c.fullName.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q)
+    )
+  }, [candidates, search])
+
+  async function handleAssign(candidate: Candidate) {
+    setAssigning(prev => new Set(prev).add(candidate.id))
+    const maxPos = assignedIds.size
+    const res = await provider.createApplication({
+      vacancyId: vacancy.id,
+      candidateId: candidate.id,
+      status: 'Nuevas Vacantes',
+      positionInStage: maxPos,
+    })
+    if (!res.error) {
+      setAssignedIds(prev => new Set(prev).add(candidate.id))
+      onAssigned(vacancy.id, assignedIds.size + 1)
+    }
+    setAssigning(prev => { const s = new Set(prev); s.delete(candidate.id); return s })
+  }
+
+  const scoreColor = (s: number) =>
+    s >= 85 ? '#34d399' : s >= 70 ? '#a78bfa' : s >= 50 ? '#fbbf24' : '#9ca3af'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[85vh]"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>Asignar candidatos</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{vacancy.title}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition-colors" style={{ color: 'var(--muted)' }}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--muted)' }} />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o email..."
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            />
+          </div>
+        </div>
+
+        {/* Candidate list */}
+        <div className="flex-1 overflow-y-auto px-3 py-2">
+          {loadingCandidates ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--muted)' }} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Users className="h-8 w-8 mb-2" style={{ color: 'var(--muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                {search ? 'Sin resultados' : 'No hay candidatos en la base de datos'}
+              </p>
+            </div>
+          ) : (
+            filtered.map(c => {
+              const isAssigned = assignedIds.has(c.id)
+              const isAssigning = assigning.has(c.id)
+              const score = c.atsScore ?? 0
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors"
+                  style={{ background: isAssigned ? 'rgba(52,211,153,0.06)' : undefined }}
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: candidateGradient(c.fullName) }}
+                  >
+                    {candidateInitials(c.fullName)}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{c.fullName}</p>
+                    <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{c.email}</p>
+                  </div>
+
+                  {/* Score badge */}
+                  {score > 0 && (
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                      style={{ color: scoreColor(score), background: `${scoreColor(score)}22` }}
+                    >
+                      {score}
+                    </span>
+                  )}
+
+                  {/* Action */}
+                  {isAssigned ? (
+                    <span className="flex items-center gap-1 text-xs font-medium shrink-0 px-2 py-1 rounded-lg" style={{ color: '#34d399', background: 'rgba(52,211,153,0.12)' }}>
+                      <Check className="h-3.5 w-3.5" /> Asignado
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleAssign(c)}
+                      disabled={isAssigning}
+                      className="flex items-center gap-1 text-xs font-semibold shrink-0 px-3 py-1.5 rounded-lg transition-opacity disabled:opacity-60"
+                      style={{ background: 'var(--accent)', color: '#fff' }}
+                    >
+                      {isAssigning ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                      Asignar
+                    </button>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+          {assignedIds.size} candidato{assignedIds.size !== 1 ? 's' : ''} asignado{assignedIds.size !== 1 ? 's' : ''} a esta vacante
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -401,6 +587,7 @@ export default function VacanciesPage() {
   const [loading, setLoading] = React.useState(true)
   const [showForm, setShowForm] = React.useState(false)
   const [editVacancy, setEditVacancy] = React.useState<Vacancy | undefined>()
+  const [assignVacancy, setAssignVacancy] = React.useState<Vacancy | undefined>()
   const [search, setSearch] = React.useState('')
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
@@ -462,30 +649,38 @@ export default function VacanciesPage() {
     })
   }
 
+  function handleAssigned(vacancyId: string, newCount: number) {
+    setVacancies(prev => prev.map(v =>
+      v.id === vacancyId
+        ? { ...v, applications: Array.from({ length: newCount }) as unknown as typeof v.applications }
+        : v
+    ))
+  }
+
   if (loading) return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[0,1,2,3].map(i => <div key={i} className="h-48 bg-muted rounded-xl animate-pulse" />)}
       </div>
     </div>
   )
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="space-y-5">
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Gestión de Vacantes</h1>
           <p className="text-sm text-muted-foreground">{kpis.open} vacantes abiertas</p>
         </div>
-        <Button onClick={openNewVacancyForm} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Nueva Vacante
+        <Button onClick={openNewVacancyForm} className="gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Vacante</span><span className="sm:hidden">Nueva</span>
         </Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { icon: Briefcase, label: 'Total Vacantes', value: kpis.total, accentColor: 'var(--accent)' },
           { icon: Globe, label: 'Abiertas', value: kpis.open, accentColor: '#34d399' },
@@ -557,6 +752,7 @@ export default function VacanciesPage() {
               vacancy={v}
               onEdit={() => { setEditVacancy(v); setShowForm(true) }}
               onArchive={() => handleArchive(v.id)}
+              onAssign={() => setAssignVacancy(v)}
             />
           ))}
         </div>
@@ -568,6 +764,14 @@ export default function VacanciesPage() {
         vacancy={editVacancy}
         onSave={handleSaved}
       />
+
+      {assignVacancy && (
+        <AssignCandidatesModal
+          vacancy={assignVacancy}
+          onClose={() => setAssignVacancy(undefined)}
+          onAssigned={handleAssigned}
+        />
+      )}
     </div>
   )
 }

@@ -44,9 +44,10 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
 }
 
 // ─── Card wrapper ─────────────────────────────────────────────────────────────
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Card({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
   return (
     <div
+      className={className}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -125,7 +126,7 @@ function SkeletonBlock({ h, w }: { h: number; w?: string }) {
 function DashboardSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map(i => (
           <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 18 }}>
             <SkeletonBlock h={10} w="60%" />
@@ -134,11 +135,11 @@ function DashboardSkeleton() {
         ))}
       </div>
       <SkeletonBlock h={80} />
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-        <SkeletonBlock h={200} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2"><SkeletonBlock h={200} /></div>
         <SkeletonBlock h={200} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SkeletonBlock h={260} />
         <SkeletonBlock h={260} />
       </div>
@@ -237,11 +238,7 @@ export default function DashboardPage() {
   }, [provider, user])
 
   if (loading) {
-    return (
-      <div style={{ padding: 24 }}>
-        <DashboardSkeleton />
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   const candidates = data?.candidates ?? []
@@ -361,10 +358,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 24 }}>
+    <div className="flex flex-col gap-5">
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Candidatos activos"
           value={totalCandidates}
@@ -429,10 +426,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Funnel + Donut */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Funnel */}
-        <Card>
+        <Card className="lg:col-span-2">
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
             Funnel de reclutamiento
           </p>
@@ -505,7 +502,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top candidates + Recent activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Top candidates */}
         <Card>
