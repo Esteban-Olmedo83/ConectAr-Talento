@@ -1587,14 +1587,14 @@ export default function PipelinePage() {
   }, [load])
 
   React.useEffect(() => {
-    function handleVacancyChange() {
-      load()
-    }
-    window.addEventListener('vacancy:created', handleVacancyChange)
-    window.addEventListener('vacancy:updated', handleVacancyChange)
+    function handleChange() { load() }
+    window.addEventListener('vacancy:created', handleChange)
+    window.addEventListener('vacancy:updated', handleChange)
+    window.addEventListener('application:stage-changed', handleChange)
     return () => {
-      window.removeEventListener('vacancy:created', handleVacancyChange)
-      window.removeEventListener('vacancy:updated', handleVacancyChange)
+      window.removeEventListener('vacancy:created', handleChange)
+      window.removeEventListener('vacancy:updated', handleChange)
+      window.removeEventListener('application:stage-changed', handleChange)
     }
   }, [load])
 
@@ -1736,7 +1736,7 @@ export default function PipelinePage() {
       {/* Stage pills bar */}
       <div
         style={{
-          padding: '10px 0 10px',
+          padding: '10px 24px',
           borderBottom: '1px solid var(--border)',
           marginBottom: 0,
         }}
@@ -1751,7 +1751,7 @@ export default function PipelinePage() {
 
       {/* Filters */}
       <div
-        className="flex items-center gap-3 py-3 flex-wrap shrink-0"
+        className="flex items-center gap-3 py-3 flex-wrap shrink-0 px-6"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <div className="relative">
