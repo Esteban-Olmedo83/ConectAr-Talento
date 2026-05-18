@@ -5,6 +5,7 @@ import {
   Plus, Search, Building2, Briefcase, Mail, Phone,
   Globe, Pencil, Trash2, MoreVertical, X, ExternalLink,
 } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -326,7 +327,7 @@ function ClientCard({
       <CardContent className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <Link href={`/clients/${client.id}`} className="flex items-center gap-3 min-w-0 group">
             <div
               className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold"
               style={{
@@ -339,7 +340,7 @@ function ClientCard({
             </div>
             <div className="min-w-0">
               <h3
-                className="font-semibold text-sm truncate"
+                className="font-semibold text-sm truncate group-hover:underline"
                 style={{ color: 'var(--text)' }}
               >
                 {client.name}
@@ -350,7 +351,7 @@ function ClientCard({
                 </p>
               )}
             </div>
-          </div>
+          </Link>
 
           {/* Menu */}
           <div className="relative shrink-0" ref={menuRef}>

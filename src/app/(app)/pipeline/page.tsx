@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   DndContext,
   DragOverlay,
@@ -1493,6 +1493,7 @@ export default function PipelinePage() {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const load = React.useCallback(async () => {
     if (!user) return
@@ -1568,8 +1569,12 @@ export default function PipelinePage() {
     setApplications([...hydrated, ...virtualApps])
     setVacancies(vacs)
     setTemplates(tplResult.data ?? [])
+    const vacancyParam = searchParams.get('vacancy')
+    if (vacancyParam && vacs.some(v => v.id === vacancyParam)) {
+      setFilterVacancy(vacancyParam)
+    }
     setLoading(false)
-  }, [provider, user])
+  }, [provider, user, searchParams])
 
   React.useEffect(() => {
     if (pathname === '/pipeline') {
