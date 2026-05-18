@@ -367,7 +367,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = '/pipeline'}>
+          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = `/pipeline?vacancy=${vacancy.id}`}>
             Ver pipeline
           </Button>
           <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={onAssign}>
@@ -598,8 +598,16 @@ export default function VacanciesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const res = await provider.getVacancies(tid)
-    setVacancies(res.data ?? [])
+    const [vRes, aRes] = await Promise.all([
+      provider.getVacancies(tid),
+      provider.getApplications(undefined, tid),
+    ])
+    const apps = aRes.data ?? []
+    const hydrated = (vRes.data ?? []).map(v => ({
+      ...v,
+      applications: apps.filter(a => a.vacancyId === v.id),
+    }))
+    setVacancies(hydrated)
     setLoading(false)
   }, [provider, user])
 
