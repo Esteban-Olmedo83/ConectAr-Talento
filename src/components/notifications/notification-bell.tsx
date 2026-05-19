@@ -84,10 +84,14 @@ export function NotificationBell() {
     const now = Date.now()
     const result: Notif[] = []
 
-    const [intRes, vacRes] = await Promise.all([
+    const [intRes, vacRes, candRes] = await Promise.all([
       provider.getInterviews(),
       provider.getVacancies(user.tenantId),
+      provider.getCandidates(user.tenantId),
     ])
+
+    const vacMap = new Map((vacRes.data ?? []).map(v => [v.id, v]))
+    const candMap = new Map((candRes.data ?? []).map(c => [c.id, c]))
 
     // Upcoming interviews
     for (const i of intRes.data ?? []) {
@@ -96,11 +100,14 @@ export function NotificationBell() {
       if (ms <= 0 || ms > s.interviewHours * 3_600_000) continue
       const hoursLeft = Math.round(ms / 3_600_000)
       const d = new Date(i.scheduledAt)
+      const candidateName = candMap.get(i.candidateId)?.fullName ?? ''
+      const vacancyTitle = vacMap.get(i.vacancyId)?.title ?? ''
+      const dateStr = `${d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
       result.push({
         id: `int-${i.id}`,
         type: 'interview',
         title: `Entrevista en ${hoursLeft}h`,
-        message: `${i.type} · ${d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`,
+        message: [vacancyTitle, candidateName, dateStr].filter(Boolean).join(' · '),
         urgency: hoursLeft <= 2 ? 'high' : hoursLeft <= 8 ? 'medium' : 'low',
         href: '/interviews',
       })

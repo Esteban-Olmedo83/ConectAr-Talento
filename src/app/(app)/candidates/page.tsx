@@ -1011,7 +1011,7 @@ export default function CandidatesPage() {
       {view === 'grid' && filtered.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map(c => (
-            <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer group">
+            <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setViewCandidate(c)}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -1026,7 +1026,7 @@ export default function CandidatesPage() {
                       <p className="text-xs text-muted-foreground truncate max-w-[120px]">{c.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => setDeleteCandidate(c)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                  <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
