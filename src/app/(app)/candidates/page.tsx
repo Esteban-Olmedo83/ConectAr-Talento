@@ -1091,7 +1091,7 @@ export default function CandidatesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map(c => (
-                <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
+                <tr key={c.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setViewCandidate(c)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div
@@ -1129,13 +1129,13 @@ export default function CandidatesPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{formatRelativeDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setViewCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
+                      <button onClick={e => { e.stopPropagation(); setViewCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setScheduleCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
+                      <button onClick={e => { e.stopPropagation(); setScheduleCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
                         <Calendar className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setDeleteCandidate(c)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
+                      <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

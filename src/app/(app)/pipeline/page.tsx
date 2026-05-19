@@ -38,6 +38,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CandidateProfileModal } from '@/components/recruitment/candidate-profile-modal'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
@@ -1008,6 +1009,7 @@ type ActiveModal =
   | { type: 'whatsapp'; candidate: Candidate }
   | { type: 'schedule'; candidate: Candidate; applicationId: string; vacancyId: string }
   | { type: 'notes'; candidate: Candidate }
+  | { type: 'profile'; candidate: Candidate; vacancyId: string }
   | null
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
@@ -1023,6 +1025,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
+  const pointerMoved = React.useRef(false)
 
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
@@ -1043,6 +1046,13 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onPointerDown={() => { pointerMoved.current = false }}
+      onPointerMove={() => { pointerMoved.current = true }}
+      onClick={() => {
+        if (!pointerMoved.current && !isDragging) {
+          onAction({ type: 'profile', candidate: c, vacancyId: app.vacancyId })
+        }
+      }}
       className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
       style={{
         position: 'relative',
@@ -2000,6 +2010,25 @@ export default function PipelinePage() {
           onSaved={(notes) => handleNotesSaved(activeModal.candidate.id, notes)}
         />
       )}
+      {activeModal?.type === 'profile' && (() => {
+        const vac = vacancies.find(v => v.id === activeModal.vacancyId)
+        return (
+          <CandidateProfileModal
+            candidate={activeModal.candidate}
+            vacancy={vac}
+            open={true}
+            onClose={() => setActiveModal(null)}
+            onUpdate={(updated) => {
+              setApplications(prev => prev.map(a =>
+                a.candidate?.id === updated.id
+                  ? { ...a, candidate: updated }
+                  : a
+              ))
+              setActiveModal(null)
+            }}
+          />
+        )
+      })()}
       {hireDialog && (
         <HireDialog
           app={hireDialog.app}

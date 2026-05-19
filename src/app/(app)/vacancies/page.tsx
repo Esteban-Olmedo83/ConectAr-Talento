@@ -286,7 +286,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
     : 'A convenir'
 
   return (
-    <Card className="hover:shadow-md transition-shadow group relative">
+    <Card className="hover:shadow-md transition-shadow group relative cursor-pointer" onClick={onEdit}>
       <CardContent className="p-4">
         {/* Priority badge */}
         <div className="flex items-start justify-between mb-2">
@@ -300,16 +300,16 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
             {vacancy.priority}
           </span>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+            <button onClick={e => { e.stopPropagation(); onEdit() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button onClick={onArchive} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+            <button onClick={e => { e.stopPropagation(); onArchive() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
               <Archive className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        <h3 className="font-bold text-base leading-tight mb-1 cursor-pointer transition-colors hover:opacity-80" style={{ color: 'var(--text)' }} onClick={onEdit}>
+        <h3 className="font-bold text-base leading-tight mb-1 transition-colors hover:opacity-80" style={{ color: 'var(--text)' }}>
           {vacancy.title}
         </h3>
 
@@ -367,10 +367,10 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = `/pipeline?vacancy=${vacancy.id}`}>
+          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
             Ver pipeline
           </Button>
-          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={onAssign}>
+          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
             <UserPlus className="h-3 w-3" /> Asignar
           </Button>
         </div>

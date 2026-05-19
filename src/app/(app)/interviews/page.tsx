@@ -741,15 +741,17 @@ function InterviewCard({
 
 // ─── Por Vacante: Round chip ──────────────────────────────────────────────────
 function RoundChip({
-  interview, round, candidate, onComplete, onCancel,
+  interview, round, candidate, vacancyTitle, onComplete, onCancel, onUpdated,
 }: {
   interview: Interview
   round: number
   candidate?: Candidate
+  vacancyTitle: string
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
+  onUpdated:  (i: Interview) => void
 }) {
-  const [expanded, setExpanded] = React.useState(false)
+  const [showDetail, setShowDetail] = React.useState(false)
   const [showScorecard, setShowScorecard] = React.useState(false)
   const tc = TYPE_COLORS[interview.type]
   const sc = STATUS_CONFIG[interview.status]
@@ -761,18 +763,18 @@ function RoundChip({
     <>
       <div className="flex flex-col items-center">
         <button
-          onClick={() => setExpanded(e => !e)}
+          onClick={() => setShowDetail(true)}
           className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all hover:opacity-90"
           style={{
-            background: expanded ? tc.bg : 'var(--surface2)',
-            borderColor: expanded ? tc.border : 'var(--border)',
+            background: 'var(--surface2)',
+            borderColor: 'var(--border)',
             minWidth: 80,
           }}
         >
           <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
             {ORDINALS[round] ?? `${round + 1}ª`}
           </span>
-          <span className="text-[10px] font-semibold leading-tight text-center" style={{ color: expanded ? tc.text : 'var(--text)' }}>
+          <span className="text-[10px] font-semibold leading-tight text-center" style={{ color: 'var(--text)' }}>
             {interview.type === 'Con Hiring Manager' ? 'Hiring Mgr' : interview.type}
           </span>
           <span className="flex items-center gap-0.5 text-[9px] font-medium" style={{ color: sc.text }}>
@@ -780,40 +782,6 @@ function RoundChip({
           </span>
           <span className="text-[9px]" style={{ color: 'var(--muted)' }}>{dateStr}</span>
         </button>
-
-        {/* Expanded actions */}
-        {expanded && (
-          <div className="mt-2 flex flex-col gap-1.5 w-full">
-            {interview.status === 'Programada' && (
-              <>
-                <button
-                  onClick={() => { setExpanded(false); setShowScorecard(true) }}
-                  className="text-[10px] font-semibold px-2 py-1 rounded-lg text-center transition-colors"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
-                >
-                  Completar
-                </button>
-                <button
-                  onClick={() => { setExpanded(false); onCancel(interview.id) }}
-                  className="text-[10px] font-semibold px-2 py-1 rounded-lg text-center transition-colors border"
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-                >
-                  Cancelar
-                </button>
-              </>
-            )}
-            {interview.status === 'Completada' && (
-              <span className="text-[9px] text-center" style={{ color: 'var(--muted)' }}>
-                {interview.interviewerName ? `Por: ${interview.interviewerName}` : 'Completada'}
-              </span>
-            )}
-            {interview.notes && (
-              <p className="text-[9px] italic text-center px-1 leading-snug" style={{ color: 'var(--muted)' }}>
-                {interview.notes.slice(0, 60)}{interview.notes.length > 60 ? '…' : ''}
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       {candidate && (
@@ -825,17 +793,27 @@ function RoundChip({
           onComplete={onComplete}
         />
       )}
+
+      <InterviewDetailModal
+        open={showDetail}
+        onClose={() => setShowDetail(false)}
+        interview={interview}
+        candidateName={candidate?.fullName ?? 'Candidato'}
+        vacancyTitle={vacancyTitle}
+        onUpdated={i => { onUpdated(i); setShowDetail(false) }}
+      />
     </>
   )
 }
 
 // ─── Por Vacante: Candidate row ───────────────────────────────────────────────
 function CandidateRoundRow({
-  candidateId, rounds, candidateMap, onComplete, onCancel, onScheduleNext, onDecide, appStatus,
+  candidateId, rounds, candidateMap, vacancyTitle, onComplete, onCancel, onScheduleNext, onDecide, appStatus,
 }: {
   candidateId: string
   rounds: Interview[]
   candidateMap: Map<string, Candidate>
+  vacancyTitle: string
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onScheduleNext: (candidateId: string, vacancyId: string) => void
@@ -875,8 +853,10 @@ function CandidateRoundRow({
               interview={iv}
               round={idx}
               candidate={candidate}
+              vacancyTitle={vacancyTitle}
               onComplete={onComplete}
               onCancel={onCancel}
+              onUpdated={onComplete}
             />
             {idx < rounds.length - 1 && (
               <ArrowRight className="h-4 w-4 shrink-0 mt-4" style={{ color: 'var(--muted)' }} />
@@ -992,6 +972,7 @@ function VacancyInterviewGroup({
             candidateId={candId}
             rounds={rounds}
             candidateMap={candidateMap}
+            vacancyTitle={vacancy?.title ?? ''}
             onComplete={onComplete}
             onCancel={onCancel}
             onScheduleNext={onScheduleNext}
