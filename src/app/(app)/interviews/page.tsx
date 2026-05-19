@@ -179,23 +179,38 @@ function SchedulerModal({
 
 // ─── Scorecard Modal ──────────────────────────────────────────────────────────
 function ScorecardModal({
-  open, onClose, interview, candidateName, onComplete
+  open, onClose, interview, candidateName, onComplete, readOnly,
 }: {
   open: boolean
   onClose: () => void
   interview: Interview
   candidateName: string
   onComplete: (i: Interview) => void
+  readOnly?: boolean
 }) {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
-  const [scores, setScores] = React.useState({ technicalSkills: 70, communication: 70, culturalFit: 70, motivation: 70 })
-  const [overallRating, setOverallRating] = React.useState<1|2|3|4|5>(3)
-  const [strengths, setStrengths] = React.useState('')
-  const [weaknesses, setWeaknesses] = React.useState('')
-  const [recommendation, setRecommendation] = React.useState<Recommendation>('Considerar')
-  const [aiSummary, setAiSummary] = React.useState('')
+  const sc = interview.scorecard
+  const [scores, setScores] = React.useState({ technicalSkills: sc?.technicalSkills ?? 70, communication: sc?.communication ?? 70, culturalFit: sc?.culturalFit ?? 70, motivation: 70 })
+  const [overallRating, setOverallRating] = React.useState<1|2|3|4|5>((sc?.overallRating ?? 3) as 1|2|3|4|5)
+  const [strengths, setStrengths] = React.useState(sc?.strengths ?? '')
+  const [weaknesses, setWeaknesses] = React.useState(sc?.weaknesses ?? '')
+  const [recommendation, setRecommendation] = React.useState<Recommendation>(sc?.recommendation ?? 'Considerar')
+  const [aiSummary, setAiSummary] = React.useState(sc?.aiSummary ?? '')
   const [generating, setGenerating] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+
+  // Re-sync state when opening modal with potentially updated scorecard
+  React.useEffect(() => {
+    if (open) {
+      const s = interview.scorecard
+      setScores({ technicalSkills: s?.technicalSkills ?? 70, communication: s?.communication ?? 70, culturalFit: s?.culturalFit ?? 70, motivation: 70 })
+      setOverallRating((s?.overallRating ?? 3) as 1|2|3|4|5)
+      setStrengths(s?.strengths ?? '')
+      setWeaknesses(s?.weaknesses ?? '')
+      setRecommendation(s?.recommendation ?? 'Considerar')
+      setAiSummary(s?.aiSummary ?? '')
+    }
+  }, [open, interview.scorecard])
 
   const scoreLabels: Record<string, string> = {
     technicalSkills: 'Habilidades Técnicas',
@@ -280,7 +295,7 @@ function ScorecardModal({
                 </div>
                 <input type="range" min={0} max={100} value={v}
                   onChange={e => setScores(s => ({...s, [k]: Number(e.target.value)}))}
-                  className="w-full h-2 rounded-full appearance-none bg-muted accent-indigo-600 cursor-pointer" />
+                  className="w-full h-2 rounded-full appearance-none bg-muted accent-indigo-600 cursor-pointer" disabled={readOnly} />
               </div>
             ))}
           </div>
@@ -288,7 +303,7 @@ function ScorecardModal({
             <label className="text-xs font-medium text-muted-foreground block mb-2">Calificación general</label>
             <div className="flex gap-2">
               {([1,2,3,4,5] as const).map(n => (
-                <button key={n} onClick={() => setOverallRating(n)}
+                <button key={n} onClick={() => !readOnly && setOverallRating(n)} disabled={readOnly}
                   className={cn('p-1 rounded transition-colors', n <= overallRating ? 'text-amber-400' : 'text-muted-foreground hover:text-amber-300')}>
                   <Star className="h-6 w-6 fill-current" />
                 </button>
@@ -298,13 +313,13 @@ function ScorecardModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Fortalezas</label>
-              <textarea value={strengths} onChange={e => setStrengths(e.target.value)}
+              <textarea value={strengths} onChange={e => setStrengths(e.target.value)} readOnly={readOnly}
                 className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring h-20 resize-none"
                 placeholder="Puntos destacados del candidato..." />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Áreas de mejora</label>
-              <textarea value={weaknesses} onChange={e => setWeaknesses(e.target.value)}
+              <textarea value={weaknesses} onChange={e => setWeaknesses(e.target.value)} readOnly={readOnly}
                 className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring h-20 resize-none"
                 placeholder="Aspectos a desarrollar..." />
             </div>
@@ -313,7 +328,7 @@ function ScorecardModal({
             <label className="text-xs font-medium text-muted-foreground block mb-2">Recomendación</label>
             <div className="flex gap-2">
               {(['Avanzar', 'Considerar', 'Rechazar'] as Recommendation[]).map(r => (
-                <button key={r} onClick={() => setRecommendation(r)}
+                <button key={r} onClick={() => !readOnly && setRecommendation(r)} disabled={readOnly}
                   className={cn('flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-colors',
                     recommendation === r
                       ? r === 'Avanzar' ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
@@ -328,13 +343,15 @@ function ScorecardModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-muted-foreground">Resumen generado por IA</label>
-              <Button type="button" variant="outline" size="sm" onClick={generateAiReport} disabled={generating}
-                className="text-xs gap-1 h-6 px-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                {generating ? 'Generando...' : '✨ Generar con IA'}
-              </Button>
+              {!readOnly && (
+                <Button type="button" variant="outline" size="sm" onClick={generateAiReport} disabled={generating}
+                  className="text-xs gap-1 h-6 px-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                  {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {generating ? 'Generando...' : '✨ Generar con IA'}
+                </Button>
+              )}
             </div>
-            <textarea value={aiSummary} onChange={e => setAiSummary(e.target.value)}
+            <textarea value={aiSummary} onChange={e => setAiSummary(e.target.value)} readOnly={readOnly}
               className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring h-24 resize-none"
               placeholder="El resumen se generará automáticamente o podés escribir uno..." />
           </div>
@@ -342,10 +359,16 @@ function ScorecardModal({
             <Button type="button" variant="outline" className="gap-1.5" onClick={exportPdf}>
               <FileDown className="h-4 w-4" /> Exportar PDF
             </Button>
-            <Button onClick={handleSubmit} disabled={saving} className="ml-auto gap-1.5">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Completar entrevista
-            </Button>
+            {readOnly ? (
+              <Button variant="outline" onClick={onClose} className="ml-auto">
+                Cerrar
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={saving} className="ml-auto gap-1.5">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Completar entrevista
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -355,7 +378,7 @@ function ScorecardModal({
 
 // ─── Agenda: Interview card ───────────────────────────────────────────────────
 function InterviewCard({
-  interview, candidateMap, vacancyMap, onComplete, onCancel, onDecide, appStatus,
+  interview, candidateMap, vacancyMap, onComplete, onCancel, onDecide, onReactivate, appStatus,
 }: {
   interview: Interview
   candidateMap: Map<string, Candidate>
@@ -363,9 +386,11 @@ function InterviewCard({
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onReactivate: (id: string) => void | Promise<void>
   appStatus?: string
 }) {
   const [showScorecard, setShowScorecard] = React.useState(false)
+  const [scorecardReadOnly, setScorecardReadOnly] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
   const vacancy   = vacancyMap.get(interview.vacancyId)
   const StatusIcon = STATUS_CONFIG[interview.status].icon
@@ -420,12 +445,30 @@ function InterviewCard({
 
             {interview.status === 'Programada' && (
               <div className="flex gap-2 mt-3">
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => setShowScorecard(true)}>
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setScorecardReadOnly(false); setShowScorecard(true) }}>
                   <CheckCircle2 className="h-3 w-3" /> Completar
                 </Button>
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onCancel(interview.id)}>
                   Cancelar
                 </Button>
+              </div>
+            )}
+            {interview.status === 'Cancelada' && (
+              <div className="flex gap-2 mt-3">
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onReactivate(interview.id)}>
+                  <CheckCircle2 className="h-3 w-3" /> Reactivar
+                </Button>
+              </div>
+            )}
+            {interview.status === 'Completada' && interview.scorecard && (
+              <div className="mt-3">
+                <button
+                  onClick={() => { setScorecardReadOnly(true); setShowScorecard(true) }}
+                  className="text-xs font-medium underline underline-offset-2 transition-opacity hover:opacity-70"
+                  style={{ color: 'var(--accent-2)' }}
+                >
+                  Ver scorecard
+                </button>
               </div>
             )}
             {interview.status === 'Completada' && appStatus === 'Entrevistas' && (
@@ -463,6 +506,7 @@ function InterviewCard({
           interview={interview}
           candidateName={candidate.fullName}
           onComplete={onComplete}
+          readOnly={scorecardReadOnly}
         />
       )}
     </>
@@ -817,6 +861,11 @@ export default function InterviewsPage() {
     setInterviews(prev => prev.map(i => i.id === id ? { ...i, status: 'Cancelada' } : i))
   }
 
+  async function handleReactivate(id: string) {
+    await provider.updateInterview(id, { status: 'Programada' })
+    setInterviews(prev => prev.map(i => i.id === id ? { ...i, status: 'Programada' } : i))
+  }
+
   function handleComplete(updated: Interview) {
     setInterviews(prev => prev.map(i => i.id === updated.id ? updated : i))
   }
@@ -951,6 +1000,7 @@ export default function InterviewsPage() {
                   onComplete={handleComplete}
                   onCancel={handleCancel}
                   onDecide={handleDecide}
+                  onReactivate={handleReactivate}
                   appStatus={appByCandidateVacancy.get(`${i.candidateId}_${i.vacancyId}`)?.status}
                 />
               ))}

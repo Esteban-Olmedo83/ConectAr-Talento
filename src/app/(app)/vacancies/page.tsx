@@ -114,7 +114,7 @@ function VacancyFormDialog({
       clientId: form.clientId || undefined,
       title: form.title,
       department: form.department,
-      status: 'Nuevas Vacantes' as const,
+      status: vacancy ? vacancy.status : 'Nuevas Vacantes' as const,
       modality: form.modality,
       priority: form.priority,
       location: form.location || undefined,
