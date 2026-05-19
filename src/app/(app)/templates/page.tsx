@@ -25,7 +25,7 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy, Application } from '@/types'
+import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy, Application, Interview } from '@/types'
 import { generateId } from '@/lib/utils'
 
 const VARIABLE_LABELS: Record<string, string> = {
@@ -189,21 +189,28 @@ const CATEGORY_LABELS: Record<TemplateCategory, string> = {
 /* ─── SendModal ──────────────────────────────────────────────── */
 const MULTILINE_VARS = new Set(['resultado_mensaje', 'mensaje_adicional', 'descripcion_perfil'])
 
+const PLATFORM_LABELS: Record<string, string> = {
+  zoom: 'Zoom', google_meet: 'Google Meet', teams: 'Teams', presencial: 'Presencial',
+}
+
 function SendModal({
   template,
   onClose,
   vacancies = [],
   applications = [],
+  interviews = [],
 }: {
   template: MessageTemplate
   onClose: () => void
   vacancies?: Vacancy[]
   applications?: Application[]
+  interviews?: Interview[]
 }) {
   const [values, setValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.variables.map((v) => [v, '']))
   )
   const [selectedVacancyId, setSelectedVacancyId] = React.useState('')
+  const [selectedCandidateId, setSelectedCandidateId] = React.useState('')
   const [generatingAI, setGeneratingAI] = React.useState(false)
   const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
 
@@ -214,6 +221,15 @@ function SendModal({
       .filter(a => a.vacancyId === selectedVacancyId && a.candidate)
       .map(a => a.candidate!)
   }, [applications, selectedVacancyId])
+
+  // Interviews for the selected candidate+vacancy
+  const candidateInterviews = React.useMemo(() => {
+    if (!selectedCandidateId) return []
+    return interviews.filter(i =>
+      i.candidateId === selectedCandidateId &&
+      (!selectedVacancyId || i.vacancyId === selectedVacancyId)
+    ).sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+  }, [interviews, selectedCandidateId, selectedVacancyId])
 
   // Preview: handle empty dias_revision by removing the surrounding phrase
   const preview = React.useMemo(() => {
@@ -229,6 +245,7 @@ function SendModal({
 
   function handleVacancySelect(vacancyId: string) {
     setSelectedVacancyId(vacancyId)
+    setSelectedCandidateId('')
     const vac = vacancies.find(v => v.id === vacancyId)
     if (!vac) return
     setValues(prev => ({
@@ -241,6 +258,22 @@ function SendModal({
       ...(prev.email_contacto !== undefined ? {
         email_contacto: vac.client?.recruitmentEmail ?? vac.client?.contactEmail ?? ''
       } : {}),
+    }))
+  }
+
+  function handleInterviewSelect(interviewId: string) {
+    const iv = candidateInterviews.find(i => i.id === interviewId)
+    if (!iv) return
+    const d = new Date(iv.scheduledAt)
+    const dateStr = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    setValues(prev => ({
+      ...prev,
+      ...(prev.fecha_entrevista !== undefined ? { fecha_entrevista: dateStr } : {}),
+      ...(prev.hora_entrevista !== undefined ? { hora_entrevista: `${timeStr} hs` } : {}),
+      ...(prev.modalidad_entrevista !== undefined ? { modalidad_entrevista: PLATFORM_LABELS[iv.meetingPlatform] ?? iv.meetingPlatform } : {}),
+      ...(prev.link_reunion !== undefined ? { link_reunion: iv.meetingLink ?? '' } : {}),
+      ...(prev.reclutador !== undefined && iv.interviewerName ? { reclutador: iv.interviewerName } : {}),
     }))
   }
 
@@ -344,24 +377,53 @@ function SendModal({
                   </div>
                 )}
 
-                {/* Candidate selector (shown after vacancy is selected and template has nombre_candidato) */}
-                {selectedVacancyId && vacancyCandidates.length > 0 && template.variables.includes('nombre_candidato') && (
+                {/* Candidate selector (shown after vacancy is selected) */}
+                {selectedVacancyId && vacancyCandidates.length > 0 && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">
                       Candidato
                     </label>
                     <select
-                      value=""
+                      value={selectedCandidateId}
                       onChange={e => {
-                        const name = e.target.value
-                        if (name) setValues(prev => ({ ...prev, nombre_candidato: name }))
+                        const cid = e.target.value
+                        setSelectedCandidateId(cid)
+                        const c = vacancyCandidates.find(x => x.id === cid)
+                        if (c) setValues(prev => ({
+                          ...prev,
+                          ...(prev.nombre_candidato !== undefined ? { nombre_candidato: c.fullName } : {}),
+                          ...(prev.nombre !== undefined ? { nombre: c.fullName.split(' ')[0] } : {}),
+                        }))
                       }}
                       className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     >
                       <option value="">— Seleccionar candidato —</option>
                       {vacancyCandidates.map(c => (
-                        <option key={c.id} value={c.fullName}>{c.fullName}</option>
+                        <option key={c.id} value={c.id}>{c.fullName}</option>
                       ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Interview selector (shown after candidate is selected and template has interview vars) */}
+                {selectedCandidateId && candidateInterviews.length > 0 && (
+                  template.variables.some(v => ['fecha_entrevista','hora_entrevista','link_reunion','modalidad_entrevista'].includes(v))
+                ) && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Entrevista (autocompletar fecha, hora, link)
+                    </label>
+                    <select
+                      defaultValue=""
+                      onChange={e => { if (e.target.value) handleInterviewSelect(e.target.value) }}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar entrevista —</option>
+                      {candidateInterviews.map(i => {
+                        const d = new Date(i.scheduledAt)
+                        const label = `${i.type} · ${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · ${i.status}`
+                        return <option key={i.id} value={i.id}>{label}</option>
+                      })}
                     </select>
                   </div>
                 )}
@@ -656,6 +718,7 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
   const [filterChannel, setFilterChannel] = React.useState<TemplateChannel | 'all'>('all')
   const [sendTarget, setSendTarget] = React.useState<MessageTemplate | null>(null)
   const [editTarget, setEditTarget] = React.useState<Partial<MessageTemplate> | null | 'new'>(null)
@@ -669,9 +732,13 @@ export default function TemplatesPage() {
     provider.getVacancies(tenantId).then(r => {
       const vacs = r.data ?? []
       setVacancies(vacs)
-      // Fetch applications for all vacancies (for candidate selection)
-      Promise.all(vacs.map(v => provider.getApplications(v.id))).then(results => {
-        setApplications(results.flatMap(r => r.data ?? []))
+      // Fetch applications and interviews in parallel
+      Promise.all([
+        Promise.all(vacs.map(v => provider.getApplications(v.id))).then(results => results.flatMap(r => r.data ?? [])),
+        provider.getInterviews(undefined, tenantId).then(r => r.data ?? []),
+      ]).then(([apps, ivs]) => {
+        setApplications(apps)
+        setInterviews(ivs)
       })
     })
 
@@ -895,7 +962,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* modals */}
-      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} applications={applications} />}
+      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} applications={applications} interviews={interviews} />}
       {editTarget !== null && (
         <EditorModal
           initial={editTarget === 'new' ? null : editTarget}

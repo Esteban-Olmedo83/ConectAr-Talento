@@ -65,19 +65,78 @@ const SOURCE_TEXT: Record<string, string> = {
 }
 
 // ─── View Profile Dialog ──────────────────────────────────────────────────────
-function ViewProfileDialog({ candidate, open, onClose }: {
+function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
   candidate: Candidate | null
   open: boolean
   onClose: () => void
+  onUpdate?: (c: Candidate) => void
 }) {
+  const [editMode, setEditMode] = React.useState(false)
+  const [editName, setEditName] = React.useState('')
+  const [editEmail, setEditEmail] = React.useState('')
+  const [editPhone, setEditPhone] = React.useState('')
+  const [editExperience, setEditExperience] = React.useState('')
+  const [editEducation, setEditEducation] = React.useState('')
+  const [editSkills, setEditSkills] = React.useState('')
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [saveError, setSaveError] = React.useState('')
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+
+  React.useEffect(() => {
+    if (open && candidate) {
+      setEditName(candidate.fullName)
+      setEditEmail(candidate.email)
+      setEditPhone(candidate.phone ?? '')
+      setEditExperience(candidate.experienceYears != null ? String(candidate.experienceYears) : '')
+      setEditEducation(candidate.education ?? '')
+      setEditSkills(candidate.skills.join(', '))
+      setEditMode(false)
+      setSaveError('')
+    }
+  }, [open])
+
   if (!candidate) return null
+
   const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background'
+  const inputEditCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
   const labelCls = 'text-xs font-medium mb-1 block'
+
+  async function handleSave() {
+    setIsSaving(true)
+    setSaveError('')
+    const result = await provider.updateCandidate(candidate!.id, {
+      fullName: editName,
+      email: editEmail,
+      phone: editPhone || undefined,
+      experienceYears: Number(editExperience) || undefined,
+      education: editEducation || undefined,
+      skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
+    })
+    setIsSaving(false)
+    if (result.error) {
+      setSaveError(result.error)
+    } else if (result.data) {
+      onUpdate?.(result.data)
+      setEditMode(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Perfil del candidato</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Perfil del candidato</DialogTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => { setEditMode(e => !e); setSaveError('') }}
+              className="ml-4"
+            >
+              {editMode ? 'Cancelar' : 'Editar'}
+            </Button>
+          </div>
         </DialogHeader>
         <div className="mt-2 space-y-4">
           {/* Avatar + name */}
@@ -86,11 +145,20 @@ function ViewProfileDialog({ candidate, open, onClose }: {
               className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
             >
-              {getInitials(candidate.fullName)}
+              {getInitials(editMode ? editName : candidate.fullName)}
             </div>
             <div>
-              <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
-              {candidate.education && (
+              {editMode ? (
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className={cn(inputEditCls, 'text-base font-bold')}
+                  placeholder="Nombre completo"
+                />
+              ) : (
+                <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
+              )}
+              {!editMode && candidate.education && (
                 <p className="text-xs" style={{ color: 'var(--muted)' }}>{candidate.education}</p>
               )}
               <div className="mt-1"><ScoreBadge score={candidate.atsScore} /></div>
@@ -103,13 +171,33 @@ function ViewProfileDialog({ candidate, open, onClose }: {
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Mail className="inline h-3 w-3 mr-1" />Email
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.email}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="email@ejemplo.com"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.email}</p>
+              )}
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Phone className="inline h-3 w-3 mr-1" />Teléfono
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.phone || '—'}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="+54 11 1234-5678"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.phone || '—'}</p>
+              )}
             </div>
           </div>
 
@@ -119,9 +207,21 @@ function ViewProfileDialog({ candidate, open, onClose }: {
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Briefcase className="inline h-3 w-3 mr-1" />Experiencia
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>
-                {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
-              </p>
+              {editMode ? (
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={editExperience}
+                  onChange={e => setEditExperience(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="Años"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>
+                  {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
@@ -132,25 +232,47 @@ function ViewProfileDialog({ candidate, open, onClose }: {
           </div>
 
           {/* Education */}
-          {candidate.education && (
+          {(editMode || candidate.education) && (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <BookOpen className="inline h-3 w-3 mr-1" />Educación
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editEducation}
+                  onChange={e => setEditEducation(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="Lic. en Ciencias de la Computación"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
+              )}
             </div>
           )}
 
           {/* Skills */}
-          {candidate.skills.length > 0 && (
+          {editMode ? (
             <div>
-              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
-              <div className="flex gap-1.5 flex-wrap mt-1">
-                {candidate.skills.map(s => (
-                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
-                ))}
-              </div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills (separadas por coma)</label>
+              <textarea
+                value={editSkills}
+                onChange={e => setEditSkills(e.target.value)}
+                className={cn(inputEditCls, 'resize-none h-16')}
+                placeholder="React, TypeScript, Node.js"
+              />
             </div>
+          ) : (
+            candidate.skills.length > 0 && (
+              <div>
+                <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
+                <div className="flex gap-1.5 flex-wrap mt-1">
+                  {candidate.skills.map(s => (
+                    <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )
           )}
 
           {/* Notes */}
@@ -186,9 +308,27 @@ function ViewProfileDialog({ candidate, open, onClose }: {
             Agregado {formatRelativeDate(candidate.createdAt)}
           </p>
 
-          <div className="flex justify-end pt-1">
-            <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          </div>
+          {/* Save error */}
+          {saveError && (
+            <p className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+              {saveError}
+            </p>
+          )}
+
+          {editMode ? (
+            <Button
+              className="w-full"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar cambios
+            </Button>
+          ) : (
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" onClick={onClose}>Cerrar</Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -1067,6 +1207,7 @@ export default function CandidatesPage() {
         candidate={viewCandidate}
         open={viewCandidate !== null}
         onClose={() => setViewCandidate(null)}
+        onUpdate={c => setCandidates(prev => prev.map(x => x.id === c.id ? c : x))}
       />
 
       {/* Schedule interview dialog */}

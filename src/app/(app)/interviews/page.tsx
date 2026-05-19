@@ -83,6 +83,7 @@ function SchedulerModal({
     date: '',
     time: '10:00',
     platform: 'google_meet' as MeetingPlatform,
+    meetingLink: '',
     notes: '',
   })
   const [saving, setSaving] = React.useState(false)
@@ -111,6 +112,7 @@ function SchedulerModal({
       interviewerName: form.interviewerName,
       status:          'Programada',
       meetingPlatform: form.platform,
+      meetingLink:     form.meetingLink || undefined,
       notes:           form.notes || undefined,
     })
     setSaving(false)
@@ -156,6 +158,12 @@ function SchedulerModal({
               </select>
             </div>
           </div>
+          {form.platform !== 'presencial' && (
+            <div>
+              <label className={labelCls}>Link de reunión (opcional)</label>
+              <input type="url" value={form.meetingLink} onChange={e => setForm(f => ({...f, meetingLink: e.target.value}))} className={inputCls} placeholder="https://meet.google.com/..." />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Fecha *</label>
@@ -385,6 +393,201 @@ function ScorecardModal({
   )
 }
 
+// ─── Interview Detail Modal ───────────────────────────────────────────────────
+function InterviewDetailModal({
+  open, onClose, interview, candidateName, vacancyTitle, onUpdated,
+}: {
+  open: boolean
+  onClose: () => void
+  interview: Interview
+  candidateName: string
+  vacancyTitle: string
+  onUpdated: (i: Interview) => void
+}) {
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [editing, setEditing] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  const d = new Date(interview.scheduledAt)
+  const initialDate = d.toISOString().slice(0, 10)
+  const initialTime = d.toTimeString().slice(0, 5)
+
+  const [date, setDate] = React.useState(initialDate)
+  const [time, setTime] = React.useState(initialTime)
+  const [type, setType] = React.useState<InterviewType>(interview.type)
+  const [platform, setPlatform] = React.useState<MeetingPlatform>(interview.meetingPlatform)
+  const [meetingLink, setMeetingLink] = React.useState(interview.meetingLink ?? '')
+  const [interviewerName, setInterviewerName] = React.useState(interview.interviewerName ?? '')
+  const [notes, setNotes] = React.useState(interview.notes ?? '')
+
+  // Re-sync when interview changes or modal opens
+  React.useEffect(() => {
+    if (open) {
+      const dd = new Date(interview.scheduledAt)
+      setDate(dd.toISOString().slice(0, 10))
+      setTime(dd.toTimeString().slice(0, 5))
+      setType(interview.type)
+      setPlatform(interview.meetingPlatform)
+      setMeetingLink(interview.meetingLink ?? '')
+      setInterviewerName(interview.interviewerName ?? '')
+      setNotes(interview.notes ?? '')
+      setEditing(false)
+    }
+  }, [open, interview])
+
+  async function handleSave() {
+    setSaving(true)
+    const result = await provider.updateInterview(interview.id, {
+      scheduledAt: new Date(`${date}T${time}`).toISOString(),
+      type,
+      meetingPlatform: platform,
+      meetingLink: meetingLink || undefined,
+      interviewerName,
+      notes: notes || undefined,
+    })
+    setSaving(false)
+    if (result.data) {
+      onUpdated(result.data)
+    }
+  }
+
+  const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
+  const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
+
+  const formattedDate = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const formattedTime = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>Detalle de entrevista</DialogTitle>
+            <Button
+              type="button"
+              variant={editing ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setEditing(e => !e)}
+            >
+              {editing ? 'Cancelar edición' : 'Editar'}
+            </Button>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-2">
+          {/* Read-only info block */}
+          {!editing ? (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Candidato</span>
+                  <p className="font-semibold" style={{ color: 'var(--text)' }}>{candidateName}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Vacante</span>
+                  <p className="font-semibold" style={{ color: 'var(--text)' }}>{vacancyTitle}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Fecha y hora</span>
+                  <p style={{ color: 'var(--text)' }}>{formattedDate} · {formattedTime} hs</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Tipo</span>
+                  <p style={{ color: 'var(--text)' }}>{interview.type}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Plataforma</span>
+                  <p style={{ color: 'var(--text)' }}>{PLATFORM_LABELS[interview.meetingPlatform]}</p>
+                </div>
+                {interview.meetingLink && (
+                  <div>
+                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Link de reunión</span>
+                    <p>
+                      <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer"
+                        className="text-blue-500 underline underline-offset-2 break-all hover:opacity-80">
+                        {interview.meetingLink}
+                      </a>
+                    </p>
+                  </div>
+                )}
+                {interview.interviewerName && (
+                  <div>
+                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Entrevistador</span>
+                    <p style={{ color: 'var(--text)' }}>{interview.interviewerName}</p>
+                  </div>
+                )}
+              </div>
+              {interview.notes && (
+                <div>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Notas</span>
+                  <p className="mt-0.5 text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{interview.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Edit form */
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Fecha</label>
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Hora</label>
+                  <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Tipo</label>
+                  <select value={type} onChange={e => setType(e.target.value as InterviewType)} className={inputCls}>
+                    <option>RRHH</option>
+                    <option>Técnica</option>
+                    <option>Con Hiring Manager</option>
+                    <option>Cultural</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Plataforma</label>
+                  <select value={platform} onChange={e => setPlatform(e.target.value as MeetingPlatform)} className={inputCls}>
+                    <option value="google_meet">Google Meet</option>
+                    <option value="zoom">Zoom</option>
+                    <option value="teams">Teams</option>
+                    <option value="presencial">Presencial</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Link de reunión</label>
+                <input type="url" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} className={inputCls} placeholder="https://meet.google.com/..." />
+              </div>
+              <div>
+                <label className={labelCls}>Entrevistador</label>
+                <input type="text" value={interviewerName} onChange={e => setInterviewerName(e.target.value)} className={inputCls} placeholder="Nombre del entrevistador" />
+              </div>
+              <div>
+                <label className={labelCls}>Notas</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} className={cn(inputCls, 'h-20 resize-none')} placeholder="Notas sobre la entrevista..." />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            {editing && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Guardar
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Agenda: Interview card ───────────────────────────────────────────────────
 function InterviewCard({
   interview, candidateMap, vacancyMap, onComplete, onCancel, onDecide, onReactivate, appStatus,
@@ -401,6 +604,7 @@ function InterviewCard({
 }) {
   const [showScorecard, setShowScorecard] = React.useState(false)
   const [scorecardReadOnly, setScorecardReadOnly] = React.useState(false)
+  const [showDetail, setShowDetail] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
   const vacancy   = vacancyMap.get(interview.vacancyId)
   const StatusIcon = STATUS_CONFIG[interview.status].icon
@@ -411,8 +615,9 @@ function InterviewCard({
   return (
     <>
       <div
-        className={cn('rounded-xl border p-4 transition-shadow hover:shadow-md', isUpcoming && 'border-amber-300')}
+        className={cn('rounded-xl border p-4 transition-shadow hover:shadow-md cursor-pointer', isUpcoming && 'border-amber-300')}
         style={{ background: 'var(--surface)', borderColor: isUpcoming ? undefined : 'var(--border)' }}
+        onClick={() => setShowDetail(true)}
       >
         <div className="flex items-start gap-3">
           {/* Avatar */}
@@ -454,7 +659,7 @@ function InterviewCard({
             </div>
 
             {interview.status === 'Programada' && (
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
                 <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setScorecardReadOnly(false); setShowScorecard(true) }}>
                   <CheckCircle2 className="h-3 w-3" /> Completar
                 </Button>
@@ -464,14 +669,14 @@ function InterviewCard({
               </div>
             )}
             {interview.status === 'Cancelada' && (
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onReactivate(interview.id)}>
                   <CheckCircle2 className="h-3 w-3" /> Reactivar
                 </Button>
               </div>
             )}
             {interview.status === 'Completada' && interview.scorecard && (
-              <div className="mt-3">
+              <div className="mt-3" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => { setScorecardReadOnly(true); setShowScorecard(true) }}
                   className="text-xs font-medium underline underline-offset-2 transition-opacity hover:opacity-70"
@@ -485,6 +690,7 @@ function InterviewCard({
               <div
                 className="mt-3 pt-3 space-y-2"
                 style={{ borderTop: '1px solid var(--border)' }}
+                onClick={e => e.stopPropagation()}
               >
                 <span className="text-xs font-medium block" style={{ color: 'var(--muted2)' }}>
                   Decisión sobre el candidato:
@@ -520,6 +726,15 @@ function InterviewCard({
           readOnly={scorecardReadOnly}
         />
       )}
+
+      <InterviewDetailModal
+        open={showDetail}
+        onClose={() => setShowDetail(false)}
+        interview={interview}
+        candidateName={candidate?.fullName ?? 'Candidato'}
+        vacancyTitle={vacancy?.title ?? 'Sin vacante'}
+        onUpdated={i => { onComplete(i); setShowDetail(false) }}
+      />
     </>
   )
 }
