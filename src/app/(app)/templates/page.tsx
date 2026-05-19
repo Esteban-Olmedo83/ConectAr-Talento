@@ -213,6 +213,8 @@ function SendModal({
   const [selectedCandidateId, setSelectedCandidateId] = React.useState('')
   const [generatingAI, setGeneratingAI] = React.useState(false)
   const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  const [sending, setSending] = React.useState(false)
+  const [sendLabel, setSendLabel] = React.useState('')
 
   // Candidates for the selected vacancy
   const vacancyCandidates = React.useMemo(() => {
@@ -231,6 +233,15 @@ function SendModal({
     ).sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
   }, [interviews, selectedCandidateId, selectedVacancyId])
 
+  // Helper: apply variable substitutions to any text
+  function applyVars(text: string, vals: Record<string, string>): string {
+    let out = text
+    for (const [k, v] of Object.entries(vals)) {
+      out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || '')
+    }
+    return out
+  }
+
   // Preview: handle empty dias_revision by removing the surrounding phrase
   const preview = React.useMemo(() => {
     let text = template.body
@@ -240,6 +251,15 @@ function SendModal({
     for (const [k, v] of Object.entries(values)) {
       text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
     }
+    // Remove lines that still contain unresolved {{vars}} from empty optional fields
+    // Remove "🔗 Link: {{link_reunion}}" line if link_reunion is empty
+    if (!values.link_reunion?.trim()) {
+      text = text.replace(/🔗\s*Link:\s*\{\{link_reunion\}\}\n?/g, '')
+    }
+    // Remove any remaining lines that are ONLY an emoji prefix + unresolved var
+    text = text.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    // Clean up double blank lines left after removing lines
+    text = text.replace(/\n{3,}/g, '\n\n').trim()
     return text
   }, [template.body, values])
 
@@ -494,11 +514,43 @@ function SendModal({
             Cancelar
           </button>
           <button
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            onClick={onClose}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+            disabled={sending}
+            onClick={async () => {
+              if (template.channel === 'email') {
+                const to = values.email_contacto || ''
+                const subject = applyVars(template.subject ?? '', values)
+                window.open(
+                  `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(preview)}`,
+                  '_blank'
+                )
+                onClose()
+              } else if (template.channel === 'whatsapp') {
+                let phone = values.telefono || ''
+                phone = phone.replace(/[\s\-+]/g, '')
+                if (phone && !phone.startsWith('549')) {
+                  phone = `549${phone}`
+                }
+                if (!phone) {
+                  window.open(`https://wa.me/?text=${encodeURIComponent(preview)}`, '_blank')
+                } else {
+                  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(preview)}`, '_blank')
+                }
+                onClose()
+              } else if (template.channel === 'linkedin') {
+                await navigator.clipboard.writeText(preview)
+                setSendLabel('Copiado ✓')
+                setSending(true)
+                setTimeout(() => {
+                  setSending(false)
+                  setSendLabel('')
+                  onClose()
+                }, 1500)
+              }
+            }}
           >
             <Send className="h-3.5 w-3.5" />
-            Enviar por {CHANNEL_CONFIG[template.channel].label}
+            {sendLabel || `Enviar por ${CHANNEL_CONFIG[template.channel].label}`}
           </button>
         </div>
       </div>

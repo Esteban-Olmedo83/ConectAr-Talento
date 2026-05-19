@@ -34,7 +34,7 @@ const mainNavItems = [
 
 const toolNavItems = [
   { label: 'Perfiles de Puestos', href: '/job-profiles', icon: BookOpen },
-  { label: 'Templates', href: '/templates', icon: FileText },
+  { label: 'Plantillas', href: '/templates', icon: FileText },
   { label: 'Integraciones', href: '/integrations', icon: Plug },
   { label: 'Informes', href: '/reports', icon: BarChart3 },
 ]
@@ -234,7 +234,7 @@ export function Sidebar({
           <NavItem
             href="/templates"
             icon={FileText}
-            label="Templates"
+            label="Plantillas"
             isActive={isActive('/templates')}
             isCollapsed={isCollapsed}
             onClick={onClose}

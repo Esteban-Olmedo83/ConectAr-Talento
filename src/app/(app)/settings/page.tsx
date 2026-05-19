@@ -668,7 +668,7 @@ function ConexionIAsTab() {
     } catch { /* noop */ }
   }
 
-  function handleSaveKey() {
+  async function handleSaveKey() {
     try {
       const config: AIConfig = { provider: selected, apiKey }
       localStorage.setItem('ct_ai_config', JSON.stringify(config))
@@ -676,6 +676,16 @@ function ConexionIAsTab() {
       setHasSavedKey(!!apiKey)
       setTestResult(null)
       setTimeout(() => setSaved(false), 2500)
+    } catch { /* noop */ }
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('profiles').update({
+          groq_api_key: apiKey || null,
+          ai_provider: selected,
+        }).eq('id', user.id)
+      }
     } catch { /* noop */ }
   }
 

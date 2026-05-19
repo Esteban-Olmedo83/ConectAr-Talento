@@ -80,6 +80,8 @@ export interface User {
   googleDriveFolderId?: string
   googleSheetsDbId?: string
   createdAt: string
+  groqApiKey?: string
+  aiProvider?: string
 }
 
 export interface Scorecard {

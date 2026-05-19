@@ -7,6 +7,8 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
   closestCorners,
@@ -216,10 +218,12 @@ function StagePillsBar({
 function EmailModal({
   candidate,
   templates,
+  vacancy,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
+  vacancy?: Vacancy
   onClose: () => void
 }) {
   const emailTemplates = templates.filter(t => t.channel === 'email')
@@ -230,14 +234,27 @@ function EmailModal({
 
   const selectedTemplate = emailTemplates.find(t => t.id === selectedTemplateId)
 
+  function fillVars(text: string): string {
+    const salario = vacancy?.salaryMin
+      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
+      : ''
+    return text
+      .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
+      .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
+      .replace(/\{\{modalidad\}\}/g, vacancy?.modality ?? '')
+      .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
+      .replace(/\{\{salario\}\}/g, salario)
+      .replace(/\{\{fecha_inicio\}\}/g, '')
+  }
+
   React.useEffect(() => {
     if (selectedTemplate) {
-      setSubject(selectedTemplate.subject ?? '')
-      // Pre-fill nombre_candidato variable if present
-      const filledBody = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
-      setBody(filledBody)
+      setSubject(fillVars(selectedTemplate.subject ?? ''))
+      setBody(fillVars(selectedTemplate.body))
     }
-  }, [selectedTemplate, candidate.fullName])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate, candidate.fullName, vacancy])
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -417,10 +434,12 @@ function EmailModal({
 function WhatsAppModal({
   candidate,
   templates,
+  vacancy,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
+  vacancy?: Vacancy
   onClose: () => void
 }) {
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
@@ -430,14 +449,28 @@ function WhatsAppModal({
 
   const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
 
+  function fillVars(text: string): string {
+    const salario = vacancy?.salaryMin
+      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
+      : ''
+    return text
+      .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
+      .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
+      .replace(/\{\{modalidad\}\}/g, vacancy?.modality ?? '')
+      .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
+      .replace(/\{\{salario\}\}/g, salario)
+      .replace(/\{\{fecha_inicio\}\}/g, '')
+  }
+
   React.useEffect(() => {
     if (selectedTemplate) {
-      const filled = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
-      setMessage(filled)
+      setMessage(fillVars(selectedTemplate.body))
     } else {
       setMessage(`Hola ${candidate.fullName}!\n\nMe comunico desde el equipo de Talento. ¿Tenés un momento para charlar?`)
     }
-  }, [selectedTemplate, candidate.fullName])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate, candidate.fullName, vacancy])
 
   function formatPhone(phone: string): string {
     let digits = phone.replace(/\D/g, '')
@@ -1398,6 +1431,7 @@ function Lane({
   interviewsByCandidate: Map<string, string>
 }) {
   const stageColor = STAGE_COLORS[stage]
+  const { setNodeRef, isOver } = useDroppable({ id: stage })
   return (
     <div
       className="flex flex-col rounded-xl min-w-[270px] w-[270px] flex-shrink-0"
@@ -1458,7 +1492,15 @@ function Lane({
       </div>
 
       <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1, minHeight: 120, overflowY: 'auto' }}>
+        <div
+          ref={setNodeRef}
+          style={{
+            display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1,
+            minHeight: 120, overflowY: 'auto',
+            background: isOver ? `${stageColor}11` : 'transparent',
+            transition: 'background 0.15s',
+          }}
+        >
           {apps.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1705,7 +1747,8 @@ export default function PipelinePage() {
   }, [load])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   )
 
   const filtered = React.useMemo(() => {
@@ -1981,6 +2024,7 @@ export default function PipelinePage() {
         <EmailModal
           candidate={activeModal.candidate}
           templates={templates}
+          vacancy={vacancies.find(v => applications.some(a => a.candidateId === activeModal.candidate.id && a.vacancyId === v.id))}
           onClose={() => setActiveModal(null)}
         />
       )}
@@ -1988,6 +2032,7 @@ export default function PipelinePage() {
         <WhatsAppModal
           candidate={activeModal.candidate}
           templates={templates}
+          vacancy={vacancies.find(v => applications.some(a => a.candidateId === activeModal.candidate.id && a.vacancyId === v.id))}
           onClose={() => setActiveModal(null)}
         />
       )}

@@ -84,7 +84,16 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
           googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
           googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
           createdAt: profile.created_at,
+          groqApiKey: profile.groq_api_key ?? undefined,
+          aiProvider: profile.ai_provider ?? 'groq',
         })
+
+        if (profile.groq_api_key) {
+          localStorage.setItem('ct_ai_config', JSON.stringify({
+            provider: profile.ai_provider ?? 'groq',
+            apiKey: profile.groq_api_key,
+          }))
+        }
       } catch {
         router.replace('/login')
       } finally {

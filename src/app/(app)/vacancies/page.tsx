@@ -69,6 +69,27 @@ function VacancyFormDialog({
     }
   }, [open, user?.tenantId])
 
+  React.useEffect(() => {
+    if (!open) return
+    setManualPerfil(false)
+    setForm({
+      clientId: vacancy?.clientId ?? '',
+      title: vacancy?.title ?? '',
+      department: vacancy?.department ?? '',
+      rubro: vacancy?.rubro ?? '',
+      perfil: vacancy?.perfil ?? '',
+      modality: (vacancy?.modality ?? 'Remoto') as VacancyModality,
+      priority: (vacancy?.priority ?? 'Media') as VacancyPriority,
+      location: vacancy?.location ?? '',
+      salaryMin: vacancy?.salaryMin?.toString() ?? '',
+      salaryMax: vacancy?.salaryMax?.toString() ?? '',
+      currency: vacancy?.currency ?? 'ARS',
+      requirements: vacancy?.requirements?.join(', ') ?? '',
+      description: vacancy?.description ?? '',
+      closingDate: vacancy?.closingDate?.slice(0, 10) ?? '',
+    })
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const profileOptions = React.useMemo(() => {
     if (!form.rubro) return []
     const builtin = getProfilesByRubro(form.rubro).map(p => ({ id: p.id, label: `${p.perfil} · ${p.nivel}`, perfil: p.perfil, skills: [...p.skills.tecnicas, ...p.skills.blandas] }))
