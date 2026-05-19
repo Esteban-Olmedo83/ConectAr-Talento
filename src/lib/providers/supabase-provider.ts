@@ -10,6 +10,7 @@ import type {
   MessageTemplate,
   Integration,
   VacancyStatus,
+  CandidateDisposition,
 } from '@/types'
 import type {
   DataProvider,
@@ -139,6 +140,7 @@ function mapApplication(row: Record<string, unknown>): Application {
     appliedAt: row.applied_at as string,
     updatedAt: row.updated_at as string,
     candidate: row.candidate ? mapCandidate(row.candidate as Record<string, unknown>) : undefined,
+    disposition: (row.disposition as CandidateDisposition | null) ?? null,
   }
 }
 
@@ -408,6 +410,20 @@ export class SupabaseProvider implements DataProvider {
     const { data, error } = await this.sb
       .from('applications')
       .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*, candidate:candidates(*)')
+      .single()
+    if (error) return err(error.message)
+    return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  async updateApplicationDisposition(
+    id: string,
+    disposition: CandidateDisposition | null
+  ): Promise<DataResult<Application>> {
+    const { data, error } = await this.sb
+      .from('applications')
+      .update({ disposition, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select('*, candidate:candidates(*)')
       .single()

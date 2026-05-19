@@ -9,6 +9,7 @@ import type {
   MessageTemplate,
   Integration,
   VacancyStatus,
+  CandidateDisposition,
 } from '@/types'
 
 // ─── Input types (omit server-generated fields) ──────────────────────────────
@@ -58,6 +59,7 @@ export interface DataProvider {
   getApplications(vacancyId?: string, tenantId?: string): Promise<DataResult<Application[]>>
   createApplication(input: CreateApplicationInput): Promise<DataResult<Application>>
   updateApplicationStatus(id: string, status: VacancyStatus): Promise<DataResult<Application>>
+  updateApplicationDisposition(id: string, disposition: CandidateDisposition | null): Promise<DataResult<Application>>
 
   // Interviews
   getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>>
@@ -353,6 +355,23 @@ export class LocalStorageProvider implements DataProvider {
       return ok(updated)
     } catch (e) {
       return err(`updateApplicationStatus failed: ${String(e)}`)
+    }
+  }
+
+  async updateApplicationDisposition(
+    id: string,
+    disposition: CandidateDisposition | null
+  ): Promise<DataResult<Application>> {
+    try {
+      const all = readCollection<Application>(KEYS.applications)
+      const idx = all.findIndex((a) => a.id === id)
+      if (idx === -1) return err(`Application ${id} not found`)
+      const updated: Application = { ...all[idx], disposition, updatedAt: now() }
+      all[idx] = updated
+      writeCollection(KEYS.applications, all)
+      return ok(updated)
+    } catch (e) {
+      return err(`updateApplicationDisposition failed: ${String(e)}`)
     }
   }
 

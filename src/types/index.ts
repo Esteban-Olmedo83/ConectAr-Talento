@@ -6,6 +6,8 @@ export type VacancyStatus =
   | 'Contratado'
   | 'Descartado'
 
+export type CandidateDisposition = 'a_considerar' | 'descartar_cv'
+
 export type VacancyModality = 'Presencial' | 'Remoto' | 'Híbrido'
 export type VacancyPriority = 'Alta' | 'Media' | 'Baja'
 
@@ -139,6 +141,7 @@ export interface Application {
   positionInStage: number
   appliedAt: string
   updatedAt: string
+  disposition?: CandidateDisposition | null
 }
 
 export interface Client {
