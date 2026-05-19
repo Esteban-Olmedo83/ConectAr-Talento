@@ -1,10 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
+import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import type { Client } from '@/types'
 
 // ─── Palette definitions ──────────────────────────────────────────────────────
 const PALETTES = [
@@ -30,6 +32,7 @@ const THEMES = [
 const SETTINGS_TABS = [
   { id: 'apariencia', label: 'Apariencia' },
   { id: 'cuenta', label: 'Cuenta' },
+  { id: 'clientes', label: 'Clientes' },
   { id: 'notificaciones', label: 'Notificaciones' },
   { id: 'ia', label: 'Conexión con IAs' },
 ]
@@ -927,6 +930,304 @@ function ConexionIAsTab() {
   )
 }
 
+// ─── Clientes Tab ─────────────────────────────────────────────────────────────
+interface ClientForm {
+  name: string
+  industry: string
+  contactName: string
+  contactEmail: string
+  recruitmentEmail: string
+  contactPhone: string
+  whatsappPhone: string
+  website: string
+  notes: string
+}
+
+const EMPTY_FORM: ClientForm = {
+  name: '', industry: '', contactName: '', contactEmail: '',
+  recruitmentEmail: '', contactPhone: '', whatsappPhone: '', website: '', notes: '',
+}
+
+function clientToForm(c: Client): ClientForm {
+  return {
+    name: c.name,
+    industry: c.industry ?? '',
+    contactName: c.contactName ?? '',
+    contactEmail: c.contactEmail ?? '',
+    recruitmentEmail: c.recruitmentEmail ?? '',
+    contactPhone: c.contactPhone ?? '',
+    whatsappPhone: c.whatsappPhone ?? '',
+    website: c.website ?? '',
+    notes: c.notes ?? '',
+  }
+}
+
+function ClientesTab() {
+  const { user } = useUser()
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [clients, setClients] = React.useState<Client[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [editingId, setEditingId] = React.useState<string | 'new' | null>(null)
+  const [form, setForm] = React.useState<ClientForm>(EMPTY_FORM)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!user?.tenantId) return
+    provider.getClients(user.tenantId).then(r => {
+      setClients(r.data ?? [])
+      setLoading(false)
+    })
+  }, [provider, user])
+
+  function startNew() {
+    setForm(EMPTY_FORM)
+    setEditingId('new')
+    setError(null)
+  }
+
+  function startEdit(c: Client) {
+    setForm(clientToForm(c))
+    setEditingId(c.id)
+    setError(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setError(null)
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) { setError('El nombre del cliente es obligatorio.'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      if (editingId === 'new') {
+        const res = await provider.createClient({
+          tenantId: user?.tenantId ?? '',
+          name: form.name.trim(),
+          industry: form.industry || undefined,
+          contactName: form.contactName || undefined,
+          contactEmail: form.contactEmail || undefined,
+          recruitmentEmail: form.recruitmentEmail || undefined,
+          contactPhone: form.contactPhone || undefined,
+          whatsappPhone: form.whatsappPhone || undefined,
+          website: form.website || undefined,
+          notes: form.notes || undefined,
+        })
+        if (res.error) { setError(res.error); return }
+        if (res.data) setClients(prev => [...prev, res.data!])
+      } else if (editingId) {
+        const res = await provider.updateClient(editingId, {
+          name: form.name.trim(),
+          industry: form.industry || undefined,
+          contactName: form.contactName || undefined,
+          contactEmail: form.contactEmail || undefined,
+          recruitmentEmail: form.recruitmentEmail || undefined,
+          contactPhone: form.contactPhone || undefined,
+          whatsappPhone: form.whatsappPhone || undefined,
+          website: form.website || undefined,
+          notes: form.notes || undefined,
+        })
+        if (res.error) { setError(res.error); return }
+        if (res.data) setClients(prev => prev.map(c => c.id === editingId ? res.data! : c))
+      }
+      setEditingId(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('¿Eliminás este cliente? Las vacantes asociadas quedarán sin cliente.')) return
+    await provider.deleteClient(id)
+    setClients(prev => prev.filter(c => c.id !== id))
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: '0.5rem',
+    padding: '0.4rem 0.75rem',
+    fontSize: '0.8125rem',
+    width: '100%',
+    outline: 'none',
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin" style={{ color: 'var(--accent)' }} />
+    </div>
+  )
+
+  return (
+    <div className="space-y-5">
+      {/* Client form */}
+      {editingId !== null && (
+        <div
+          className="rounded-xl border p-5 space-y-4"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              {editingId === 'new' ? 'Nuevo cliente' : 'Editar cliente'}
+            </h3>
+            <button onClick={cancelEdit} style={{ color: 'var(--muted)' }}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {([
+              { key: 'name', label: 'Nombre del cliente *', placeholder: 'Ej: Empresa SA' },
+              { key: 'industry', label: 'Rubro', placeholder: 'Ej: Tecnología' },
+              { key: 'contactName', label: 'Nombre del contacto', placeholder: 'Ej: Juan Pérez' },
+              { key: 'website', label: 'Sitio web', placeholder: 'https://...' },
+            ] as { key: keyof ClientForm; label: string; placeholder: string }[]).map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted)' }}>{label}</label>
+                <input
+                  value={form[key]}
+                  onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={inputStyle}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted2)' }}>Contacto</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([
+                { key: 'contactEmail', label: 'Email corporativo', placeholder: 'contacto@empresa.com' },
+                { key: 'recruitmentEmail', label: 'Email para reclutamiento', placeholder: 'rrhh@empresa.com' },
+                { key: 'contactPhone', label: 'Teléfono general', placeholder: '+54 11 1234-5678' },
+                { key: 'whatsappPhone', label: 'Teléfono WhatsApp', placeholder: '+54 9 11 1234-5678' },
+              ] as { key: keyof ClientForm; label: string; placeholder: string }[]).map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted)' }}>{label}</label>
+                  <input
+                    value={form[key]}
+                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    style={inputStyle}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--muted)' }}>Notas</label>
+            <textarea
+              value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Notas internas sobre el cliente..."
+              rows={2}
+              style={{ ...inputStyle, resize: 'none' }}
+            />
+          </div>
+
+          {error && (
+            <p className="text-xs" style={{ color: 'var(--coral, #f87171)' }}>{error}</p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Guardar
+            </button>
+            <button
+              onClick={cancelEdit}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{ background: 'var(--surface3, var(--surface2))', color: 'var(--muted2)', border: '1px solid var(--border)' }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clients list */}
+      <div
+        className="rounded-xl border p-5"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            Clientes ({clients.length})
+          </h3>
+          {editingId === null && (
+            <button
+              onClick={startNew}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo cliente
+            </button>
+          )}
+        </div>
+
+        {clients.length === 0 ? (
+          <p className="text-sm text-center py-6" style={{ color: 'var(--muted)' }}>
+            No hay clientes registrados. Agregá el primero.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {clients.map(c => (
+              <div
+                key={c.id}
+                className="flex items-start gap-3 rounded-lg p-3"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{c.name}</p>
+                  {c.industry && <p className="text-xs" style={{ color: 'var(--muted)' }}>{c.industry}</p>}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                    {c.recruitmentEmail && (
+                      <span className="text-xs" style={{ color: 'var(--muted2)' }}>✉ {c.recruitmentEmail}</span>
+                    )}
+                    {c.contactEmail && !c.recruitmentEmail && (
+                      <span className="text-xs" style={{ color: 'var(--muted2)' }}>✉ {c.contactEmail}</span>
+                    )}
+                    {c.whatsappPhone && (
+                      <span className="text-xs" style={{ color: 'var(--muted2)' }}>📱 {c.whatsappPhone}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => startEdit(c)}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface2)]"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Datos Tab ────────────────────────────────────────────────────────────────
 function DatosTab() {
   const [loading, setLoading] = React.useState(false)
@@ -1091,6 +1392,7 @@ export default function SettingsPage() {
 
         {activeTab === 'apariencia' && <AparienciaTab />}
         {activeTab === 'cuenta' && <CuentaTab />}
+        {activeTab === 'clientes' && <ClientesTab />}
         {activeTab === 'notificaciones' && <NotificacionesTab />}
         {activeTab === 'ia' && <ConexionIAsTab />}
       </main>

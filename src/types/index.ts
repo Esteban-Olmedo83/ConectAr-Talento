@@ -150,8 +150,10 @@ export interface Client {
   name: string
   industry?: string
   contactName?: string
-  contactEmail?: string
+  contactEmail?: string       // corporate / main contact email
+  recruitmentEmail?: string   // email used for recruitment communications
   contactPhone?: string
+  whatsappPhone?: string      // phone number for WhatsApp
   website?: string
   logoUrl?: string
   notes?: string

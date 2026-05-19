@@ -120,8 +120,22 @@ export function CvUploadAnalyzer({
         formData.append('vacancyRequirements', JSON.stringify(vacancyRequirements))
       }
 
+      // Pass user's AI API key from localStorage so server routes can use it
+      const aiHeaders: Record<string, string> = {}
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) {
+            aiHeaders['x-ai-api-key'] = cfg.apiKey
+            aiHeaders['x-ai-provider'] = cfg.provider ?? 'groq'
+          }
+        }
+      } catch { /* noop */ }
+
       const res = await fetch('/api/ai/analyze-cv', {
         method: 'POST',
+        headers: aiHeaders,
         body: formData,
       })
 

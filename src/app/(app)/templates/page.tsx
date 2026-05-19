@@ -25,7 +25,7 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy } from '@/types'
+import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy, Application } from '@/types'
 import { generateId } from '@/lib/utils'
 
 const VARIABLE_LABELS: Record<string, string> = {
@@ -44,6 +44,16 @@ const VARIABLE_LABELS: Record<string, string> = {
   empresa_cliente: 'Empresa Cliente',
   nombre: 'Nombre',
   puesto: 'Puesto',
+  resultado_mensaje: 'Resultado del Proceso',
+  mensaje_adicional: 'Mensaje Adicional',
+  dias_revision: 'Días Hábiles para Revisión',
+  email_contacto: 'Email de Contacto',
+  fecha_entrevista: 'Fecha de Entrevista',
+  hora_entrevista: 'Hora de Entrevista',
+  modalidad_entrevista: 'Modalidad de Entrevista',
+  link_reunion: 'Link de Reunión',
+  fecha_vencimiento_oferta: 'Fecha Vencimiento Oferta',
+  dias_revision_label: 'Días para Revisión',
 }
 
 function extractVariables(body: string): string[] {
@@ -177,28 +187,97 @@ const CATEGORY_LABELS: Record<TemplateCategory, string> = {
 }
 
 /* ─── SendModal ──────────────────────────────────────────────── */
+const MULTILINE_VARS = new Set(['resultado_mensaje', 'mensaje_adicional', 'descripcion_perfil'])
+
 function SendModal({
   template,
   onClose,
   vacancies = [],
+  applications = [],
 }: {
   template: MessageTemplate
   onClose: () => void
   vacancies?: Vacancy[]
+  applications?: Application[]
 }) {
   const [values, setValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.variables.map((v) => [v, '']))
   )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState('')
+  const [generatingAI, setGeneratingAI] = React.useState(false)
+  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
 
+  // Candidates for the selected vacancy
+  const vacancyCandidates = React.useMemo(() => {
+    if (!selectedVacancyId) return []
+    return applications
+      .filter(a => a.vacancyId === selectedVacancyId && a.candidate)
+      .map(a => a.candidate!)
+  }, [applications, selectedVacancyId])
+
+  // Preview: handle empty dias_revision by removing the surrounding phrase
   const preview = React.useMemo(() => {
     let text = template.body
+    if (!values.dias_revision?.trim()) {
+      text = text.replace(/\s*en los próximos\s*\{\{dias_revision\}\}\s*días hábiles/gi, '')
+    }
     for (const [k, v] of Object.entries(values)) {
       text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
     }
     return text
   }, [template.body, values])
 
-  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  function handleVacancySelect(vacancyId: string) {
+    setSelectedVacancyId(vacancyId)
+    const vac = vacancies.find(v => v.id === vacancyId)
+    if (!vac) return
+    setValues(prev => ({
+      ...prev,
+      ...(prev.vacante !== undefined ? { vacante: vac.title } : {}),
+      ...(prev.empresa !== undefined ? { empresa: vac.client?.name ?? '' } : {}),
+      ...(prev.modalidad !== undefined ? { modalidad: vac.modality } : {}),
+      ...(prev.fecha_inicio !== undefined ? { fecha_inicio: vac.publishedAt?.slice(0,10) ?? vac.createdAt.slice(0,10) } : {}),
+      ...(prev.descripcion_perfil !== undefined ? { descripcion_perfil: vac.description ?? vac.title } : {}),
+      ...(prev.email_contacto !== undefined ? {
+        email_contacto: vac.client?.recruitmentEmail ?? vac.client?.contactEmail ?? ''
+      } : {}),
+    }))
+  }
+
+  async function handleGenerateAI() {
+    setGeneratingAI(true)
+    try {
+      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) {
+            aiHeaders['x-ai-api-key'] = cfg.apiKey
+            aiHeaders['x-ai-provider'] = cfg.provider ?? 'groq'
+          }
+        }
+      } catch { /* noop */ }
+
+      const context = [
+        values.vacante ? `Vacante: ${values.vacante}` : '',
+        values.nombre_candidato ? `Candidato: ${values.nombre_candidato}` : '',
+        values.empresa ? `Empresa: ${values.empresa}` : '',
+        values.resultado_mensaje ? `Resultado: ${values.resultado_mensaje}` : '',
+      ].filter(Boolean).join('. ')
+
+      const res = await fetch('/api/ai/generate-message', {
+        method: 'POST',
+        headers: aiHeaders,
+        body: JSON.stringify({ context, type: 'mensaje_adicional' }),
+      })
+      if (res.ok) {
+        const data = await res.json() as { message?: string }
+        if (data.message) setValues(prev => ({ ...prev, mensaje_adicional: data.message! }))
+      }
+    } catch { /* noop */ }
+    finally { setGeneratingAI(false) }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -245,25 +324,16 @@ function SendModal({
                     <p className="text-sm bg-muted rounded-lg px-3 py-2">{template.subject}</p>
                   </div>
                 )}
+
+                {/* Vacancy autocomplete */}
                 {vacancies.length > 0 && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">
                       Autocompletar desde vacante
                     </label>
                     <select
-                      defaultValue=""
-                      onChange={e => {
-                        const vac = vacancies.find(v => v.id === e.target.value)
-                        if (!vac) return
-                        setValues(prev => ({
-                          ...prev,
-                          ...(prev.vacante !== undefined ? { vacante: vac.title } : {}),
-                          ...(prev.empresa !== undefined ? { empresa: vac.client?.name ?? '' } : {}),
-                          ...(prev.modalidad !== undefined ? { modalidad: vac.modality } : {}),
-                          ...(prev.fecha_inicio !== undefined ? { fecha_inicio: vac.publishedAt?.slice(0,10) ?? vac.createdAt.slice(0,10) } : {}),
-                          ...(prev.descripcion_perfil !== undefined ? { descripcion_perfil: vac.description ?? vac.title } : {}),
-                        }))
-                      }}
+                      value={selectedVacancyId}
+                      onChange={e => handleVacancySelect(e.target.value)}
                       className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     >
                       <option value="">— Seleccionar vacante para autocompletar —</option>
@@ -273,20 +343,77 @@ function SendModal({
                     </select>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {template.variables.map((v) => (
-                    <div key={v}>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        {VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                      </label>
-                      <input
-                        value={values[v] ?? ''}
-                        onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                        placeholder={VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ')}
-                        className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      />
-                    </div>
-                  ))}
+
+                {/* Candidate selector (shown after vacancy is selected and template has nombre_candidato) */}
+                {selectedVacancyId && vacancyCandidates.length > 0 && template.variables.includes('nombre_candidato') && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Candidato
+                    </label>
+                    <select
+                      value=""
+                      onChange={e => {
+                        const name = e.target.value
+                        if (name) setValues(prev => ({ ...prev, nombre_candidato: name }))
+                      }}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar candidato —</option>
+                      {vacancyCandidates.map(c => (
+                        <option key={c.id} value={c.fullName}>{c.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Variable fields */}
+                <div className="space-y-3">
+                  {template.variables.map((v) => {
+                    const label = VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    const isMultiline = MULTILINE_VARS.has(v)
+                    const isOptional = v === 'dias_revision'
+                    const isAI = v === 'mensaje_adicional'
+
+                    return (
+                      <div key={v}>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-muted-foreground">
+                            {label}
+                            {isOptional && <span className="ml-1 text-muted-foreground/60">(opcional)</span>}
+                          </label>
+                          {isAI && (
+                            <button
+                              onClick={handleGenerateAI}
+                              disabled={generatingAI}
+                              className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
+                            >
+                              {generatingAI
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Sparkles className="h-3 w-3" />
+                              }
+                              Generar con IA
+                            </button>
+                          )}
+                        </div>
+                        {isMultiline ? (
+                          <textarea
+                            rows={3}
+                            value={values[v] ?? ''}
+                            onChange={(e) => setValues(prev => ({ ...prev, [v]: e.target.value }))}
+                            placeholder={label}
+                            className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                          />
+                        ) : (
+                          <input
+                            value={values[v] ?? ''}
+                            onChange={(e) => setValues(prev => ({ ...prev, [v]: e.target.value }))}
+                            placeholder={isOptional ? `${label} (dejar vacío para omitir)` : label}
+                            className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -528,6 +655,7 @@ export default function TemplatesPage() {
   const { user } = useUser()
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [applications, setApplications] = React.useState<Application[]>([])
   const [filterChannel, setFilterChannel] = React.useState<TemplateChannel | 'all'>('all')
   const [sendTarget, setSendTarget] = React.useState<MessageTemplate | null>(null)
   const [editTarget, setEditTarget] = React.useState<Partial<MessageTemplate> | null | 'new'>(null)
@@ -538,7 +666,14 @@ export default function TemplatesPage() {
     const tenantId = user?.tenantId ?? ''
     if (!tenantId) return
 
-    provider.getVacancies(tenantId).then(r => setVacancies(r.data ?? []))
+    provider.getVacancies(tenantId).then(r => {
+      const vacs = r.data ?? []
+      setVacancies(vacs)
+      // Fetch applications for all vacancies (for candidate selection)
+      Promise.all(vacs.map(v => provider.getApplications(v.id))).then(results => {
+        setApplications(results.flatMap(r => r.data ?? []))
+      })
+    })
 
     provider.getTemplates(tenantId).then(async (res) => {
       const existing = res.data ?? []
@@ -760,7 +895,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* modals */}
-      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} />}
+      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} applications={applications} />}
       {editTarget !== null && (
         <EditorModal
           initial={editTarget === 'new' ? null : editTarget}

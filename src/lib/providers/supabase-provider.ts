@@ -40,7 +40,9 @@ function mapClient(row: Record<string, unknown>): Client {
     industry: (row.industry as string) ?? undefined,
     contactName: (row.contact_name as string) ?? undefined,
     contactEmail: (row.contact_email as string) ?? undefined,
+    recruitmentEmail: (row.recruitment_email as string) ?? undefined,
     contactPhone: (row.contact_phone as string) ?? undefined,
+    whatsappPhone: (row.whatsapp_phone as string) ?? undefined,
     website: (row.website as string) ?? undefined,
     logoUrl: (row.logo_url as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
@@ -197,7 +199,9 @@ export class SupabaseProvider implements DataProvider {
         industry: input.industry ?? null,
         contact_name: input.contactName ?? null,
         contact_email: input.contactEmail ?? null,
+        recruitment_email: input.recruitmentEmail ?? null,
         contact_phone: input.contactPhone ?? null,
+        whatsapp_phone: input.whatsappPhone ?? null,
         website: input.website ?? null,
         logo_url: input.logoUrl ?? null,
         notes: input.notes ?? null,
@@ -214,7 +218,9 @@ export class SupabaseProvider implements DataProvider {
     if (input.industry !== undefined) patch.industry = input.industry
     if (input.contactName !== undefined) patch.contact_name = input.contactName
     if (input.contactEmail !== undefined) patch.contact_email = input.contactEmail
+    if (input.recruitmentEmail !== undefined) patch.recruitment_email = input.recruitmentEmail
     if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone
+    if (input.whatsappPhone !== undefined) patch.whatsapp_phone = input.whatsappPhone
     if (input.website !== undefined) patch.website = input.website
     if (input.logoUrl !== undefined) patch.logo_url = input.logoUrl
     if (input.notes !== undefined) patch.notes = input.notes
