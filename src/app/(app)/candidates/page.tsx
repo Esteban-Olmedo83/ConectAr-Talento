@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform } from '@/types'
@@ -65,12 +66,13 @@ const SOURCE_TEXT: Record<string, string> = {
 }
 
 // ─── View Profile Dialog ──────────────────────────────────────────────────────
-function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
+function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate }: {
   candidate: Candidate | null
   open: boolean
   onClose: () => void
   onUpdate?: (c: Candidate) => void
 }) {
+  const [candidate, setCandidate] = React.useState<Candidate | null>(null)
   const [editMode, setEditMode] = React.useState(false)
   const [editName, setEditName] = React.useState('')
   const [editEmail, setEditEmail] = React.useState('')
@@ -80,20 +82,47 @@ function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
   const [editSkills, setEditSkills] = React.useState('')
   const [isSaving, setIsSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState('')
+  const cvInputRef = React.useRef<HTMLInputElement>(null)
+  const [uploadingCv, setUploadingCv] = React.useState(false)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   React.useEffect(() => {
-    if (open && candidate) {
-      setEditName(candidate.fullName)
-      setEditEmail(candidate.email)
-      setEditPhone(candidate.phone ?? '')
-      setEditExperience(candidate.experienceYears != null ? String(candidate.experienceYears) : '')
-      setEditEducation(candidate.education ?? '')
-      setEditSkills(candidate.skills.join(', '))
+    if (open && candidateProp) {
+      setCandidate(candidateProp)
+      setEditName(candidateProp.fullName)
+      setEditEmail(candidateProp.email)
+      setEditPhone(candidateProp.phone ?? '')
+      setEditExperience(candidateProp.experienceYears != null ? String(candidateProp.experienceYears) : '')
+      setEditEducation(candidateProp.education ?? '')
+      setEditSkills(candidateProp.skills.join(', '))
       setEditMode(false)
       setSaveError('')
     }
-  }, [open])
+  }, [open, candidateProp])
+
+  async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !candidate) return
+    setUploadingCv(true)
+    try {
+      const supabase = createClient()
+      const path = `cvs/${candidate.id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('cvs')
+        .upload(path, file, { upsert: true })
+      if (uploadError) { console.error(uploadError); return }
+      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+      const result = await provider.updateCandidate(candidate.id, {
+        cvUrl: publicUrl,
+        cvFileName: file.name,
+      })
+      if (result.data) {
+        setCandidate(result.data)
+        onUpdate?.(result.data)
+      }
+    } catch (err) { console.error(err) }
+    finally { setUploadingCv(false) }
+  }
 
   if (!candidate) return null
 
@@ -102,9 +131,10 @@ function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
   const labelCls = 'text-xs font-medium mb-1 block'
 
   async function handleSave() {
+    if (!candidate) return
     setIsSaving(true)
     setSaveError('')
-    const result = await provider.updateCandidate(candidate!.id, {
+    const result = await provider.updateCandidate(candidate.id, {
       fullName: editName,
       email: editEmail,
       phone: editPhone || undefined,
@@ -284,7 +314,35 @@ function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
           )}
 
           {/* CV */}
-          {candidate.cvUrl && (
+          {editMode ? (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>CV adjunto</label>
+              {candidate.cvUrl && (
+                <div className="flex items-center gap-2 mb-2">
+                  <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
+                    {candidate.cvFileName ?? 'Ver CV actual'}
+                  </a>
+                </div>
+              )}
+              <input
+                ref={cvInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleCvUpload}
+              />
+              <button
+                type="button"
+                onClick={() => cvInputRef.current?.click()}
+                disabled={uploadingCv}
+                className="w-full px-3 py-2 text-sm rounded-md border border-dashed text-center transition-colors"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
+              >
+                {uploadingCv ? 'Subiendo...' : candidate.cvUrl ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)'}
+              </button>
+            </div>
+          ) : candidate.cvUrl ? (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <FileText className="inline h-3 w-3 mr-1" />CV adjunto
@@ -301,7 +359,7 @@ function ViewProfileDialog({ candidate, open, onClose, onUpdate }: {
                 <ExternalLink className="h-3 w-3 ml-auto" />
               </a>
             </div>
-          )}
+          ) : null}
 
           {/* Dates */}
           <p className="text-xs" style={{ color: 'var(--muted)' }}>

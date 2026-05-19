@@ -159,6 +159,8 @@ function rowToVacancy(row: RawRow): Vacancy {
     createdBy: strOrUndef(createdBy),
     createdAt,
     applications: [],
+    rubro: '',
+    perfil: '',
   }
 }
 

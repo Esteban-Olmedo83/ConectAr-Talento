@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -32,6 +33,7 @@ const mainNavItems = [
 ]
 
 const toolNavItems = [
+  { label: 'Perfiles de Puestos', href: '/job-profiles', icon: BookOpen },
   { label: 'Templates', href: '/templates', icon: FileText },
   { label: 'Integraciones', href: '/integrations', icon: Plug },
   { label: 'Informes', href: '/reports', icon: BarChart3 },
@@ -221,6 +223,14 @@ export function Sidebar({
 
           {/* Tools section */}
           <SectionLabel label="Herramientas" collapsed={isCollapsed} />
+          <NavItem
+            href="/job-profiles"
+            icon={BookOpen}
+            label="Perfiles de Puestos"
+            isActive={isActive('/job-profiles')}
+            isCollapsed={isCollapsed}
+            onClick={onClose}
+          />
           <NavItem
             href="/templates"
             icon={FileText}

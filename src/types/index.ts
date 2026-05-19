@@ -182,6 +182,8 @@ export interface Vacancy {
   createdBy?: string
   createdAt: string
   applications: Application[]
+  rubro: string
+  perfil: string
 }
 
 export interface SkillProfile {
@@ -221,4 +223,44 @@ export interface Integration {
   expiresAt?: string
   metadata?: Record<string, unknown>
   createdAt: string
+}
+
+export interface JobRubro {
+  id: string
+  tenantId: string
+  name: string
+  createdAt: string
+}
+
+export interface CustomJobProfile {
+  id: string
+  tenantId: string
+  rubro: string
+  perfil: string
+  nivel: string
+  skills: {
+    tecnicas: string[]
+    blandas: string[]
+    herramientas: string[]
+    certificaciones: string[]
+  }
+  descripcionTipica: string
+  createdAt: string
+}
+
+export interface CreateJobRubroInput {
+  tenantId: string
+  name: string
+}
+
+export interface CreateJobProfileInput {
+  tenantId: string
+  rubro: string
+  perfil: string
+  nivel: string
+  skillsTecnicas?: string[]
+  skillsBlandas?: string[]
+  skillsHerramientas?: string[]
+  skillsCertificaciones?: string[]
+  descripcionTipica?: string
 }

@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -41,12 +41,14 @@ function VacancyFormDialog({
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [clients, setClients] = React.useState<Client[]>([])
+  const [customProfiles, setCustomProfiles] = React.useState<CustomJobProfile[]>([])
+  const [manualPerfil, setManualPerfil] = React.useState(false)
   const [form, setForm] = React.useState({
     clientId: vacancy?.clientId ?? '',
     title: vacancy?.title ?? '',
     department: vacancy?.department ?? '',
-    rubro: '',
-    perfil: '',
+    rubro: vacancy?.rubro ?? '',
+    perfil: vacancy?.perfil ?? '',
     modality: (vacancy?.modality ?? 'Remoto') as VacancyModality,
     priority: (vacancy?.priority ?? 'Media') as VacancyPriority,
     location: vacancy?.location ?? '',
@@ -63,24 +65,27 @@ function VacancyFormDialog({
   React.useEffect(() => {
     if (open && user?.tenantId) {
       provider.getClients(user.tenantId).then(r => { if (r.data) setClients(r.data) })
+      provider.getJobProfiles(user.tenantId).then(r => { if (r.data) setCustomProfiles(r.data) })
     }
   }, [open, user?.tenantId])
 
   const profileOptions = React.useMemo(() => {
     if (!form.rubro) return []
-    return getProfilesByRubro(form.rubro)
-  }, [form.rubro])
+    const builtin = getProfilesByRubro(form.rubro).map(p => ({ id: p.id, label: `${p.perfil} · ${p.nivel}`, perfil: p.perfil, skills: [...p.skills.tecnicas, ...p.skills.blandas] }))
+    const custom = customProfiles.filter(p => p.rubro === form.rubro).map(p => ({ id: p.id, label: `${p.perfil} · ${p.nivel} ★`, perfil: p.perfil, skills: [...p.skills.tecnicas, ...p.skills.blandas] }))
+    return [...builtin, ...custom]
+  }, [form.rubro, customProfiles])
 
-  function handleProfileSelect(perfil: string) {
-    const profiles = getProfilesByRubro(form.rubro)
-    const p = profiles.find(p => p.perfil === perfil)
-    if (!p) return
-    const allSkills = [...p.skills.tecnicas, ...p.skills.blandas]
+  function handleProfileSelect(value: string) {
+    if (value === '__manual__') { setManualPerfil(true); setForm(f => ({...f, perfil: ''})); return }
+    setManualPerfil(false)
+    const opt = profileOptions.find(o => o.perfil === value)
+    if (!opt) return
     setForm(f => ({
       ...f,
-      perfil,
-      title: f.title || p.perfil,
-      requirements: allSkills.join(', '),
+      perfil: opt.perfil,
+      title: f.title || opt.perfil,
+      requirements: opt.skills.join(', '),
     }))
   }
 
@@ -124,6 +129,8 @@ function VacancyFormDialog({
       requirements: form.requirements.split(',').map(s => s.trim()).filter(Boolean),
       description: form.description || undefined,
       closingDate: form.closingDate || undefined,
+      rubro: form.rubro,
+      perfil: form.perfil,
     }
     const result = vacancy
       ? await provider.updateVacancy(vacancy.id, input)
@@ -163,12 +170,28 @@ function VacancyFormDialog({
             </div>
             <div>
               <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Perfil (auto-completa skills)</label>
-              <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
-                disabled={!form.rubro}
-                className={cn(inputCls, 'disabled:opacity-50')}>
-                <option value="">Seleccioná un perfil</option>
-                {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.perfil} · {p.nivel}</option>)}
-              </select>
+              {manualPerfil ? (
+                <div className="flex gap-1">
+                  <input
+                    value={form.perfil}
+                    onChange={e => setForm(f => ({...f, perfil: e.target.value}))}
+                    placeholder="Escribí el nombre del perfil"
+                    className={cn(inputCls, 'flex-1')}
+                  />
+                  <button type="button" onClick={() => { setManualPerfil(false); setForm(f => ({...f, perfil: ''})) }}
+                    className="px-2 rounded-md border border-input text-muted-foreground hover:bg-muted">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
+                  disabled={!form.rubro}
+                  className={cn(inputCls, 'disabled:opacity-50')}>
+                  <option value="">Seleccioná un perfil</option>
+                  {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.label}</option>)}
+                  <option value="__manual__">✏️ Ingresar manualmente...</option>
+                </select>
+              )}
             </div>
           </div>
 

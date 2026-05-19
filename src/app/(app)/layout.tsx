@@ -19,6 +19,7 @@ const TITLE_MAP: Record<string, string> = {
   '/integrations': 'Integraciones',
   '/reports': 'Informes',
   '/settings': 'Configuración',
+  '/job-profiles': 'Perfiles de Puestos',
 }
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
