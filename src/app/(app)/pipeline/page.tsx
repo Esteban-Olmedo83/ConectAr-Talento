@@ -47,11 +47,20 @@ import type {
   Candidate,
   Vacancy,
   VacancyStatus,
+  CandidateDisposition,
   MessageTemplate,
   InterviewType,
   MeetingPlatform,
   Recommendation,
 } from '@/types'
+
+type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
+const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color: string; border: string }> = {
+  avanzar:      { label: 'Avanzar',      bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  rechazar:     { label: 'Rechazar',     bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  a_considerar: { label: 'A considerar', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  descartar_cv: { label: 'Descartar CV', bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -1006,7 +1015,7 @@ interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
   onAction: (modal: ActiveModal) => void
-  onDecide?: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onDecide?: (appId: string, action: DecisionAction) => void
   interviewDate?: string  // ISO string of next scheduled interview
 }
 
@@ -1173,6 +1182,24 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
         </div>
       )}
 
+      {/* Disposition badge */}
+      {app.disposition === 'a_considerar' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 99,
+              fontWeight: 600,
+              background: 'rgba(251,191,36,0.15)',
+              color: '#fbbf24',
+            }}
+          >
+            A considerar
+          </span>
+        </div>
+      )}
+
       {/* Interview indicator */}
       {interviewDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
@@ -1299,51 +1326,32 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
         </div>
       </div>
 
-      {/* Avanzar / Descartar — only visible on hover for Entrevistas stage */}
+      {/* Decision buttons — only visible on hover for Entrevistas stage */}
       {app.status === 'Entrevistas' && onDecide && hovered && !isDragging && (
-        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-          <button
-            onClick={e => { e.stopPropagation(); onDecide(app.id, 'Oferta Enviada') }}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              padding: '4px 0',
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 700,
-              background: 'rgba(52,211,153,0.15)',
-              border: '1px solid rgba(52,211,153,0.3)',
-              color: '#34d399',
-              cursor: 'pointer',
-            }}
-            title="Avanzar a Oferta Enviada"
-          >
-            <CheckCircle2 style={{ width: 10, height: 10 }} /> Avanzar
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onDecide(app.id, 'Descartado') }}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              padding: '4px 0',
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 700,
-              background: 'rgba(248,113,113,0.15)',
-              border: '1px solid rgba(248,113,113,0.3)',
-              color: '#f87171',
-              cursor: 'pointer',
-            }}
-            title="Descartar candidato"
-          >
-            <XCircle style={{ width: 10, height: 10 }} /> Descartar
-          </button>
+        <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+          {(Object.entries(DECISION_CONFIG) as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
+            <button
+              key={action}
+              onClick={e => { e.stopPropagation(); onDecide(app.id, action) }}
+              style={{
+                flex: '1 1 calc(50% - 2px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                padding: '4px 0',
+                borderRadius: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                background: cfg.bg,
+                border: `1px solid ${cfg.border}`,
+                color: cfg.color,
+                cursor: 'pointer',
+              }}
+            >
+              {cfg.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -1351,7 +1359,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
 }
 
 // ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void; interviewDate?: string }) {
+function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, action: DecisionAction) => void; interviewDate?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: app.id })
   const style = {
@@ -1376,7 +1384,7 @@ function Lane({
   stage: VacancyStatus
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
-  onDecide: (appId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onDecide: (appId: string, action: DecisionAction) => void
   interviewsByCandidate: Map<string, string>
 }) {
   const stageColor = STAGE_COLORS[stage]
@@ -1786,12 +1794,33 @@ export default function PipelinePage() {
     load()
   }
 
-  async function handleDecide(appId: string, newStatus: 'Oferta Enviada' | 'Descartado') {
+  async function handleDecide(appId: string, action: DecisionAction) {
     const isVirtual = appId.startsWith('virtual-')
-    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a))
-    if (!isVirtual) {
-      await provider.updateApplicationStatus(appId, newStatus)
-      window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    if (action === 'avanzar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Oferta Enviada' as VacancyStatus, disposition: null } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationStatus(appId, 'Oferta Enviada')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'rechazar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: null } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationStatus(appId, 'Descartado')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'a_considerar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, disposition: 'a_considerar' as CandidateDisposition } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationDisposition(appId, 'a_considerar')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'descartar_cv') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: 'descartar_cv' as CandidateDisposition } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationDisposition(appId, 'descartar_cv')
+        await provider.updateApplicationStatus(appId, 'Descartado')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
     }
   }
 

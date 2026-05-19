@@ -14,8 +14,17 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import type {
   Interview, Candidate, Vacancy, InterviewType, InterviewStatus,
-  MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus
+  MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus, CandidateDisposition
 } from '@/types'
+
+type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
+
+const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color: string; border: string }> = {
+  avanzar:      { label: 'Avanzar',         bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  rechazar:     { label: 'Rechazar',         bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  a_considerar: { label: 'A considerar',     bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  descartar_cv: { label: 'Descartar CV',     bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+}
 
 const TYPE_COLORS: Record<InterviewType, { bg: string; text: string; border: string }> = {
   'RRHH':              { bg: 'rgba(167,114,250,0.15)', text: '#a78bfa', border: 'rgba(167,114,250,0.4)' },
@@ -385,9 +394,10 @@ function InterviewCard({
   vacancyMap:   Map<string, Vacancy>
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
-  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onDecide: (candidateId: string, vacancyId: string, action: DecisionAction) => void
   onReactivate: (id: string) => void | Promise<void>
   appStatus?: string
+  appDisposition?: CandidateDisposition | null
 }) {
   const [showScorecard, setShowScorecard] = React.useState(false)
   const [scorecardReadOnly, setScorecardReadOnly] = React.useState(false)
@@ -473,26 +483,27 @@ function InterviewCard({
             )}
             {interview.status === 'Completada' && appStatus === 'Entrevistas' && (
               <div
-                className="flex items-center gap-2 mt-3 pt-3 flex-wrap"
+                className="mt-3 pt-3 space-y-2"
                 style={{ borderTop: '1px solid var(--border)' }}
               >
-                <span className="text-xs font-medium shrink-0" style={{ color: 'var(--muted2)' }}>
-                  ¿Continúa?
+                <span className="text-xs font-medium block" style={{ color: 'var(--muted2)' }}>
+                  Decisión sobre el candidato:
                 </span>
-                <button
-                  onClick={() => onDecide(interview.candidateId, interview.vacancyId, 'Oferta Enviada')}
-                  className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
-                >
-                  <CheckCircle2 className="h-3 w-3" /> Avanzar
-                </button>
-                <button
-                  onClick={() => onDecide(interview.candidateId, interview.vacancyId, 'Descartado')}
-                  className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
-                >
-                  <XCircle className="h-3 w-3" /> Descartar
-                </button>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['avanzar', 'a_considerar', 'rechazar', 'descartar_cv'] as DecisionAction[]).map(action => {
+                    const cfg = DECISION_CONFIG[action]
+                    return (
+                      <button
+                        key={action}
+                        onClick={() => onDecide(interview.candidateId, interview.vacancyId, action)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                        style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+                      >
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -613,7 +624,7 @@ function CandidateRoundRow({
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onScheduleNext: (candidateId: string, vacancyId: string) => void
-  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onDecide: (candidateId: string, vacancyId: string, action: DecisionAction) => void
   appStatus?: string
 }) {
   const candidate = candidateMap.get(candidateId)
@@ -688,26 +699,27 @@ function CandidateRoundRow({
 
       {canAddNext && appStatus === 'Entrevistas' && (
         <div
-          className="flex items-center gap-2 mt-2 pt-2 flex-wrap"
+          className="mt-2 pt-2 space-y-1.5"
           style={{ borderTop: '1px solid var(--border)' }}
         >
-          <span className="text-xs font-medium shrink-0" style={{ color: 'var(--muted2)' }}>
-            ¿Continúa en el proceso?
+          <span className="text-xs font-medium block" style={{ color: 'var(--muted2)' }}>
+            Decisión sobre el candidato:
           </span>
-          <button
-            onClick={() => onDecide(candidateId, rounds[0]?.vacancyId ?? '', 'Oferta Enviada')}
-            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
-          >
-            <CheckCircle2 className="h-3 w-3" /> Avanzar a oferta
-          </button>
-          <button
-            onClick={() => onDecide(candidateId, rounds[0]?.vacancyId ?? '', 'Descartado')}
-            className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
-          >
-            <XCircle className="h-3 w-3" /> Descartar
-          </button>
+          <div className="flex flex-wrap gap-1.5">
+            {(['avanzar', 'a_considerar', 'rechazar', 'descartar_cv'] as DecisionAction[]).map(action => {
+              const cfg = DECISION_CONFIG[action]
+              return (
+                <button
+                  key={action}
+                  onClick={() => onDecide(candidateId, rounds[0]?.vacancyId ?? '', action)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                  style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+                >
+                  {cfg.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -724,7 +736,7 @@ function VacancyInterviewGroup({
   onComplete: (i: Interview) => void
   onCancel:   (id: string)   => void | Promise<void>
   onScheduleNext: (candidateId: string, vacancyId: string) => void
-  onDecide: (candidateId: string, vacancyId: string, status: 'Oferta Enviada' | 'Descartado') => void
+  onDecide: (candidateId: string, vacancyId: string, action: DecisionAction) => void
   appByCandidateVacancy: Map<string, Application>
 }) {
   const totalInterviews = Array.from(candidateGroups.values()).reduce((s, a) => s + a.length, 0)
@@ -870,12 +882,24 @@ export default function InterviewsPage() {
     setInterviews(prev => prev.map(i => i.id === updated.id ? updated : i))
   }
 
-  async function handleDecide(candidateId: string, vacancyId: string, newStatus: 'Oferta Enviada' | 'Descartado') {
+  async function handleDecide(candidateId: string, vacancyId: string, action: DecisionAction) {
     const key = `${candidateId}_${vacancyId}`
     const app = appByCandidateVacancy.get(key)
-    if (!app || app.status !== 'Entrevistas') return
-    await provider.updateApplicationStatus(app.id, newStatus)
-    setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: newStatus } : a))
+    if (!app) return
+    if (action === 'avanzar') {
+      await provider.updateApplicationStatus(app.id, 'Oferta Enviada')
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'Oferta Enviada' as const, disposition: null } : a))
+    } else if (action === 'rechazar') {
+      await provider.updateApplicationStatus(app.id, 'Descartado')
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'Descartado' as const, disposition: null } : a))
+    } else if (action === 'a_considerar') {
+      await provider.updateApplicationDisposition(app.id, 'a_considerar')
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, disposition: 'a_considerar' as const } : a))
+    } else if (action === 'descartar_cv') {
+      await provider.updateApplicationDisposition(app.id, 'descartar_cv')
+      await provider.updateApplicationStatus(app.id, 'Descartado')
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'Descartado' as const, disposition: 'descartar_cv' as const } : a))
+    }
     window.dispatchEvent(new CustomEvent('application:stage-changed'))
   }
 
@@ -1002,6 +1026,7 @@ export default function InterviewsPage() {
                   onDecide={handleDecide}
                   onReactivate={handleReactivate}
                   appStatus={appByCandidateVacancy.get(`${i.candidateId}_${i.vacancyId}`)?.status}
+                  appDisposition={appByCandidateVacancy.get(`${i.candidateId}_${i.vacancyId}`)?.disposition}
                 />
               ))}
             </div>
