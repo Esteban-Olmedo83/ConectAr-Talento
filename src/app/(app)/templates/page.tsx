@@ -25,8 +25,26 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { MessageTemplate, TemplateChannel, TemplateCategory } from '@/types'
+import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy } from '@/types'
 import { generateId } from '@/lib/utils'
+
+const VARIABLE_LABELS: Record<string, string> = {
+  vacante: 'Vacante',
+  empresa: 'Empresa',
+  descripcion_perfil: 'Descripción del Perfil',
+  fecha_inicio: 'Fecha de Inicio',
+  modalidad: 'Modalidad',
+  salario: 'Salario',
+  ubicacion: 'Ubicación',
+  rubro: 'Rubro',
+  nombre_candidato: 'Nombre del Candidato',
+  especialidad: 'Especialidad',
+  reclutador: 'Reclutador',
+  enlace: 'Enlace',
+  empresa_cliente: 'Empresa Cliente',
+  nombre: 'Nombre',
+  puesto: 'Puesto',
+}
 
 function extractVariables(body: string): string[] {
   const matches = body.match(/\{\{(\w+)\}\}/g) ?? []
@@ -162,9 +180,11 @@ const CATEGORY_LABELS: Record<TemplateCategory, string> = {
 function SendModal({
   template,
   onClose,
+  vacancies = [],
 }: {
   template: MessageTemplate
   onClose: () => void
+  vacancies?: Vacancy[]
 }) {
   const [values, setValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.variables.map((v) => [v, '']))
@@ -225,16 +245,44 @@ function SendModal({
                     <p className="text-sm bg-muted rounded-lg px-3 py-2">{template.subject}</p>
                   </div>
                 )}
+                {vacancies.length > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Autocompletar desde vacante
+                    </label>
+                    <select
+                      defaultValue=""
+                      onChange={e => {
+                        const vac = vacancies.find(v => v.id === e.target.value)
+                        if (!vac) return
+                        setValues(prev => ({
+                          ...prev,
+                          ...(prev.vacante !== undefined ? { vacante: vac.title } : {}),
+                          ...(prev.empresa !== undefined ? { empresa: vac.client?.name ?? '' } : {}),
+                          ...(prev.modalidad !== undefined ? { modalidad: vac.modality } : {}),
+                          ...(prev.fecha_inicio !== undefined ? { fecha_inicio: vac.publishedAt?.slice(0,10) ?? vac.createdAt.slice(0,10) } : {}),
+                          ...(prev.descripcion_perfil !== undefined ? { descripcion_perfil: vac.description ?? vac.title } : {}),
+                        }))
+                      }}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar vacante para autocompletar —</option>
+                      {vacancies.map(v => (
+                        <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {template.variables.map((v) => (
                     <div key={v}>
                       <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        {`{{${v}}}`}
+                        {VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </label>
                       <input
                         value={values[v] ?? ''}
                         onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                        placeholder={v.replace(/_/g, ' ')}
+                        placeholder={VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ')}
                         className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
                     </div>
@@ -479,6 +527,7 @@ function EditorModal({
 export default function TemplatesPage() {
   const { user } = useUser()
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
+  const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [filterChannel, setFilterChannel] = React.useState<TemplateChannel | 'all'>('all')
   const [sendTarget, setSendTarget] = React.useState<MessageTemplate | null>(null)
   const [editTarget, setEditTarget] = React.useState<Partial<MessageTemplate> | null | 'new'>(null)
@@ -488,6 +537,8 @@ export default function TemplatesPage() {
   React.useEffect(() => {
     const tenantId = user?.tenantId ?? ''
     if (!tenantId) return
+
+    provider.getVacancies(tenantId).then(r => setVacancies(r.data ?? []))
 
     provider.getTemplates(tenantId).then(async (res) => {
       const existing = res.data ?? []
@@ -709,7 +760,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* modals */}
-      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} />}
+      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} />}
       {editTarget !== null && (
         <EditorModal
           initial={editTarget === 'new' ? null : editTarget}
