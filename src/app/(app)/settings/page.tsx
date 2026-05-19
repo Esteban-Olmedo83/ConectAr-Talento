@@ -402,7 +402,7 @@ function CuentaTab() {
           <button
             onClick={handleSignOut}
             disabled={signingOut}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               background: 'color-mix(in srgb, var(--coral) 15%, transparent)',
               color: 'var(--coral)',
@@ -420,7 +420,7 @@ function CuentaTab() {
           </button>
           <button
             disabled
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: 'var(--surface3)',
               color: 'var(--muted2)',
@@ -1024,14 +1024,35 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState('apariencia')
 
   return (
-    <div className="flex gap-6 h-full">
-      {/* Left nav */}
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 h-full min-h-0">
+      {/* Mobile: horizontal tab bar */}
+      <div
+        className="md:hidden flex gap-2 overflow-x-auto pb-1 shrink-0"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {SETTINGS_TABS.map(tab => {
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+              style={{
+                background: active ? 'var(--accent)' : 'var(--surface2)',
+                color: active ? '#fff' : 'var(--muted2)',
+                border: active ? 'none' : '1px solid var(--border)',
+              }}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Desktop: sidebar nav */}
       <aside
-        className="w-48 shrink-0 rounded-xl border p-2 self-start"
-        style={{
-          background: 'var(--surface)',
-          borderColor: 'var(--border)',
-        }}
+        className="hidden md:block w-48 shrink-0 rounded-xl border p-2 self-start"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         <nav className="space-y-0.5">
           {SETTINGS_TABS.map(tab => {
@@ -1056,11 +1077,8 @@ export default function SettingsPage() {
 
       {/* Content area */}
       <main
-        className="flex-1 rounded-xl border p-6 min-h-[500px]"
-        style={{
-          background: 'var(--surface)',
-          borderColor: 'var(--border)',
-        }}
+        className="flex-1 rounded-xl border p-4 sm:p-6 min-h-[400px] overflow-y-auto"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         <div className="mb-6">
           <h2
