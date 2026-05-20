@@ -40,7 +40,6 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CandidateProfileModal } from '@/components/recruitment/candidate-profile-modal'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
@@ -1042,7 +1041,7 @@ type ActiveModal =
   | { type: 'whatsapp'; candidate: Candidate }
   | { type: 'schedule'; candidate: Candidate; applicationId: string; vacancyId: string }
   | { type: 'notes'; candidate: Candidate }
-  | { type: 'profile'; candidate: Candidate; vacancyId: string }
+  | { type: 'process'; candidate: Candidate; vacancyId: string; app: HydratedApplication }
   | null
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
@@ -1083,7 +1082,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       onPointerMove={() => { pointerMoved.current = true }}
       onClick={() => {
         if (!pointerMoved.current && !isDragging) {
-          onAction({ type: 'profile', candidate: c, vacancyId: app.vacancyId })
+          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })
         }
       }}
       className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
@@ -1397,6 +1396,243 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Process Detail Modal ──────────────────────────────────────────────────────
+function ProcessDetailModal({
+  app,
+  vacancy,
+  interviewDate,
+  onClose,
+  onAction,
+  onDecide,
+}: {
+  app: HydratedApplication
+  vacancy?: Vacancy
+  interviewDate?: string
+  onClose: () => void
+  onAction: (modal: ActiveModal) => void
+  onDecide?: (appId: string, action: DecisionAction) => void
+}) {
+  const c = app.candidate
+  if (!c) return null
+
+  const stageColor = STAGE_COLORS[app.status]
+  const score = c.atsScore ?? 0
+  const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
+  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const currentStageIdx = STAGES.indexOf(app.status as VacancyStatus)
+  const skills = c.skills ?? []
+
+  const interviewFormatted = interviewDate
+    ? new Date(interviewDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) +
+      ' ' + new Date(interviewDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 520,
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: '20px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                background: avatarGradient(c.fullName),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: 700,
+                fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+                flexShrink: 0,
+              }}
+            >
+              {getInitials(c.fullName)}
+            </div>
+            <div>
+              <h2 style={{ fontWeight: 700, fontSize: 18, color: 'var(--text)', margin: 0 }}>{c.fullName}</h2>
+              <p style={{ fontSize: 13, color: 'var(--muted)', margin: '2px 0 0' }}>{c.email}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <span
+                  style={{
+                    background: `${scoreColor}22`,
+                    color: scoreColor,
+                    border: `1px solid ${scoreColor}44`,
+                    borderRadius: 6,
+                    padding: '1px 7px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  ATS {score}
+                </span>
+                {c.source && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '1px 7px' }}>
+                    {c.source}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: 'var(--muted)', borderRadius: 8 }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Stage progress */}
+        <div style={{ padding: '16px 20px 0' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Etapa del proceso</p>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {STAGES.map((stage, idx) => {
+              const color = STAGE_COLORS[stage]
+              const isActive = idx === currentStageIdx
+              const isPast = idx < currentStageIdx
+              return (
+                <div key={stage} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div
+                    style={{
+                      height: 4,
+                      width: '100%',
+                      borderRadius: 4,
+                      background: isActive || isPast ? color : 'var(--border)',
+                      opacity: isPast ? 0.5 : 1,
+                    }}
+                  />
+                  <span style={{ fontSize: 9, color: isActive ? color : 'var(--muted)', fontWeight: isActive ? 700 : 400, textAlign: 'center', lineHeight: 1.2 }}>
+                    {stage}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
+          {/* Current stage badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: `${stageColor}22`,
+                color: stageColor,
+                border: `1px solid ${stageColor}44`,
+                borderRadius: 8,
+                padding: '4px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
+              {app.status}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {daysSince === 0 ? 'Ingresó hoy' : `Hace ${daysSince} día${daysSince !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+
+          {/* Vacancy */}
+          {vacancy && (
+            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>Vacante</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', margin: 0 }}>{vacancy.title}</p>
+              {vacancy.client?.name && (
+                <p style={{ fontSize: 12, color: 'var(--muted)', margin: '2px 0 0' }}>{vacancy.client.name}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                {vacancy.modality && <span style={{ fontSize: 11, color: 'var(--muted)' }}>📍 {vacancy.modality}</span>}
+                {(vacancy.salaryMin || vacancy.salaryMax) && <span style={{ fontSize: 11, color: 'var(--muted)' }}>💰 {vacancy.salaryMin}{vacancy.salaryMax ? `–${vacancy.salaryMax}` : ''} {vacancy.currency ?? ''}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Interview */}
+          {interviewFormatted && (
+            <div style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#a78bfa', marginBottom: 3 }}>Próxima entrevista</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', margin: 0 }}>📅 {interviewFormatted}</p>
+            </div>
+          )}
+
+          {/* Skills */}
+          {skills.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Skills</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {skills.map((sk, i) => (
+                  <span key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--muted)' }}>
+                    {sk}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contact info */}
+          {(c.email || c.phone) && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Contacto</p>
+              {c.email && <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 2px' }}>{c.email}</p>}
+              {c.phone && <p style={{ fontSize: 13, color: 'var(--text)', margin: 0 }}>{c.phone}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <Mail size={13} /> Email
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <MessageCircle size={13} /> WhatsApp
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <Calendar size={13} /> Entrevista
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <FileText size={13} /> Notas
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -2055,22 +2291,19 @@ export default function PipelinePage() {
           onSaved={(notes) => handleNotesSaved(activeModal.candidate.id, notes)}
         />
       )}
-      {activeModal?.type === 'profile' && (() => {
+      {activeModal?.type === 'process' && (() => {
         const vac = vacancies.find(v => v.id === activeModal.vacancyId)
         return (
-          <CandidateProfileModal
-            candidate={activeModal.candidate}
+          <ProcessDetailModal
+            app={activeModal.app}
             vacancy={vac}
-            open={true}
+            interviewDate={interviewsByCandidate.get(activeModal.candidate.id)}
             onClose={() => setActiveModal(null)}
-            onUpdate={(updated) => {
-              setApplications(prev => prev.map(a =>
-                a.candidate?.id === updated.id
-                  ? { ...a, candidate: updated }
-                  : a
-              ))
+            onAction={(newModal) => {
               setActiveModal(null)
+              setTimeout(() => setActiveModal(newModal), 50)
             }}
+            onDecide={handleDecide}
           />
         )
       })()}

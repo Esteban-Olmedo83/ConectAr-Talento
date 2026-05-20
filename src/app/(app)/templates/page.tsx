@@ -95,7 +95,7 @@ const DEFAULT_TEMPLATES: Omit<MessageTemplate, 'id' | 'tenantId' | 'createdAt'>[
     channel: 'email',
     category: 'interview_invite',
     subject: 'Invitación a entrevista – {{vacante}} en {{empresa}}',
-    body: `Estimado/a {{nombre_candidato}},\n\nNos complace invitarte a una entrevista para el puesto de {{vacante}} en {{empresa}}.\n\n📅 Fecha: {{fecha_entrevista}}\n🕐 Hora: {{hora_entrevista}}\n📍 Modalidad: {{modalidad_entrevista}}\n🔗 Link: {{link_reunion}}\n\nPor favor, confirmá tu asistencia respondiendo este email.\n\nSi necesitás reprogramar, no dudes en comunicárnoslo.\n\nQuedamos a disposición ante cualquier consulta.\n\nSaludos cordiales,\n{{reclutador}}\n{{empresa}}`,
+    body: `Estimado/a {{nombre_candidato}},\n\nNos complace invitarte a una entrevista para el puesto de {{vacante}} en {{empresa}}.\n\n📅 Fecha: {{fecha_entrevista}}\n🕐 Hora: {{hora_entrevista}}\n📍 Modalidad: {{modalidad_entrevista}}\n🔗 Link: {{link_reunion}}\n\nPor favor, confirmá tu asistencia respondiendo este email.\n\nSi necesitás reprogramar, no dudes en comunicarte con nosotros.\n\nQuedamos a disposición ante cualquier consulta.\n\nSaludos cordiales,\n{{reclutador}}\n{{empresa}}`,
     variables: ['nombre_candidato', 'vacante', 'empresa', 'fecha_entrevista', 'hora_entrevista', 'modalidad_entrevista', 'link_reunion', 'reclutador'],
     isDefault: true,
   },
@@ -215,6 +215,8 @@ function SendModal({
   const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
   const [sending, setSending] = React.useState(false)
   const [sendLabel, setSendLabel] = React.useState('')
+  const hasContratoClause = template.body.includes('Adjuntamos el contrato')
+  const [includeContrato, setIncludeContrato] = React.useState(true)
 
   // Candidates for the selected vacancy
   const vacancyCandidates = React.useMemo(() => {
@@ -260,8 +262,13 @@ function SendModal({
     text = text.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
     // Clean up double blank lines left after removing lines
     text = text.replace(/\n{3,}/g, '\n\n').trim()
+    // Remove contract clause if unchecked
+    if (hasContratoClause && !includeContrato) {
+      text = text.replace(/\n?Adjuntamos el contrato para tu revisión\. Ante cualquier duda, estamos disponibles\./g, '')
+      text = text.replace(/\n{3,}/g, '\n\n').trim()
+    }
     return text
-  }, [template.body, values])
+  }, [template.body, values, hasContratoClause, includeContrato])
 
   function handleVacancySelect(vacancyId: string) {
     setSelectedVacancyId(vacancyId)
@@ -497,6 +504,20 @@ function SendModal({
                     )
                   })}
                 </div>
+                {hasContratoClause && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border mt-4">
+                    <input
+                      type="checkbox"
+                      id="include-contrato"
+                      checked={includeContrato}
+                      onChange={e => setIncludeContrato(e.target.checked)}
+                      className="rounded"
+                    />
+                    <label htmlFor="include-contrato" className="text-sm text-muted-foreground cursor-pointer">
+                      Incluir cláusula de contrato adjunto
+                    </label>
+                  </div>
+                )}
               </div>
             )
           ) : (
