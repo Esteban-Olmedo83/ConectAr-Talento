@@ -239,9 +239,17 @@ function ScorecardModal({
   async function generateAiReport() {
     setGenerating(true)
     try {
+      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { apiKey?: string }
+          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
+        }
+      } catch { /* noop */ }
       const res = await fetch('/api/ai/generate-report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: aiHeaders,
         body: JSON.stringify({
           interviewId: interview.id,
           overallRating,
