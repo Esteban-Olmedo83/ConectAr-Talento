@@ -625,6 +625,7 @@ interface AIConfig {
 }
 
 function ConexionIAsTab() {
+  const { user } = useUser()
   const [selected, setSelected] = React.useState<IAProvider>('groq')
   const [apiKey, setApiKey] = React.useState('')
   const [showKey, setShowKey] = React.useState(false)
@@ -633,7 +634,16 @@ function ConexionIAsTab() {
   const [testing, setTesting] = React.useState(false)
   const [testResult, setTestResult] = React.useState<{ ok: boolean; message: string } | null>(null)
 
+  // Load from user context (Supabase) first, fallback to localStorage
   React.useEffect(() => {
+    if (user?.groqApiKey) {
+      setSelected((user.aiProvider as IAProvider) || 'groq')
+      setApiKey(user.groqApiKey)
+      setHasSavedKey(true)
+      // Sync to localStorage
+      localStorage.setItem('ct_ai_config', JSON.stringify({ provider: user.aiProvider || 'groq', apiKey: user.groqApiKey }))
+      return
+    }
     try {
       const raw = localStorage.getItem('ct_ai_config')
       if (raw) {
@@ -643,7 +653,7 @@ function ConexionIAsTab() {
         setHasSavedKey(!!config.apiKey)
       }
     } catch { /* noop */ }
-  }, [])
+  }, [user?.groqApiKey, user?.aiProvider])
 
   function handleSelectIA(id: IAProvider) {
     setSelected(id)
@@ -669,24 +679,33 @@ function ConexionIAsTab() {
   }
 
   async function handleSaveKey() {
-    try {
-      const config: AIConfig = { provider: selected, apiKey }
-      localStorage.setItem('ct_ai_config', JSON.stringify(config))
-      setSaved(true)
-      setHasSavedKey(!!apiKey)
-      setTestResult(null)
-      setTimeout(() => setSaved(false), 2500)
-    } catch { /* noop */ }
+    // Save to localStorage immediately
+    const config: AIConfig = { provider: selected, apiKey }
+    localStorage.setItem('ct_ai_config', JSON.stringify(config))
+    setTestResult(null)
+
+    // Save to Supabase
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('profiles').update({
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        const { error } = await supabase.from('profiles').update({
           groq_api_key: apiKey || null,
           ai_provider: selected,
-        }).eq('id', user.id)
+        }).eq('id', authUser.id)
+        if (error) {
+          setTestResult({ ok: false, message: `Error al guardar: ${error.message}` })
+          return
+        }
       }
-    } catch { /* noop */ }
+    } catch (err) {
+      setTestResult({ ok: false, message: `Error al guardar: ${err instanceof Error ? err.message : 'Error desconocido'}` })
+      return
+    }
+
+    setSaved(true)
+    setHasSavedKey(!!apiKey)
+    setTimeout(() => setSaved(false), 2500)
   }
 
   async function handleTestConexion() {

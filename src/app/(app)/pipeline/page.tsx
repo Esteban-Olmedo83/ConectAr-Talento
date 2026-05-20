@@ -51,6 +51,7 @@ import type {
   VacancyStatus,
   CandidateDisposition,
   MessageTemplate,
+  Interview,
   InterviewType,
   MeetingPlatform,
   Recommendation,
@@ -218,11 +219,13 @@ function EmailModal({
   candidate,
   templates,
   vacancy,
+  interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
   vacancy?: Vacancy
+  interview?: Interview
   onClose: () => void
 }) {
   const emailTemplates = templates.filter(t => t.channel === 'email')
@@ -237,7 +240,14 @@ function EmailModal({
     const salario = vacancy?.salaryMin
       ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
       : ''
-    return text
+    const intDate = interview ? new Date(interview.scheduledAt) : null
+    const dateStr = intDate
+      ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const timeStr = intDate
+      ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
+      : ''
+    let out = text
       .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
       .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
       .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
@@ -245,6 +255,15 @@ function EmailModal({
       .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
       .replace(/\{\{salario\}\}/g, salario)
       .replace(/\{\{fecha_inicio\}\}/g, '')
+      .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
+      .replace(/\{\{hora_entrevista\}\}/g, timeStr)
+      .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
+      .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
+      .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    // Remove emoji-prefixed lines that still have unresolved {{vars}}
+    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    out = out.replace(/\n{3,}/g, '\n\n').trim()
+    return out
   }
 
   React.useEffect(() => {
@@ -434,11 +453,13 @@ function WhatsAppModal({
   candidate,
   templates,
   vacancy,
+  interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
   vacancy?: Vacancy
+  interview?: Interview
   onClose: () => void
 }) {
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
@@ -452,7 +473,14 @@ function WhatsAppModal({
     const salario = vacancy?.salaryMin
       ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
       : ''
-    return text
+    const intDate = interview ? new Date(interview.scheduledAt) : null
+    const dateStr = intDate
+      ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const timeStr = intDate
+      ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
+      : ''
+    let out = text
       .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
       .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
       .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
@@ -460,6 +488,14 @@ function WhatsAppModal({
       .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
       .replace(/\{\{salario\}\}/g, salario)
       .replace(/\{\{fecha_inicio\}\}/g, '')
+      .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
+      .replace(/\{\{hora_entrevista\}\}/g, timeStr)
+      .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
+      .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
+      .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    out = out.replace(/\n{3,}/g, '\n\n').trim()
+    return out
   }
 
   React.useEffect(() => {
@@ -1866,6 +1902,7 @@ export default function PipelinePage() {
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
   const [activeModal, setActiveModal] = React.useState<ActiveModal>(null)
   const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
+  const [allInterviews, setAllInterviews] = React.useState<Interview[]>([])
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
 
   const { user } = useUser()
@@ -1907,6 +1944,7 @@ export default function PipelinePage() {
       }
     })
     setInterviewsByCandidate(intMap)
+    setAllInterviews(interviews)
 
     // Hydrate real applications
     const hydrated: HydratedApplication[] = realApps.map(a => {
@@ -2256,22 +2294,38 @@ export default function PipelinePage() {
       </div>
 
       {/* Modals */}
-      {activeModal?.type === 'email' && (
-        <EmailModal
-          candidate={activeModal.candidate}
-          templates={templates}
-          vacancy={vacancies.find(v => applications.some(a => a.candidateId === activeModal.candidate.id && a.vacancyId === v.id))}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
-      {activeModal?.type === 'whatsapp' && (
-        <WhatsAppModal
-          candidate={activeModal.candidate}
-          templates={templates}
-          vacancy={vacancies.find(v => applications.some(a => a.candidateId === activeModal.candidate.id && a.vacancyId === v.id))}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
+      {activeModal?.type === 'email' && (() => {
+        const cid = activeModal.candidate.id
+        const vac = vacancies.find(v => applications.some(a => a.candidateId === cid && a.vacancyId === v.id))
+        const interview = allInterviews
+          .filter(i => i.candidateId === cid && i.status === 'Programada')
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        return (
+          <EmailModal
+            candidate={activeModal.candidate}
+            templates={templates}
+            vacancy={vac}
+            interview={interview}
+            onClose={() => setActiveModal(null)}
+          />
+        )
+      })()}
+      {activeModal?.type === 'whatsapp' && (() => {
+        const cid = activeModal.candidate.id
+        const vac = vacancies.find(v => applications.some(a => a.candidateId === cid && a.vacancyId === v.id))
+        const interview = allInterviews
+          .filter(i => i.candidateId === cid && i.status === 'Programada')
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        return (
+          <WhatsAppModal
+            candidate={activeModal.candidate}
+            templates={templates}
+            vacancy={vac}
+            interview={interview}
+            onClose={() => setActiveModal(null)}
+          />
+        )
+      })()}
       {activeModal?.type === 'schedule' && (
         <ScheduleInterviewModal
           candidate={activeModal.candidate}
