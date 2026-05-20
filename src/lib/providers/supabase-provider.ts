@@ -366,6 +366,7 @@ export class SupabaseProvider implements DataProvider {
         full_name: input.fullName,
         email: input.email,
         phone: input.phone ?? null,
+        avatar_url: input.avatarUrl ?? null,
         ats_score: input.atsScore ?? null,
         skills: input.skills,
         experience_years: input.experienceYears ?? null,
@@ -686,9 +687,11 @@ export class SupabaseProvider implements DataProvider {
   }
 
   async createJobRubro(input: CreateJobRubroInput): Promise<DataResult<JobRubro>> {
+    const { data: { user: authUser } } = await this.sb.auth.getUser()
+    const tenantId = authUser?.id ?? input.tenantId
     const { data, error } = await this.sb
       .from('job_rubros')
-      .insert({ tenant_id: input.tenantId, name: input.name })
+      .insert({ tenant_id: tenantId, name: input.name })
       .select()
       .single()
     if (error) return err(error.message)
@@ -711,10 +714,12 @@ export class SupabaseProvider implements DataProvider {
   }
 
   async createJobProfile(input: CreateJobProfileInput): Promise<DataResult<CustomJobProfile>> {
+    const { data: { user: authUser } } = await this.sb.auth.getUser()
+    const tenantId = authUser?.id ?? input.tenantId
     const { data, error } = await this.sb
       .from('job_profiles')
       .insert({
-        tenant_id: input.tenantId,
+        tenant_id: tenantId,
         rubro: input.rubro,
         perfil: input.perfil,
         nivel: input.nivel,

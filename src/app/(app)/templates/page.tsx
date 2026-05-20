@@ -215,6 +215,7 @@ function SendModal({
   const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
   const [sending, setSending] = React.useState(false)
   const [sendLabel, setSendLabel] = React.useState('')
+  const [waPhone, setWaPhone] = React.useState('')
   const hasContratoClause = template.body.includes('Adjuntamos el contrato')
   const [includeContrato, setIncludeContrato] = React.useState(true)
 
@@ -455,6 +456,21 @@ function SendModal({
                   </div>
                 )}
 
+                {/* WhatsApp phone field */}
+                {template.channel === 'whatsapp' && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
+                      Teléfono del destinatario (con código de país)
+                    </label>
+                    <input
+                      value={waPhone}
+                      onChange={e => setWaPhone(e.target.value)}
+                      placeholder="Ej: +54 9 11 1234 5678"
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                )}
+
                 {/* Variable fields */}
                 <div className="space-y-3">
                   {template.variables.map((v) => {
@@ -547,16 +563,20 @@ function SendModal({
                 )
                 onClose()
               } else if (template.channel === 'whatsapp') {
-                let phone = values.telefono || ''
-                phone = phone.replace(/[\s\-+]/g, '')
-                if (phone && !phone.startsWith('549')) {
-                  phone = `549${phone}`
-                }
-                if (!phone) {
-                  window.open(`https://wa.me/?text=${encodeURIComponent(preview)}`, '_blank')
-                } else {
-                  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(preview)}`, '_blank')
-                }
+                let phone = waPhone || values.telefono || ''
+                phone = phone.replace(/[\s\-+()]/g, '')
+                if (phone.startsWith('0')) phone = phone.slice(1)
+                if (phone && !phone.startsWith('54')) phone = `54${phone}`
+                const url = phone
+                  ? `https://wa.me/${phone}?text=${encodeURIComponent(preview)}`
+                  : `https://wa.me/?text=${encodeURIComponent(preview)}`
+                const a = document.createElement('a')
+                a.href = url
+                a.target = '_blank'
+                a.rel = 'noopener noreferrer'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
                 onClose()
               } else if (template.channel === 'linkedin') {
                 await navigator.clipboard.writeText(preview)

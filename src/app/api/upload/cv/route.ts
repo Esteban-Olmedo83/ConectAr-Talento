@@ -8,6 +8,31 @@ export const runtime = 'nodejs'
 // Monthly CV-analysis limit (separate from total candidate limit)
 const MONTHLY_ANALYSIS_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
+function extractJpegFromPdf(buffer: Buffer): Buffer | null {
+  // Find first JPEG SOI marker: FF D8 FF
+  let start = -1
+  for (let i = 0; i < buffer.length - 2; i++) {
+    if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8 && buffer[i + 2] === 0xFF) {
+      start = i
+      break
+    }
+  }
+  if (start === -1) return null
+  // Find last EOI marker: FF D9
+  let end = -1
+  for (let i = buffer.length - 2; i > start; i--) {
+    if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+      end = i + 2
+      break
+    }
+  }
+  if (end === -1) return null
+  const jpeg = buffer.slice(start, end)
+  // Only treat as portrait photo if between 5 KB and 800 KB
+  if (jpeg.length < 5120 || jpeg.length > 800 * 1024) return null
+  return jpeg
+}
+
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
   const reqSection = vacancyRequirements.length > 0
     ? `\n\nREQUISITOS DE LA VACANTE (usá estos para calcular el ATS score):\n${vacancyRequirements.map(r => `- ${r}`).join('\n')}`
@@ -164,8 +189,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.warn('[upload-cv] storage error (non-fatal):', e)
     }
 
+    // Extract profile photo from PDF (look for embedded JPEG)
+    let avatarUrl: string | undefined
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const jpegBuffer = extractJpegFromPdf(buffer)
+        if (jpegBuffer) {
+          const avatarPath = `avatars/${tenantId}/${Date.now()}-avatar.jpg`
+          const { error: avatarErr } = await supabase.storage
+            .from('cvs')
+            .upload(avatarPath, jpegBuffer, { contentType: 'image/jpeg', upsert: false })
+          if (!avatarErr) {
+            const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(avatarPath)
+            avatarUrl = publicUrl
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+
     // Analyze with Groq
-    const apiKey = process.env.GROQ_API_KEY
+    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada en el servidor.' }, { status: 500 })
     }
@@ -209,6 +252,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ok: true,
       cvUrl,
       cvFileName,
+      avatarUrl,
       analysis: {
         fullName: String(parsed.fullName ?? '').trim() || 'Nombre no identificado',
         email: String(parsed.email ?? '').trim(),

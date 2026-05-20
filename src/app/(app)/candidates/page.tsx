@@ -705,6 +705,7 @@ function AddCandidateDialog({
     atsScore: prefill?.atsScore ?? '',
     cvUrl: prefill?.cvUrl ?? '',
     cvFileName: prefill?.cvFileName ?? '',
+    avatarUrl: prefill?.avatarUrl ?? '',
   })
   const [saving, setSaving] = React.useState(false)
 
@@ -721,6 +722,7 @@ function AddCandidateDialog({
         atsScore: prefill.atsScore ?? f.atsScore,
         cvUrl: prefill.cvUrl ?? f.cvUrl,
         cvFileName: prefill.cvFileName ?? f.cvFileName,
+        avatarUrl: prefill.avatarUrl ?? f.avatarUrl,
       }))
     }
   }, [prefill])
@@ -743,6 +745,7 @@ function AddCandidateDialog({
       appliedAt: new Date().toISOString(),
       cvUrl: form.cvUrl || undefined,
       cvFileName: form.cvFileName || undefined,
+      avatarUrl: form.avatarUrl || undefined,
     })
     setSaving(false)
     if (result.data) {
@@ -860,7 +863,16 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
       formData.append('file', file)
       formData.append('vacancyRequirements', JSON.stringify([]))
 
-      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData })
+      const aiHeaders: Record<string, string> = {}
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
+        }
+      } catch { /* noop */ }
+
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData, headers: aiHeaders })
       const data = await res.json()
 
       if (!res.ok || !data.ok) {
@@ -870,7 +882,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         return
       }
 
-      const { analysis, cvUrl, cvFileName } = data
+      const { analysis, cvUrl, cvFileName, avatarUrl } = data
       setPrefill({
         fullName: analysis.fullName ?? '',
         email: analysis.email ?? '',
@@ -881,6 +893,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         atsScore: analysis.atsScore,
         cvUrl,
         cvFileName,
+        avatarUrl,
       })
       setStatus('done')
       setShowAdd(true)
