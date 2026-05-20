@@ -396,6 +396,7 @@ export class SupabaseProvider implements DataProvider {
     if (input.notes !== undefined) patch.notes = input.notes
     if (input.cvUrl !== undefined) patch.cv_url = input.cvUrl
     if (input.cvFileName !== undefined) patch.cv_file_name = input.cvFileName
+    if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl
     const { data, error } = await this.sb
       .from('candidates')
       .update(patch)

@@ -417,11 +417,16 @@ function SendModal({
                         const cid = e.target.value
                         setSelectedCandidateId(cid)
                         const c = vacancyCandidates.find(x => x.id === cid)
-                        if (c) setValues(prev => ({
-                          ...prev,
-                          ...(prev.nombre_candidato !== undefined ? { nombre_candidato: c.fullName } : {}),
-                          ...(prev.nombre !== undefined ? { nombre: c.fullName.split(' ')[0] } : {}),
-                        }))
+                        if (c) {
+                          setValues(prev => ({
+                            ...prev,
+                            ...(prev.nombre_candidato !== undefined ? { nombre_candidato: c.fullName } : {}),
+                            ...(prev.nombre !== undefined ? { nombre: c.fullName.split(' ')[0] } : {}),
+                          }))
+                          if (c.phone && template.channel === 'whatsapp') {
+                            setWaPhone(c.phone)
+                          }
+                        }
                       }}
                       className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     >

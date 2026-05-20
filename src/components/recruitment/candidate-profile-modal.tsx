@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/input'
 import { AtsScoreBadge } from './ats-score-badge'
 import { cn, formatDate, getInitials } from '@/lib/utils'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import type { Candidate, Vacancy, VacancyStatus, Interview } from '@/types'
 
 interface CandidateProfileModalProps {
@@ -140,6 +141,8 @@ export function CandidateProfileModal({
   const [editEducation, setEditEducation] = React.useState(initialCandidate.education ?? '')
   const [editSkills, setEditSkills] = React.useState(initialCandidate.skills.join(', '))
   const [isSavingEdit, setIsSavingEdit] = React.useState(false)
+  const avatarInputRef = React.useRef<HTMLInputElement>(null)
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
 
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
@@ -208,6 +211,28 @@ export function CandidateProfileModal({
     }
   }
 
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `avatars/${candidate.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('cvs')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadError) { console.error(uploadError); return }
+      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+      const result = await provider.updateCandidate(candidate.id, { avatarUrl: publicUrl })
+      if (result.data) {
+        setCandidate(result.data)
+        onUpdate(result.data)
+      }
+    } catch (err) { console.error(err) }
+    finally { setUploadingAvatar(false); e.target.value = '' }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
@@ -215,8 +240,38 @@ export function CandidateProfileModal({
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <div className="flex items-start gap-4">
             {/* Avatar */}
-            <div className="h-14 w-14 shrink-0 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl select-none">
-              {initials}
+            <div className="relative shrink-0 group">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              {candidate.avatarUrl ? (
+                <img
+                  src={candidate.avatarUrl}
+                  alt={candidate.fullName}
+                  className="h-14 w-14 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-14 w-14 shrink-0 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl select-none">
+                  {initials}
+                </div>
+              )}
+              {editMode && (
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  title="Cambiar foto"
+                >
+                  {uploadingAvatar
+                    ? <span className="text-white text-xs">...</span>
+                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  }
+                </button>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               {editMode ? (

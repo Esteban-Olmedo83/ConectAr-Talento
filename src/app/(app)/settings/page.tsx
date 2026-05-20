@@ -449,7 +449,7 @@ const EMAIL_NOTIFS = [
 const INAPP_NOTIFS = [
   { key: 'recordatorio_entrevistas', label: 'Recordatorio de entrevistas', default: true },
   { key: 'candidatos_sin_actividad', label: 'Candidatos sin actividad por más de 7 días', default: true },
-  { key: 'vacantes_por_vencer', label: 'Vacantes próximas a vencer', default: false },
+  { key: 'vacantes_por_vencer', label: 'Vacantes próximas a vencer', default: true },
 ]
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
