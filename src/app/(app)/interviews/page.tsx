@@ -196,7 +196,7 @@ function SchedulerModal({
 
 // ─── Scorecard Modal ──────────────────────────────────────────────────────────
 function ScorecardModal({
-  open, onClose, interview, candidateName, onComplete, readOnly,
+  open, onClose, interview, candidateName, onComplete, readOnly, isCompleted,
 }: {
   open: boolean
   onClose: () => void
@@ -204,6 +204,7 @@ function ScorecardModal({
   candidateName: string
   onComplete: (i: Interview) => void
   readOnly?: boolean
+  isCompleted?: boolean
 }) {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const sc = interview.scorecard
@@ -298,9 +299,13 @@ function ScorecardModal({
       strengths, weaknesses, recommendation,
       aiSummary: aiSummary || undefined,
     })
-    const updated = await provider.updateInterview(interview.id, { status: 'Completada' })
-    setSaving(false)
-    if (updated.data) onComplete(updated.data)
+    if (!isCompleted) {
+      const updated = await provider.updateInterview(interview.id, { status: 'Completada' })
+      setSaving(false)
+      if (updated.data) onComplete(updated.data)
+    } else {
+      setSaving(false)
+    }
     onClose()
   }
 
@@ -391,7 +396,7 @@ function ScorecardModal({
             ) : (
               <Button onClick={handleSubmit} disabled={saving} className="ml-auto gap-1.5">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Completar entrevista
+                {isCompleted ? 'Guardar cambios' : 'Completar entrevista'}
               </Button>
             )}
           </div>
@@ -403,7 +408,7 @@ function ScorecardModal({
 
 // ─── Interview Detail Modal ───────────────────────────────────────────────────
 function InterviewDetailModal({
-  open, onClose, interview, candidateName, vacancyTitle, onUpdated,
+  open, onClose, interview, candidateName, vacancyTitle, onUpdated, onOpenScorecard,
 }: {
   open: boolean
   onClose: () => void
@@ -411,6 +416,7 @@ function InterviewDetailModal({
   candidateName: string
   vacancyTitle: string
   onUpdated: (i: Interview) => void
+  onOpenScorecard?: () => void
 }) {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [editing, setEditing] = React.useState(false)
@@ -582,6 +588,11 @@ function InterviewDetailModal({
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            {onOpenScorecard && (
+              <Button type="button" variant="outline" size="sm" onClick={onOpenScorecard} className="gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" /> {interview.status === 'Completada' ? 'Editar scorecard' : 'Completar'}
+              </Button>
+            )}
             {editing && (
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -686,7 +697,7 @@ function InterviewCard({
             {interview.status === 'Completada' && interview.scorecard && (
               <div className="mt-3" onClick={e => e.stopPropagation()}>
                 <button
-                  onClick={() => { setScorecardReadOnly(true); setShowScorecard(true) }}
+                  onClick={() => { setScorecardReadOnly(false); setShowScorecard(true) }}
                   className="text-xs font-medium underline underline-offset-2 transition-opacity hover:opacity-70"
                   style={{ color: 'var(--accent-2)' }}
                 >
@@ -732,6 +743,7 @@ function InterviewCard({
           candidateName={candidate.fullName}
           onComplete={onComplete}
           readOnly={scorecardReadOnly}
+          isCompleted={interview.status === 'Completada'}
         />
       )}
 
@@ -742,6 +754,7 @@ function InterviewCard({
         candidateName={candidate?.fullName ?? 'Candidato'}
         vacancyTitle={vacancy?.title ?? 'Sin vacante'}
         onUpdated={i => { onComplete(i); setShowDetail(false) }}
+        onOpenScorecard={candidate ? () => { setShowDetail(false); setScorecardReadOnly(false); setShowScorecard(true) } : undefined}
       />
     </>
   )
@@ -799,6 +812,7 @@ function RoundChip({
           interview={interview}
           candidateName={candidate.fullName}
           onComplete={onComplete}
+          isCompleted={interview.status === 'Completada'}
         />
       )}
 
@@ -809,6 +823,7 @@ function RoundChip({
         candidateName={candidate?.fullName ?? 'Candidato'}
         vacancyTitle={vacancyTitle}
         onUpdated={i => { onUpdated(i); setShowDetail(false) }}
+        onOpenScorecard={candidate ? () => { setShowDetail(false); setShowScorecard(true) } : undefined}
       />
     </>
   )

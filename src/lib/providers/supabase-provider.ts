@@ -548,7 +548,7 @@ export class SupabaseProvider implements DataProvider {
   async createScorecard(input: CreateScorecardInput): Promise<DataResult<Scorecard>> {
     const { data, error } = await this.sb
       .from('scorecards')
-      .insert({
+      .upsert({
         interview_id: input.interviewId,
         overall_rating: input.overallRating,
         technical_skills: input.technicalSkills,
@@ -559,7 +559,7 @@ export class SupabaseProvider implements DataProvider {
         recommendation: input.recommendation,
         ai_summary: input.aiSummary ?? null,
         notes: input.notes ?? null,
-      })
+      }, { onConflict: 'interview_id' })
       .select()
       .single()
     if (error) return err(error.message)
