@@ -985,17 +985,10 @@ export default function JobProfilesPage() {
       {/* ── Rubro Tabs ── */}
       <div
         style={{
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
           marginBottom: 24,
-          paddingBottom: 2,
-          // Hide scrollbar
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
         }}
-        className="hide-scrollbar"
       >
-        <div style={{ display: 'inline-flex', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {/* "Todos" tab */}
           {['all', ...allRubroNames].map((rubro) => {
             const isActive = selectedRubro === rubro

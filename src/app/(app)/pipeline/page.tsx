@@ -224,6 +224,8 @@ const VARIABLE_LABELS: Record<string, string> = {
   dias_revision: 'Días Hábiles', email_contacto: 'Email de Contacto',
   resultado_mensaje: 'Resultado', mensaje_adicional: 'Mensaje Adicional',
   ubicacion: 'Ubicación', empresa_cliente: 'Empresa Cliente',
+  direccion_entrevista: 'Dirección de Entrevista',
+  instrucciones_llegada: 'Instrucciones al Llegar',
 }
 
 function extractUnfilledVars(text: string): string[] {
@@ -286,6 +288,8 @@ function EmailModal({
     if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
     if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
     if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    if (vacancy?.client?.interviewAddress) out = out.replace(/\{\{direccion_entrevista\}\}/g, vacancy.client.interviewAddress)
+    if (vacancy?.client?.interviewArrivalDetails) out = out.replace(/\{\{instrucciones_llegada\}\}/g, vacancy.client.interviewArrivalDetails)
     // Only replace salario/fecha_inicio if we have a real value; otherwise leave {{var}} intact
     if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
     return out
@@ -315,12 +319,18 @@ function EmailModal({
     for (const [k, v] of Object.entries(extraVars)) {
       out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
     }
-    // Apply dias_revision if toggle enabled and value provided
+    // Apply dias_revision: replace with value if enabled, otherwise strip placeholder
     if (diasRevisionEnabled && diasRevisionValue) {
       out = out.replace(/\{\{dias_revision\}\}/g, diasRevisionValue)
+    } else {
+      out = out.replace(/\{\{dias_revision\}\}/g, '')
     }
     // Remove lines with emoji+unfilled vars
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    // Remove emoji lines where the value is empty (e.g. link presencial)
+    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*$\n?/gm, '')
+    // Clean up double spaces (e.g. from removed inline {{var}})
+    out = out.replace(/  +/g, ' ')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
     return out
   }
@@ -580,13 +590,15 @@ function EmailModal({
 function WhatsAppModal({
   candidate,
   templates,
-  vacancy,
+  vacancies,
+  initialVacancy,
   interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
-  vacancy?: Vacancy
+  vacancies: Vacancy[]
+  initialVacancy?: Vacancy
   interview?: Interview
   onClose: () => void
 }) {
@@ -594,9 +606,13 @@ function WhatsAppModal({
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
     waTemplates.length > 0 ? waTemplates[0].id : ''
   )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState<string>(
+    initialVacancy?.id ?? ''
+  )
   const [message, setMessage] = React.useState('')
 
   const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
+  const vacancy = vacancies.find(v => v.id === selectedVacancyId) ?? initialVacancy
 
   function fillVars(text: string): string {
     const intDate = interview ? new Date(interview.scheduledAt) : null
@@ -621,7 +637,10 @@ function WhatsAppModal({
     if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
     if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
     if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
+    // Remove emoji lines with unfilled vars
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    // Remove emoji lines with empty values (e.g. link when presencial)
+    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*$\n?/gm, '')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
     return out
   }
@@ -633,7 +652,7 @@ function WhatsAppModal({
       setMessage(`Hola ${candidate.fullName}!\n\nMe comunico desde el equipo de Talento. ¿Tenés un momento para charlar?`)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplate, candidate.fullName, vacancy])
+  }, [selectedTemplateId, candidate.fullName, selectedVacancyId])
 
   function formatPhone(phone: string): string {
     let digits = phone.replace(/\D/g, '')
@@ -736,6 +755,25 @@ function WhatsAppModal({
               </select>
             </div>
           )}
+
+          <div>
+            <label style={labelStyle}>Vacante</label>
+            <select
+              value={selectedVacancyId}
+              onChange={e => setSelectedVacancyId(e.target.value)}
+              style={{ ...inputStyle, appearance: 'none' as const }}
+            >
+              <option value="">Sin vacante</option>
+              {vacancies.map(v => (
+                <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+              ))}
+            </select>
+            {vacancy?.client?.name && (
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Cliente: <span style={{ color: '#4ade80', fontWeight: 500 }}>{vacancy.client.name}</span>
+              </p>
+            )}
+          </div>
 
           <div>
             <label style={labelStyle}>Mensaje</label>
@@ -2429,7 +2467,8 @@ export default function PipelinePage() {
           <WhatsAppModal
             candidate={activeModal.candidate}
             templates={templates}
-            vacancy={vac}
+            vacancies={vacancies}
+            initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
           />
