@@ -47,6 +47,9 @@ function mapClient(row: Record<string, unknown>): Client {
     recruitmentEmail: (row.recruitment_email as string) ?? undefined,
     contactPhone: (row.contact_phone as string) ?? undefined,
     whatsappPhone: (row.whatsapp_phone as string) ?? undefined,
+    address: (row.address as string) ?? undefined,
+    interviewAddress: (row.interview_address as string) ?? undefined,
+    interviewArrivalDetails: (row.interview_arrival_details as string) ?? undefined,
     website: (row.website as string) ?? undefined,
     logoUrl: (row.logo_url as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
@@ -237,6 +240,9 @@ export class SupabaseProvider implements DataProvider {
         recruitment_email: input.recruitmentEmail ?? null,
         contact_phone: input.contactPhone ?? null,
         whatsapp_phone: input.whatsappPhone ?? null,
+        address: input.address || undefined,
+        interview_address: input.interviewAddress || undefined,
+        interview_arrival_details: input.interviewArrivalDetails || undefined,
         website: input.website ?? null,
         logo_url: input.logoUrl ?? null,
         notes: input.notes ?? null,
@@ -256,6 +262,9 @@ export class SupabaseProvider implements DataProvider {
     if (input.recruitmentEmail !== undefined) patch.recruitment_email = input.recruitmentEmail
     if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone
     if (input.whatsappPhone !== undefined) patch.whatsapp_phone = input.whatsappPhone
+    if (input.address !== undefined) patch.address = input.address
+    if (input.interviewAddress !== undefined) patch.interview_address = input.interviewAddress
+    if (input.interviewArrivalDetails !== undefined) patch.interview_arrival_details = input.interviewArrivalDetails
     if (input.website !== undefined) patch.website = input.website
     if (input.logoUrl !== undefined) patch.logo_url = input.logoUrl
     if (input.notes !== undefined) patch.notes = input.notes

@@ -636,6 +636,8 @@ function WhatsAppModal({
     if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
     if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
     if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    if (vacancy?.client?.interviewAddress) out = out.replace(/\{\{direccion_entrevista\}\}/g, vacancy.client.interviewAddress)
+    if (vacancy?.client?.interviewArrivalDetails) out = out.replace(/\{\{instrucciones_llegada\}\}/g, vacancy.client.interviewArrivalDetails)
     if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
     // Remove emoji lines with unfilled vars
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')

@@ -43,6 +43,9 @@ function ClientFormDialog({
     contactEmail: client?.contactEmail ?? '',
     contactPhone: client?.contactPhone ?? '',
     website: client?.website ?? '',
+    address: client?.address ?? '',
+    interviewAddress: client?.interviewAddress ?? '',
+    interviewArrivalDetails: client?.interviewArrivalDetails ?? '',
     notes: client?.notes ?? '',
   })
 
@@ -55,6 +58,9 @@ function ClientFormDialog({
         contactEmail: client?.contactEmail ?? '',
         contactPhone: client?.contactPhone ?? '',
         website: client?.website ?? '',
+        address: client?.address ?? '',
+        interviewAddress: client?.interviewAddress ?? '',
+        interviewArrivalDetails: client?.interviewArrivalDetails ?? '',
         notes: client?.notes ?? '',
       })
     }
@@ -77,6 +83,9 @@ function ClientFormDialog({
       contactEmail: form.contactEmail || undefined,
       contactPhone: form.contactPhone || undefined,
       website: form.website || undefined,
+      address: form.address || undefined,
+      interviewAddress: form.interviewAddress || undefined,
+      interviewArrivalDetails: form.interviewArrivalDetails || undefined,
       notes: form.notes || undefined,
     }
     const result = client
@@ -215,6 +224,61 @@ function ClientFormDialog({
                 }}
               />
             </div>
+          </div>
+
+          {/* Dirección de empresa */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Dirección de la empresa
+            </label>
+            <input
+              value={form.address}
+              onChange={e => set('address', e.target.value)}
+              placeholder="Ej: Av. Corrientes 1234, CABA"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
+          </div>
+
+          {/* Dirección de entrevistas */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Dirección para entrevistas
+            </label>
+            <input
+              value={form.interviewAddress}
+              onChange={e => set('interviewAddress', e.target.value)}
+              placeholder="Ej: Misma dirección o piso específico"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
+          </div>
+
+          {/* Instrucciones de llegada */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Instrucciones al llegar
+            </label>
+            <textarea
+              value={form.interviewArrivalDetails}
+              onChange={e => set('interviewArrivalDetails', e.target.value)}
+              rows={2}
+              placeholder="Ej: Preguntar por Recepción, pedir por Recursos Humanos, mencionar que vas a entrevista con ConectAr..."
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
           </div>
 
           {/* Notes */}
@@ -482,6 +546,15 @@ function ClientCard({
             </a>
           )}
         </div>
+
+        {client.interviewAddress && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <Building2 className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+            <span className="text-xs" style={{ color: 'var(--muted2)' }}>
+              {client.interviewAddress}
+            </span>
+          </div>
+        )}
 
         {client.notes && (
           <p

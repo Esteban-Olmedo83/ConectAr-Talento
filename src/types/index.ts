@@ -158,6 +158,9 @@ export interface Client {
   recruitmentEmail?: string   // email used for recruitment communications
   contactPhone?: string
   whatsappPhone?: string      // phone number for WhatsApp
+  address?: string
+  interviewAddress?: string
+  interviewArrivalDetails?: string
   website?: string
   logoUrl?: string
   notes?: string
