@@ -269,25 +269,58 @@ function DeleteClientDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const [confirmed, setConfirmed] = React.useState(false)
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent
-        className="max-w-sm"
+        className="max-w-md"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Eliminar cliente</DialogTitle>
+          <DialogTitle style={{ color: 'var(--text)' }}>Eliminar cliente: {client.name}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
-          ¿Eliminar <strong style={{ color: 'var(--text)' }}>{client.name}</strong>? Las vacantes
-          vinculadas quedarán sin cliente asignado.
-        </p>
+
+        <div className="space-y-3 mt-2">
+          <p className="text-sm" style={{ color: 'var(--text)' }}>
+            Estás a punto de eliminar permanentemente al cliente <strong>{client.name}</strong> y toda su información del sistema.
+          </p>
+
+          <div className="rounded-lg px-3 py-2.5 text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <ul className="ml-3 mt-1 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
+              <li>El perfil y datos de contacto del cliente</li>
+              <li>Todas las vacantes asociadas a este cliente</li>
+              <li>Los procesos de reclutamiento y candidatos vinculados a esas vacantes</li>
+              <li>Las entrevistas y evaluaciones (scorecards) realizadas</li>
+              <li>Los candidatos que tengan este cliente asignado como referencia</li>
+              <li>Todo el historial de actividad y comunicaciones</li>
+            </ul>
+          </div>
+
+          <div className="flex items-start gap-2 pt-1">
+            <input
+              id="confirm-delete-client"
+              type="checkbox"
+              checked={confirmed}
+              onChange={e => setConfirmed(e.target.checked)}
+              className="mt-0.5"
+            />
+            <label htmlFor="confirm-delete-client" className="text-xs cursor-pointer" style={{ color: 'var(--muted)' }}>
+              Entiendo que esta acción es <strong style={{ color: 'var(--text)' }}>irreversible</strong> y que todos los datos relacionados se perderán definitivamente. Solo los administradores pueden realizar esta operación.
+            </label>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
             Cancelar
           </Button>
-          <Button onClick={onConfirm} style={{ background: 'var(--coral)', color: '#fff' }}>
-            Eliminar
+          <Button
+            onClick={onConfirm}
+            disabled={!confirmed}
+            style={{ background: confirmed ? 'var(--coral)' : 'var(--surface2)', color: confirmed ? '#fff' : 'var(--muted)', cursor: confirmed ? 'pointer' : 'not-allowed' }}
+          >
+            Eliminar cliente
           </Button>
         </div>
       </DialogContent>

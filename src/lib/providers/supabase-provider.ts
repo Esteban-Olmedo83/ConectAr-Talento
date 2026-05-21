@@ -86,6 +86,8 @@ function mapCandidate(row: Record<string, unknown>): Candidate {
   return {
     id: row.id as string,
     tenantId: row.tenant_id as string,
+    clientId: (row.client_id as string) ?? undefined,
+    client: row.client ? mapClient(row.client as Record<string, unknown>) : undefined,
     fullName: row.full_name as string,
     email: row.email as string,
     phone: (row.phone as string) ?? undefined,
@@ -351,7 +353,7 @@ export class SupabaseProvider implements DataProvider {
   async getCandidates(tenantId: string): Promise<DataResult<Candidate[]>> {
     const { data, error } = await this.sb
       .from('candidates')
-      .select('*')
+      .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
@@ -363,6 +365,7 @@ export class SupabaseProvider implements DataProvider {
       .from('candidates')
       .insert({
         tenant_id: input.tenantId,
+        client_id: input.clientId ?? null,
         full_name: input.fullName,
         email: input.email,
         phone: input.phone ?? null,
@@ -377,7 +380,7 @@ export class SupabaseProvider implements DataProvider {
         cv_url: input.cvUrl ?? null,
         cv_file_name: input.cvFileName ?? null,
       })
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapCandidate(data as Record<string, unknown>))
@@ -397,11 +400,12 @@ export class SupabaseProvider implements DataProvider {
     if (input.cvUrl !== undefined) patch.cv_url = input.cvUrl
     if (input.cvFileName !== undefined) patch.cv_file_name = input.cvFileName
     if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl
+    if (input.clientId !== undefined) patch.client_id = input.clientId ?? null
     const { data, error } = await this.sb
       .from('candidates')
       .update(patch)
       .eq('id', id)
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapCandidate(data as Record<string, unknown>))
@@ -661,7 +665,7 @@ export class SupabaseProvider implements DataProvider {
   async getApplicationsByCandidateId(candidateId: string): Promise<DataResult<Application[]>> {
     const { data, error } = await this.sb
       .from('applications')
-      .select('*, candidate:candidates(*)')
+      .select('*, candidate:candidates(*, client:clients(*))')
       .eq('candidate_id', candidateId)
       .order('applied_at', { ascending: false })
     if (error) return err(error.message)

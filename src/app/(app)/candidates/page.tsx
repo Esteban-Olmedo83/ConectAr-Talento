@@ -67,12 +67,13 @@ const SOURCE_TEXT: Record<string, string> = {
 }
 
 // ─── View Profile Dialog ──────────────────────────────────────────────────────
-function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, vacancies }: {
+function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, vacancies, clients }: {
   candidate: Candidate | null
   open: boolean
   onClose: () => void
   onUpdate?: (c: Candidate) => void
   vacancies?: Vacancy[]
+  clients?: import('@/types').Client[]
 }) {
   const [candidate, setCandidate] = React.useState<Candidate | null>(null)
   const [editMode, setEditMode] = React.useState(false)
@@ -82,6 +83,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
   const [editExperience, setEditExperience] = React.useState('')
   const [editEducation, setEditEducation] = React.useState('')
   const [editSkills, setEditSkills] = React.useState('')
+  const [editClientId, setEditClientId] = React.useState('')
   const [isSaving, setIsSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState('')
   const cvInputRef = React.useRef<HTMLInputElement>(null)
@@ -104,6 +106,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       setEditExperience(candidateProp.experienceYears != null ? String(candidateProp.experienceYears) : '')
       setEditEducation(candidateProp.education ?? '')
       setEditSkills(candidateProp.skills.join(', '))
+      setEditClientId(candidateProp.clientId ?? '')
       setEditMode(false)
       setSaveError('')
       // Load process info
@@ -182,6 +185,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       experienceYears: Number(editExperience) || undefined,
       education: editEducation || undefined,
       skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
+      clientId: editClientId || undefined,
     })
     setIsSaving(false)
     if (result.error) {
@@ -330,6 +334,29 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
               </label>
               <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.source}</p>
             </div>
+          </div>
+
+          {/* Client */}
+          <div>
+            <label className={labelCls} style={{ color: 'var(--muted)' }}>
+              <Briefcase className="inline h-3 w-3 mr-1" />Cliente
+            </label>
+            {editMode && clients && clients.length > 0 ? (
+              <select
+                value={editClientId}
+                onChange={e => setEditClientId(e.target.value)}
+                className={inputEditCls}
+              >
+                <option value="">Sin cliente asignado</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p className={inputCls} style={{ color: candidate.client ? 'var(--text)' : 'var(--muted)' }}>
+                {candidate.client?.name ?? (editClientId ? clients?.find(c => c.id === editClientId)?.name : '—') ?? '—'}
+              </p>
+            )}
           </div>
 
           {/* Education */}
@@ -856,12 +883,14 @@ function AddCandidateDialog({
   open,
   onClose,
   vacancies,
+  clients,
   prefill,
   onSave,
 }: {
   open: boolean
   onClose: () => void
   vacancies: Vacancy[]
+  clients?: import('@/types').Client[]
   prefill?: Partial<Candidate>
   onSave: (c: Candidate) => void
 }) {
@@ -872,6 +901,7 @@ function AddCandidateDialog({
     email: prefill?.email ?? '',
     phone: prefill?.phone ?? '',
     vacancyId: '',
+    clientId: prefill?.clientId ?? '',
     source: 'LinkedIn' as CandidateSource,
     notes: '',
     skills: prefill?.skills?.join(', ') ?? '',
@@ -908,6 +938,7 @@ function AddCandidateDialog({
     const tenantId = user?.tenantId ?? ''
     const result = await provider.createCandidate({
       tenantId,
+      clientId: form.clientId || undefined,
       fullName: form.fullName,
       email: form.email,
       phone: form.phone || undefined,
@@ -971,12 +1002,21 @@ function AddCandidateDialog({
               </select>
             </div>
           </div>
-          <div>
-            <label className={labelCls}>Vacante</label>
-            <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
-              <option value="">Sin vacante asignada</option>
-              {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Cliente</label>
+              <select value={form.clientId} onChange={e => setForm(f => ({...f, clientId: e.target.value}))} className={inputCls}>
+                <option value="">Sin cliente asignado</option>
+                {(clients ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Vacante</label>
+              <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
+                <option value="">Sin vacante asignada</option>
+                {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <label className={labelCls}>Skills (separadas por coma)</label>
@@ -1147,6 +1187,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
 export default function CandidatesPage() {
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [clients, setClients] = React.useState<import('@/types').Client[]>([])
   const [loading, setLoading] = React.useState(true)
   const [view, setView] = React.useState<'table' | 'grid'>('table')
   const [search, setSearch] = React.useState('')
@@ -1168,12 +1209,14 @@ export default function CandidatesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [cRes, vRes] = await Promise.all([
+    const [cRes, vRes, clRes] = await Promise.all([
       provider.getCandidates(tid),
       provider.getVacancies(tid),
+      provider.getClients(tid),
     ])
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
+    setClients(clRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
@@ -1445,6 +1488,7 @@ export default function CandidatesPage() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         vacancies={vacancies}
+        clients={clients}
         onSave={c => setCandidates(prev => [c, ...prev])}
       />
 
@@ -1455,6 +1499,7 @@ export default function CandidatesPage() {
         onClose={() => setViewCandidate(null)}
         onUpdate={c => setCandidates(prev => prev.map(x => x.id === c.id ? c : x))}
         vacancies={vacancies}
+        clients={clients}
       />
 
       {/* Schedule interview dialog */}

@@ -117,6 +117,8 @@ export interface Interview {
 export interface Candidate {
   id: string
   tenantId: string
+  clientId?: string
+  client?: Client
   fullName: string
   email: string
   phone?: string
