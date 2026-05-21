@@ -677,22 +677,19 @@ export class SupabaseProvider implements DataProvider {
   }
 
   // ── Job Rubros ──
-  async getJobRubros(tenantId: string): Promise<DataResult<JobRubro[]>> {
+  async getJobRubros(_tenantId: string): Promise<DataResult<JobRubro[]>> {
     const { data, error } = await this.sb
       .from('job_rubros')
       .select('*')
-      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapJobRubro))
   }
 
   async createJobRubro(input: CreateJobRubroInput): Promise<DataResult<JobRubro>> {
-    const { data: { user: authUser } } = await this.sb.auth.getUser()
-    const tenantId = authUser?.id ?? input.tenantId
     const { data, error } = await this.sb
       .from('job_rubros')
-      .insert({ tenant_id: tenantId, name: input.name })
+      .insert({ tenant_id: input.tenantId, name: input.name })
       .select()
       .single()
     if (error) return err(error.message)
@@ -706,8 +703,8 @@ export class SupabaseProvider implements DataProvider {
   }
 
   // ── Job Profiles ──
-  async getJobProfiles(tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
-    let q = this.sb.from('job_profiles').select('*').eq('tenant_id', tenantId)
+  async getJobProfiles(_tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
+    let q = this.sb.from('job_profiles').select('*')
     if (rubro) q = q.eq('rubro', rubro)
     const { data, error } = await q.order('perfil', { ascending: true })
     if (error) return err(error.message)
@@ -715,12 +712,10 @@ export class SupabaseProvider implements DataProvider {
   }
 
   async createJobProfile(input: CreateJobProfileInput): Promise<DataResult<CustomJobProfile>> {
-    const { data: { user: authUser } } = await this.sb.auth.getUser()
-    const tenantId = authUser?.id ?? input.tenantId
     const { data, error } = await this.sb
       .from('job_profiles')
       .insert({
-        tenant_id: tenantId,
+        tenant_id: input.tenantId,
         rubro: input.rubro,
         perfil: input.perfil,
         nivel: input.nivel,

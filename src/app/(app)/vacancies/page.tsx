@@ -42,6 +42,7 @@ function VacancyFormDialog({
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [clients, setClients] = React.useState<Client[]>([])
   const [customProfiles, setCustomProfiles] = React.useState<CustomJobProfile[]>([])
+  const [customRubros, setCustomRubros] = React.useState<string[]>([])
   const [manualPerfil, setManualPerfil] = React.useState(false)
   const [form, setForm] = React.useState({
     clientId: vacancy?.clientId ?? '',
@@ -65,7 +66,19 @@ function VacancyFormDialog({
   React.useEffect(() => {
     if (open && user?.tenantId) {
       provider.getClients(user.tenantId).then(r => { if (r.data) setClients(r.data) })
-      provider.getJobProfiles(user.tenantId).then(r => { if (r.data) setCustomProfiles(r.data) })
+      provider.getJobProfiles(user.tenantId).then(r => {
+        if (r.data) {
+          setCustomProfiles(r.data)
+          // Extract unique rubros from custom profiles
+          const uniqueRubros = [...new Set(r.data.map(p => p.rubro).filter(Boolean))]
+          setCustomRubros(uniqueRubros)
+        }
+      })
+      provider.getJobRubros(user.tenantId).then(r => {
+        if (r.data) {
+          setCustomRubros(prev => [...new Set([...prev, ...r.data!.map(r => r.name)])])
+        }
+      })
     }
   }, [open, user?.tenantId])
 
@@ -195,7 +208,7 @@ function VacancyFormDialog({
               <select value={form.rubro} onChange={e => setForm(f => ({...f, rubro: e.target.value, perfil: ''}))}
                 className={inputCls}>
                 <option value="">Seleccioná un rubro</option>
-                {rubros.map(r => <option key={r} value={r}>{r}</option>)}
+                {[...new Set([...rubros, ...customRubros])].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
