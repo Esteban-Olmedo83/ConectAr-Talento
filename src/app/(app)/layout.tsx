@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ToastProvider } from '@/components/ui/toast'
@@ -119,14 +120,8 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
         style={{ background: 'var(--bg)' }}
       >
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg animate-pulse"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-              fontFamily: 'var(--font-nunito)',
-            }}
-          >
-            CT
+          <div className="h-10 w-10 flex items-center justify-center animate-pulse">
+            <Image src="/logo.png" alt="ConectAr Talento" width={40} height={40} style={{ objectFit: 'contain' }} priority />
           </div>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>Cargando...</p>
         </div>

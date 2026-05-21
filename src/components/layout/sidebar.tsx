@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -154,18 +155,9 @@ export function Sidebar({
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <Link href="/pipeline" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
-            {/* Gradient logo square */}
-            <div
-              className="shrink-0 flex items-center justify-center rounded-[9px] text-white font-black text-xs"
-              style={{
-                width: 30,
-                height: 30,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                boxShadow: '0 0 12px var(--accent-glow)',
-                fontFamily: 'var(--font-nunito)',
-              }}
-            >
-              CT
+            {/* Logo */}
+            <div className="shrink-0 flex items-center justify-center" style={{ width: 30, height: 30 }}>
+              <Image src="/logo.png" alt="ConectAr Talento" width={30} height={30} style={{ objectFit: 'contain' }} priority />
             </div>
             {!isCollapsed && (
               <div className="min-w-0">

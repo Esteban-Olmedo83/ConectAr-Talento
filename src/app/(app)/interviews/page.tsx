@@ -272,6 +272,18 @@ function ScorecardModal({
   async function exportPdf() {
     const { default: jsPDF } = await import('jspdf')
 
+    // Load logo as base64 for embedding
+    let logoDataUrl = ''
+    try {
+      const res = await fetch('/logo.png')
+      const blob = await res.blob()
+      logoDataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(blob)
+      })
+    } catch { /* logo optional */ }
+
     const W = 210, H = 297
     const BG       = [11, 22, 35]    as [number,number,number]
     const SURFACE  = [18, 33, 52]    as [number,number,number]
@@ -308,15 +320,17 @@ function ScorecardModal({
       return y + limited.length * lineH
     }
 
-    // ── CT Logo (gradient simulation via two overlapping rects) ──
+    // ── Logo (real PNG or fallback gradient) ──
     const drawLogo = (x: number, y: number, size: number) => {
-      setFill(PURPLE); doc.roundedRect(x, y, size, size, size * 0.28, size * 0.28, 'F')
-      setFill(TEAL);   doc.roundedRect(x, y + size * 0.5, size, size * 0.55, size * 0.1, size * 0.28, 'F')
-      setFill([18, 33, 52]); doc.roundedRect(x, y, size, size, size * 0.28, size * 0.28, 'S')
-      setColor([255, 255, 255] as [number,number,number])
-      doc.setFontSize(size * 0.38)
-      doc.setFont('helvetica', 'bold')
-      doc.text('CT', x + size / 2, y + size * 0.62, { align: 'center' })
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', x, y, size, size)
+      } else {
+        setFill(PURPLE); doc.roundedRect(x, y, size, size, size * 0.28, size * 0.28, 'F')
+        setFill(TEAL);   doc.roundedRect(x, y + size * 0.5, size, size * 0.55, size * 0.1, size * 0.28, 'F')
+        setColor([255, 255, 255] as [number,number,number])
+        doc.setFontSize(size * 0.38); doc.setFont('helvetica', 'bold')
+        doc.text('CT', x + size / 2, y + size * 0.62, { align: 'center' })
+      }
     }
 
     // ── Score bar helper ──
