@@ -283,11 +283,56 @@ export class SupabaseProvider implements DataProvider {
   }
 
   async deleteClient(id: string): Promise<DataResult<void>> {
-    // Unlink vacancies first
-    await this.sb.from('vacancies').update({ client_id: null }).eq('client_id', id)
+    // DB cascades handle: vacancies → applications → interviews → scorecards
+    // candidates.client_id is SET NULL by the FK constraint
     const { error } = await this.sb.from('clients').delete().eq('id', id)
     if (error) return err(error.message)
     return ok(undefined)
+  }
+
+  async getDeleteClientCounts(clientId: string): Promise<{ vacancies: number; applications: number; interviews: number; scorecards: number }> {
+    // Get vacancy IDs for this client
+    const { data: vacancyRows } = await this.sb
+      .from('vacancies')
+      .select('id')
+      .eq('client_id', clientId)
+    const vacancyIds = (vacancyRows ?? []).map((v: { id: string }) => v.id)
+    const vacancyCount = vacancyIds.length
+
+    if (vacancyCount === 0) {
+      return { vacancies: 0, applications: 0, interviews: 0, scorecards: 0 }
+    }
+
+    // Count applications for those vacancies
+    const { count: appCount } = await this.sb
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .in('vacancy_id', vacancyIds)
+
+    // Get interview IDs for those vacancies
+    const { data: interviewRows } = await this.sb
+      .from('interviews')
+      .select('id')
+      .in('vacancy_id', vacancyIds)
+    const interviewIds = (interviewRows ?? []).map((i: { id: string }) => i.id)
+    const interviewCount = interviewIds.length
+
+    // Count scorecards for those interviews
+    let scorecardCount = 0
+    if (interviewCount > 0) {
+      const { count } = await this.sb
+        .from('scorecards')
+        .select('id', { count: 'exact', head: true })
+        .in('interview_id', interviewIds)
+      scorecardCount = count ?? 0
+    }
+
+    return {
+      vacancies: vacancyCount,
+      applications: appCount ?? 0,
+      interviews: interviewCount,
+      scorecards: scorecardCount,
+    }
   }
 
   // ── Vacancies ─────────────────────────────────────────────────────────────
