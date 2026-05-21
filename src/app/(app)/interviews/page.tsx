@@ -272,7 +272,7 @@ function ScorecardModal({
   async function exportPdf() {
     const { default: jsPDF } = await import('jspdf')
 
-    // Load logo as base64 for embedding
+    // Load logo with transparent background
     let logoDataUrl = ''
     try {
       const res = await fetch('/logo-transparent.png')
@@ -285,415 +285,312 @@ function ScorecardModal({
     } catch { /* logo optional */ }
 
     const W = 210, H = 297
+    const ML = 16, MR = 16           // margins left/right
+    const CW = W - ML - MR           // content width
+    const LH_BODY = 4.8              // body line height mm
+
+    // ── Palette ──────────────────────────────────────────────────────────────
     const BG       = [11, 22, 35]    as [number,number,number]
-    const SURFACE  = [18, 33, 52]    as [number,number,number]
-    const SURFACE2 = [24, 42, 64]    as [number,number,number]
+    const SURFACE  = [20, 36, 54]    as [number,number,number]
+    const SURFACE2 = [28, 48, 70]    as [number,number,number]
     const TEAL     = [20, 184, 166]  as [number,number,number]
     const PURPLE   = [139, 92, 246]  as [number,number,number]
     const AMBER    = [245, 158, 11]  as [number,number,number]
     const GREEN    = [16, 185, 129]  as [number,number,number]
     const RED      = [239, 68, 68]   as [number,number,number]
     const YELLOW   = [251, 191, 36]  as [number,number,number]
-    const TEXT     = [240, 244, 248] as [number,number,number]
-    const MUTED    = [148, 163, 184] as [number,number,number]
-    const BORDER   = [38, 60, 88]    as [number,number,number]
+    const TEXT     = [232, 240, 248] as [number,number,number]
+    const MUTED    = [140, 158, 178] as [number,number,number]
+    const BORDER   = [36, 58, 84]    as [number,number,number]
+    const WHITE    = [255, 255, 255] as [number,number,number]
 
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    // ── Shorthand setters ─────────────────────────────────────────────────────
+    const sc  = (c: [number,number,number]) => doc.setTextColor(...c)
+    const sf  = (c: [number,number,number]) => doc.setFillColor(...c)
+    const sd  = (c: [number,number,number]) => doc.setDrawColor(...c)
+    const setBg = () => { sf(BG); doc.rect(0, 0, W, H, 'F') }
 
-    const setBg = () => {
-      doc.setFillColor(...BG); doc.rect(0, 0, W, H, 'F')
-    }
-    const setColor = (c: [number,number,number]) => doc.setTextColor(...c)
-    const setFill  = (c: [number,number,number]) => doc.setFillColor(...c)
-    const setDraw  = (c: [number,number,number]) => doc.setDrawColor(...c)
-
-    const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number, fill?: [number,number,number], stroke?: [number,number,number]) => {
-      if (fill) setFill(fill)
-      if (stroke) { setDraw(stroke); doc.setLineWidth(0.3) }
+    // ── Rounded rect helper ───────────────────────────────────────────────────
+    const rr = (x: number, y: number, w: number, h: number, r: number,
+                fill?: [number,number,number], stroke?: [number,number,number], lw = 0.3) => {
+      if (fill)   sf(fill)
+      if (stroke) { sd(stroke); doc.setLineWidth(lw) }
       doc.roundedRect(x, y, w, h, r, r, fill && stroke ? 'FD' : fill ? 'F' : 'S')
     }
 
-    const wrapText = (text: string, x: number, y: number, maxW: number, lineH: number, maxLines?: number): number => {
-      const lines = doc.splitTextToSize(text, maxW) as string[]
-      const limited = maxLines ? lines.slice(0, maxLines) : lines
-      doc.text(limited, x, y)
-      return y + limited.length * lineH
-    }
-
-    // ── Logo (real PNG or fallback gradient) ──
+    // ── Draw logo ─────────────────────────────────────────────────────────────
     const drawLogo = (x: number, y: number, size: number) => {
       if (logoDataUrl) {
         doc.addImage(logoDataUrl, 'PNG', x, y, size, size)
       } else {
-        setFill(PURPLE); doc.roundedRect(x, y, size, size, size * 0.28, size * 0.28, 'F')
-        setFill(TEAL);   doc.roundedRect(x, y + size * 0.5, size, size * 0.55, size * 0.1, size * 0.28, 'F')
-        setColor([255, 255, 255] as [number,number,number])
-        doc.setFontSize(size * 0.38); doc.setFont('helvetica', 'bold')
-        doc.text('CT', x + size / 2, y + size * 0.62, { align: 'center' })
+        sf(PURPLE); doc.roundedRect(x, y, size, size, size * 0.28, size * 0.28, 'F')
+        sf(TEAL);   doc.roundedRect(x, y + size * 0.5, size, size * 0.55, 2, size * 0.28, 'F')
+        sc(WHITE); doc.setFontSize(size * 0.38); doc.setFont('helvetica', 'bold')
+        doc.text('CT', x + size / 2, y + size * 0.63, { align: 'center' })
       }
     }
 
-    // ── Score bar helper ──
-    const drawScoreBar = (label: string, value: number, x: number, y: number, bw: number) => {
-      setColor(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-      doc.text(label, x, y - 1)
-      const pct = String(value)+'%'
-      doc.text(pct, x + bw, y - 1, { align: 'right' })
-      drawRoundedRect(x, y, bw, 3.5, 1.5, SURFACE2)
-      const fillW = Math.max(1, (value / 100) * bw)
-      // gradient-like: draw two overlapping bars
-      setFill(TEAL)
-      doc.roundedRect(x, y, fillW, 3.5, 1.5, 1.5, 'F')
+    // ── Bounded text block: renders text inside [x,y,maxW] and returns next Y ──
+    const textBlock = (text: string, x: number, y: number, maxW: number,
+                       maxLines: number, fontSize = 8.5, color = TEXT): number => {
+      doc.setFontSize(fontSize); doc.setFont('helvetica', 'normal'); sc(color)
+      const lines = (doc.splitTextToSize(text, maxW) as string[]).slice(0, maxLines)
+      doc.text(lines, x, y)
+      return y + lines.length * LH_BODY
     }
 
-    const pageNum = (n: number, total: number) => {
-      setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-      doc.text(`Pág. ${n} / ${total}`, W / 2, H - 7, { align: 'center' })
-      setColor([60, 85, 110] as [number,number,number]); doc.setFontSize(7)
-      doc.text('ConectAr Talento — Documento confidencial', W / 2, H - 4, { align: 'center' })
+    // ── Draw a score bar ──────────────────────────────────────────────────────
+    const scoreBar = (label: string, value: number, x: number, y: number, bw: number) => {
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); sc(MUTED)
+      doc.text(label, x, y)
+      doc.text(`${value}%`, x + bw, y, { align: 'right' })
+      sf(SURFACE2); doc.roundedRect(x, y + 1.5, bw, 3, 1.5, 1.5, 'F')
+      sf(TEAL);     doc.roundedRect(x, y + 1.5, Math.max(2, (value / 100) * bw), 3, 1.5, 1.5, 'F')
     }
 
-    const sectionHeader = (title: string, y: number) => {
-      setColor(TEXT); doc.setFontSize(14); doc.setFont('helvetica', 'bold')
-      doc.text(title, 18, y)
-      setFill(TEAL); doc.rect(18, y + 2, 30, 0.8, 'F')
-      return y + 12
+    // ── Rating dots ────────────────────────────────────────────────────────────
+    const ratingDots = (rating: number, x: number, cy: number, r = 3) => {
+      for (let i = 0; i < 5; i++) {
+        if (i < rating) { sf(AMBER) } else { sf(SURFACE2) }
+        doc.circle(x + i * (r * 2 + 2), cy, r, 'F')
+      }
     }
 
-    const dateStr   = new Date(interview.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
-    const monthYear = new Date(interview.scheduledAt).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
-    const recColor  = recommendation === 'Avanzar' ? GREEN : recommendation === 'Rechazar' ? RED : YELLOW
-    const recLabel  = recommendation === 'Avanzar' ? 'AVANZAR EN EL PROCESO' : recommendation === 'Rechazar' ? 'NO AVANZAR / RECHAZAR' : 'CONSIDERAR CON RESERVAS'
+    // ── Page footer ───────────────────────────────────────────────────────────
+    const footer = (page: number, total: number) => {
+      sf(BORDER); doc.rect(ML, H - 14, CW, 0.3, 'F')
+      sc(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+      doc.text(`ConectAr Talento  ·  Documento confidencial`, ML, H - 9)
+      doc.text(`${page} / ${total}`, W - MR, H - 9, { align: 'right' })
+    }
 
-    const TOTAL_PAGES = strengths || weaknesses ? 4 : 3
+    // ── Derived values ────────────────────────────────────────────────────────
+    const dateStr   = new Date(interview.scheduledAt).toLocaleDateString('es-AR',
+                      { day: 'numeric', month: 'long', year: 'numeric' })
+    const monthYear = new Date(interview.scheduledAt).toLocaleDateString('es-AR',
+                      { month: 'long', year: 'numeric' })
+    const recColor  = recommendation === 'Avanzar' ? GREEN
+                    : recommendation === 'Rechazar' ? RED : YELLOW
+    const recLabel  = recommendation === 'Avanzar' ? 'AVANZAR EN EL PROCESO'
+                    : recommendation === 'Rechazar' ? 'NO AVANZAR / RECHAZAR'
+                    : 'CONSIDERAR CON RESERVAS'
 
-    // ────────────────────────────────────────────────────────────────────────────
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const TOTAL = 2
+
+    // ══════════════════════════════════════════════════════════════════════════
     // PAGE 1 — COVER
-    // ────────────────────────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
     setBg()
 
-    // Top accent strip
-    setFill(TEAL); doc.rect(0, 0, W, 1.5, 'F')
-    setFill(PURPLE); doc.rect(0, 0, W * 0.5, 1.5, 'F')
+    // Top accent bar
+    sf(PURPLE); doc.rect(0, 0, W / 2, 2, 'F')
+    sf(TEAL);   doc.rect(W / 2, 0, W / 2, 2, 'F')
 
-    // Logo — cover (larger)
-    drawLogo(18, 14, 28)
-
-    // "ConectAr Talento" text next to logo
-    setColor(TEXT); doc.setFontSize(13); doc.setFont('helvetica', 'bold')
-    doc.text('ConectAr', 50, 24)
-    setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-    doc.text('T A L E N T O', 50, 31)
-
-    // Confidential badge
-    drawRoundedRect(W - 50, 20, 32, 7, 2, SURFACE2)
-    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text('CONFIDENCIAL', W - 34, 25, { align: 'center' })
+    // Logo + brand header
+    drawLogo(ML, 10, 30)
+    sc(TEXT); doc.setFontSize(14); doc.setFont('helvetica', 'bold')
+    doc.text('ConectAr', ML + 34, 22)
+    sc(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+    doc.text('T A L E N T O', ML + 34, 29)
+    sc(MUTED); doc.setFontSize(7.5)
+    doc.text('CONFIDENCIAL', W - MR, 22, { align: 'right' })
 
     // Divider
-    setFill(BORDER); doc.rect(18, 50, W - 36, 0.4, 'F')
+    sf(BORDER); doc.rect(ML, 46, CW, 0.4, 'F')
 
-    // Main title
-    setColor(TEAL); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-    doc.text('INFORME DE EVALUACIÓN', 18, 90)
-    setColor(TEXT); doc.setFontSize(32); doc.setFont('helvetica', 'bold')
-    doc.text('ENTREVISTA', 18, 105)
-    doc.setFontSize(22); doc.setFont('helvetica', 'normal')
-    doc.text('PROFESIONAL', 18, 118)
+    // Hero title
+    sc(TEAL); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
+    doc.text('INFORME DE EVALUACIÓN', ML, 68)
+    sc(TEXT); doc.setFontSize(36); doc.setFont('helvetica', 'bold')
+    doc.text('ENTREVISTA', ML, 84)
+    sc([160, 175, 195] as [number,number,number]); doc.setFontSize(20); doc.setFont('helvetica', 'normal')
+    doc.text('PROFESIONAL', ML, 96)
 
-    // Candidate name card
-    drawRoundedRect(16, 135, W - 32, 28, 4, SURFACE)
-    setFill(TEAL); doc.rect(16, 135, 3, 28, 'F')  // left accent
-    // rounded corners fix
-    setFill(TEAL); doc.rect(16, 135, 3, 4, 'F')
-    setFill(TEAL); doc.rect(16, 159, 3, 4, 'F')
+    // Candidate card
+    const cCardY = 110, cCardH = 34
+    rr(ML, cCardY, CW, cCardH, 4, SURFACE)
+    sf(TEAL); doc.rect(ML, cCardY, 3, cCardH, 'F')
+    sc(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+    doc.text('CANDIDATO / A', ML + 8, cCardY + 8)
+    sc(TEXT); doc.setFontSize(20); doc.setFont('helvetica', 'bold')
+    doc.text(candidateName, ML + 8, cCardY + 20)
+    sc(MUTED); doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+    doc.text(vacancyTitle ? `Proceso: ${vacancyTitle}` : 'Proceso de Selección', ML + 8, cCardY + 29)
 
-    setColor(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-    doc.text('CANDIDATO / A', 24, 143)
-    setColor(TEXT); doc.setFontSize(18); doc.setFont('helvetica', 'bold')
-    doc.text(candidateName, 24, 153)
-    setColor(MUTED); doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-    doc.text(vacancyTitle ? `Proceso: ${vacancyTitle}` : 'Proceso de Selección', 24, 160)
-
-    // Info pills row
-    const pillData = [
-      { label: interview.type },
-      { label: dateStr },
-      { label: PLATFORM_LABELS[interview.meetingPlatform] ?? interview.meetingPlatform },
-    ]
-    let pillX = 18
-    pillData.forEach(({ label }) => {
-      const tw = (doc.getStringUnitWidth(label) * 9) / doc.internal.scaleFactor + 8
-      drawRoundedRect(pillX, 173, tw, 7, 2, SURFACE2)
-      setColor(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-      doc.text(label, pillX + tw / 2, 178.5, { align: 'center' })
-      pillX += tw + 3
+    // Info pills
+    const pillItems = [interview.type, dateStr, PLATFORM_LABELS[interview.meetingPlatform]]
+    let px = ML
+    const pillY = cCardY + cCardH + 8
+    pillItems.forEach(lbl => {
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+      const tw = (doc.getStringUnitWidth(lbl) * 7.5) / doc.internal.scaleFactor + 8
+      rr(px, pillY, tw, 7, 2, SURFACE2)
+      sc(MUTED); doc.text(lbl, px + tw / 2, pillY + 5, { align: 'center' })
+      px += tw + 3
     })
 
-    // Recommendation + rating on cover — two cards side by side
-    const covCardY = 192, covCardH = 26
+    // Rating + Recommendation row
+    const rRowY = pillY + 16
+    const halfW = (CW - 4) / 2
     // Rating card
-    drawRoundedRect(18, covCardY, 78, covCardH, 3, SURFACE)
-    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text('CALIFICACIÓN', 57, covCardY + 6, { align: 'center' })
-    // Draw 5 filled/empty circles as rating dots
-    for (let di = 0; di < 5; di++) {
-      const cx = 30 + di * 10, cy = covCardY + 17
-      if (di < overallRating) {
-        setFill(AMBER); doc.circle(cx, cy, 3.5, 'F')
-      } else {
-        setFill(SURFACE2); doc.circle(cx, cy, 3.5, 'F')
-      }
+    rr(ML, rRowY, halfW, 28, 3, SURFACE)
+    sc(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('CALIFICACIÓN GENERAL', ML + halfW / 2, rRowY + 6, { align: 'center' })
+    sc(AMBER); doc.setFontSize(22); doc.setFont('helvetica', 'bold')
+    doc.text(`${overallRating}`, ML + 12, rRowY + 21)
+    sc(MUTED); doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+    doc.text('/ 5', ML + 21, rRowY + 21)
+    ratingDots(overallRating, ML + 38, rRowY + 18, 2.5)
+    // Rec card
+    const rx = ML + halfW + 4
+    rr(rx, rRowY, halfW, 28, 3, recColor.map(v => Math.round(v * 0.13)) as [number,number,number], recColor, 0.4)
+    sc(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('RECOMENDACIÓN', rx + halfW / 2, rRowY + 6, { align: 'center' })
+    sc(recColor); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+    const rLines = doc.splitTextToSize(recLabel, halfW - 8) as string[]
+    doc.text(rLines, rx + halfW / 2, rRowY + 16, { align: 'center' })
+
+    // Interviewer row
+    if (interview.interviewerName) {
+      const irY = rRowY + 36
+      sc(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+      doc.text('Entrevistador/a:', ML, irY)
+      sc(TEXT); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold')
+      doc.text(interview.interviewerName, ML + 28, irY)
     }
-    setColor(AMBER); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-    doc.text(`${overallRating}/5`, 73, covCardY + 20, { align: 'right' })
-    // Recommendation card
-    const covRecX = 100
-    drawRoundedRect(covRecX, covCardY, W - covRecX - 18, covCardH, 3, recColor.map(v => Math.round(v * 0.15)) as [number,number,number])
-    setDraw(recColor); doc.setLineWidth(0.4)
-    doc.roundedRect(covRecX, covCardY, W - covRecX - 18, covCardH, 3, 3, 'S')
-    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text('RESULTADO', W / 2 + 6, covCardY + 6, { align: 'center' })
-    setColor(recColor); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
-    const covRecLines = doc.splitTextToSize(recLabel, W - covRecX - 26) as string[]
-    doc.text(covRecLines, W / 2 + 6, covCardY + 15, { align: 'center' })
 
-    // Bottom divider
-    setFill(BORDER); doc.rect(18, H - 20, W - 36, 0.4, 'F')
-    setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-    const capMonth = monthYear.charAt(0).toUpperCase() + monthYear.slice(1)
-    doc.text(`${capMonth}  ·  Confidencial`, W / 2, H - 13, { align: 'center' })
-    pageNum(1, TOTAL_PAGES)
+    // Bottom brand footer
+    sf(BORDER); doc.rect(ML, H - 22, CW, 0.3, 'F')
+    sc(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+    const cap = monthYear.charAt(0).toUpperCase() + monthYear.slice(1)
+    doc.text(`${cap}  ·  Confidencial`, W / 2, H - 16, { align: 'center' })
+    footer(1, TOTAL)
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // PAGE 2 — RESUMEN GENERAL
-    // ────────────────────────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+    // PAGE 2 — INFORME COMPLETO
+    // ══════════════════════════════════════════════════════════════════════════
     doc.addPage(); setBg()
-    setFill(TEAL); doc.rect(0, 0, W, 1.5, 'F')
-    setFill(PURPLE); doc.rect(0, 0, W * 0.5, 1.5, 'F')
+    sf(PURPLE); doc.rect(0, 0, W / 2, 2, 'F')
+    sf(TEAL);   doc.rect(W / 2, 0, W / 2, 2, 'F')
 
-    // Header logo small
-    drawLogo(18, 8, 12); setColor(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-    doc.text('ConectAr Talento', 33, 13)
-    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text(`Informe — ${candidateName}`, 33, 18)
+    // Mini header
+    drawLogo(ML, 6, 14)
+    sc(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+    doc.text('ConectAr Talento', ML + 17, 11)
+    sc(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text(`Informe de entrevista — ${candidateName}`, ML + 17, 16)
+    sf(BORDER); doc.rect(ML, 23, CW, 0.3, 'F')
 
-    let y = sectionHeader('RESUMEN GENERAL', 34)
+    let y = 28
 
-    // Rating + recommendation side by side cards
-    const cardH = 32
-    // Rating card (left) — dot indicators
-    drawRoundedRect(18, y, 82, cardH, 3, SURFACE)
-    setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-    doc.text('CALIFICACIÓN GENERAL', 59, y + 7, { align: 'center' })
-    // Large score number
-    setColor(AMBER); doc.setFontSize(20); doc.setFont('helvetica', 'bold')
-    doc.text(`${overallRating}`, 34, y + 24)
-    setColor(MUTED); doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-    doc.text('/ 5', 41, y + 24)
-    // Dot row
-    for (let di = 0; di < 5; di++) {
-      const cx = 57 + di * 8, cy = y + 20
-      if (di < overallRating) {
-        setFill(AMBER); doc.circle(cx, cy, 3, 'F')
-      } else {
-        setFill(SURFACE2); doc.circle(cx, cy, 3, 'F')
-      }
-    }
+    // ── Section: Puntuaciones ─────────────────────────────────────────────────
+    sc(TEXT); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text('PUNTUACIONES', ML, y)
+    sf(TEAL); doc.rect(ML, y + 1.5, 24, 0.7, 'F')
+    y += 7
 
-    // Recommendation card (right)
-    drawRoundedRect(104, y, 88, cardH, 3, recColor.map(v => Math.round(v * 0.12)) as [number,number,number])
-    setDraw(recColor); doc.setLineWidth(0.4)
-    doc.roundedRect(104, y, 88, cardH, 3, 3, 'S')
-    setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-    doc.text('RECOMENDACIÓN', 148, y + 7, { align: 'center' })
-    setColor(recColor); doc.setFontSize(9.5); doc.setFont('helvetica', 'bold')
-    const recLines = doc.splitTextToSize(recLabel, 78) as string[]
-    doc.text(recLines, 148, y + 19, { align: 'center' })
-    y += cardH + 8
-
-    // Summary
-    if (aiSummary) {
-      drawRoundedRect(18, y, W - 36, 52, 3, SURFACE)
-      setColor(TEAL); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-      doc.text('RESUMEN DE LA ENTREVISTA', 24, y + 8)
-      setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
-      const summaryLines = doc.splitTextToSize(aiSummary, W - 52) as string[]
-      const maxL = Math.min(summaryLines.length, 12)
-      doc.text(summaryLines.slice(0, maxL), 24, y + 17)
-      y += 58
-    } else {
-      y += 4
-    }
-
-    // Score bars
-    setColor(TEXT); doc.setFontSize(10); doc.setFont('helvetica', 'bold')
-    doc.text('PUNTUACIONES', 18, y + 6)
-    setFill(TEAL); doc.rect(18, y + 8, 26, 0.8, 'F')
-    y += 16
-
-    const barW = W - 36
+    // 2-column bar layout (more compact)
+    const col1x = ML, col2x = ML + CW / 2 + 2
+    const barW = CW / 2 - 4
     const barData = [
       { label: 'Habilidades Técnicas', value: scores.technicalSkills },
       { label: 'Comunicación',         value: scores.communication },
       { label: 'Fit Cultural',         value: scores.culturalFit },
       { label: 'Motivación',           value: scores.motivation },
     ]
-    barData.forEach(({ label, value }) => {
-      drawScoreBar(label, value, 18, y, barW)
-      y += 12
-    })
+    scoreBar(barData[0].label, barData[0].value, col1x, y, barW)
+    scoreBar(barData[1].label, barData[1].value, col2x, y, barW)
+    y += 10
+    scoreBar(barData[2].label, barData[2].value, col1x, y, barW)
+    scoreBar(barData[3].label, barData[3].value, col2x, y, barW)
+    y += 14
 
-    pageNum(2, TOTAL_PAGES)
+    // ── Section: Resumen de la entrevista ─────────────────────────────────────
+    if (aiSummary) {
+      sc(TEXT); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+      doc.text('RESUMEN DE LA ENTREVISTA', ML, y)
+      sf(TEAL); doc.rect(ML, y + 1.5, 42, 0.7, 'F')
+      y += 7
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // PAGE 3 — DATOS DEL CANDIDATO
-    // ────────────────────────────────────────────────────────────────────────────
-    doc.addPage(); setBg()
-    setFill(TEAL); doc.rect(0, 0, W, 1.5, 'F')
-    setFill(PURPLE); doc.rect(0, 0, W * 0.5, 1.5, 'F')
-
-    drawLogo(18, 8, 12); setColor(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-    doc.text('ConectAr Talento', 33, 13)
-    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text(`Informe — ${candidateName}`, 33, 18)
-
-    y = sectionHeader('DATOS DEL CANDIDATO', 34)
-
-    // Info grid card
-    const infoH = 50
-    drawRoundedRect(18, y, W - 36, infoH, 3, SURFACE)
-    const col1x = 24, col2x = W / 2 + 4
-    const rowH = 9
-    const infoRows = [
-      ['Candidato/a',   candidateName],
-      ['Puesto',        vacancyTitle ?? 'N/D'],
-      ['Fecha',         dateStr],
-      ['Modalidad',     PLATFORM_LABELS[interview.meetingPlatform] ?? interview.meetingPlatform],
-      ['Entrevistador', interview.interviewerName || 'N/D'],
-      ['Tipo',          interview.type],
-    ]
-    infoRows.forEach(([lbl, val], i) => {
-      const row = i < 3 ? i : i - 3
-      const cx  = i < 3 ? col1x : col2x
-      const ry  = y + 10 + row * rowH
-      setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-      doc.text(lbl.toUpperCase(), cx, ry)
-      setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
-      doc.text(val, cx, ry + 4.5)
-    })
-    y += infoH + 8
-
-    // Candidate contact info (if available)
-    if (candidate?.email || candidate?.phone) {
-      drawRoundedRect(18, y, W - 36, 18, 3, SURFACE2)
-      setColor(TEAL); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold')
-      doc.text('CONTACTO', 24, y + 7)
-      setColor(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-      if (candidate.email) doc.text(`✉  ${candidate.email}`, 24, y + 14)
-      if (candidate.phone) doc.text(`✆  ${candidate.phone}`, W / 2, y + 14)
-      y += 24
+      // Calculate how many lines fit with a max cap
+      const MAX_SUMMARY_LINES = 14
+      const summaryLines = (doc.splitTextToSize(aiSummary, CW - 10) as string[]).slice(0, MAX_SUMMARY_LINES)
+      const summaryCardH = summaryLines.length * LH_BODY + 12
+      rr(ML, y, CW, summaryCardH, 3, SURFACE)
+      sc(TEXT); doc.setFontSize(8.2); doc.setFont('helvetica', 'normal')
+      doc.text(summaryLines, ML + 5, y + 7)
+      y += summaryCardH + 8
     }
 
-    // Interview notes (context)
-    if (interview.notes) {
-      y = sectionHeader('CONTEXTO DE LA ENTREVISTA', y + 4)
-      drawRoundedRect(18, y, W - 36, 35, 3, SURFACE)
-      setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
-      const noteLines = doc.splitTextToSize(interview.notes, W - 52) as string[]
-      doc.text(noteLines.slice(0, 6), 24, y + 9)
-      y += 41
-    }
+    // ── Section: Fortalezas & Áreas de mejora (2-col if both) ────────────────
+    const hasStre = strengths.trim().length > 0
+    const hasWeak = weaknesses.trim().length > 0
 
-    // Candidate profile (education/experience)
-    if (candidate?.education || (candidate?.experienceYears !== undefined && candidate.experienceYears > 0)) {
-      y = sectionHeader('PERFIL PROFESIONAL', y + 4)
-      drawRoundedRect(18, y, W - 36, 30, 3, SURFACE)
-      let py = y + 9
-      if (candidate.experienceYears) {
-        setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-        doc.text('EXPERIENCIA', 24, py)
-        setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
-        doc.text(`${candidate.experienceYears} años`, 24, py + 5)
-        py += 10
-      }
-      if (candidate.education) {
-        setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-        doc.text('FORMACIÓN', 24, py)
-        setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
-        const eduLines = doc.splitTextToSize(candidate.education, W - 52) as string[]
-        doc.text(eduLines.slice(0, 2), 24, py + 5)
+    if (hasStre || hasWeak) {
+      if (hasStre && hasWeak) {
+        // Two columns
+        const colW = (CW - 4) / 2
+        const sLines = (doc.splitTextToSize(strengths,  colW - 10) as string[]).slice(0, 8)
+        const wLines = (doc.splitTextToSize(weaknesses, colW - 10) as string[]).slice(0, 8)
+        const blockH = Math.max(sLines.length, wLines.length) * LH_BODY + 20
+
+        // Fortalezas
+        sc(GREEN); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+        doc.text('FORTALEZAS', ML, y)
+        sf(GREEN); doc.rect(ML, y + 1.5, 18, 0.7, 'F')
+        y += 6
+        rr(ML, y, colW, blockH, 3, SURFACE)
+        sf(GREEN); doc.rect(ML, y, 2.5, blockH, 'F')
+        sc(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+        doc.text(sLines, ML + 6, y + 7)
+
+        // Áreas de mejora
+        const wx = ML + colW + 4
+        sc(AMBER); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+        doc.text('ÁREAS DE MEJORA', wx, y - 6)
+        sf(AMBER); doc.rect(wx, y - 4.5, 22, 0.7, 'F')
+        rr(wx, y, colW, blockH, 3, SURFACE)
+        sf(AMBER); doc.rect(wx, y, 2.5, blockH, 'F')
+        sc(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+        doc.text(wLines, wx + 6, y + 7)
+
+        y += blockH + 8
+      } else {
+        // Single column
+        const src = hasStre ? strengths : weaknesses
+        const color = hasStre ? GREEN : AMBER
+        const label = hasStre ? 'FORTALEZAS' : 'ÁREAS DE MEJORA'
+        const srcLines = (doc.splitTextToSize(src, CW - 10) as string[]).slice(0, 10)
+        const bH = srcLines.length * LH_BODY + 12
+
+        sc(color); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+        doc.text(label, ML, y)
+        sf(color); doc.rect(ML, y + 1.5, label.length * 1.2, 0.7, 'F')
+        y += 6
+        rr(ML, y, CW, bH, 3, SURFACE)
+        sf(color); doc.rect(ML, y, 2.5, bH, 'F')
+        sc(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+        doc.text(srcLines, ML + 6, y + 7)
+        y += bH + 8
       }
     }
 
-    pageNum(3, TOTAL_PAGES)
+    // ── Section: Conclusión ────────────────────────────────────────────────────
+    const concH = 22
+    rr(ML, y, CW, concH, 4, recColor.map(v => Math.round(v * 0.12)) as [number,number,number], recColor, 0.4)
+    sc(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('CONCLUSIÓN Y RECOMENDACIÓN', ML + CW / 2, y + 6, { align: 'center' })
+    sc(recColor); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+    doc.text(recLabel, ML + CW / 2, y + 15, { align: 'center' })
+    y += concH
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // PAGE 4 — FORTALEZAS / ÁREAS DE MEJORA (conditional)
-    // ────────────────────────────────────────────────────────────────────────────
-    if (strengths || weaknesses) {
-      doc.addPage(); setBg()
-      setFill(TEAL); doc.rect(0, 0, W, 1.5, 'F')
-      setFill(PURPLE); doc.rect(0, 0, W * 0.5, 1.5, 'F')
-
-      drawLogo(18, 8, 12); setColor(TEXT); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-      doc.text('ConectAr Talento', 33, 13)
-      setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-      doc.text(`Informe — ${candidateName}`, 33, 18)
-
-      y = sectionHeader('EVALUACIÓN DETALLADA', 34)
-
-      // Fortalezas
-      if (strengths) {
-        drawRoundedRect(18, y, W - 36, 8, 2, GREEN.map(v => Math.round(v * 0.15)) as [number,number,number])
-        setColor(GREEN); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-        doc.text('FORTALEZAS', 24, y + 5.5)
-        y += 12
-        drawRoundedRect(18, y, W - 36, 55, 3, SURFACE)
-        setFill(GREEN); doc.rect(18, y, 3, 55, 'F')
-        setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
-        const sLines = doc.splitTextToSize(strengths, W - 52) as string[]
-        doc.text(sLines.slice(0, 9), 26, y + 8)
-        y += 61
-      }
-
-      // Áreas de mejora
-      if (weaknesses) {
-        y += 4
-        drawRoundedRect(18, y, W - 36, 8, 2, AMBER.map(v => Math.round(v * 0.15)) as [number,number,number])
-        setColor(AMBER); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-        doc.text('ÁREAS DE MEJORA', 24, y + 5.5)
-        y += 12
-        drawRoundedRect(18, y, W - 36, 55, 3, SURFACE)
-        setFill(AMBER); doc.rect(18, y, 3, 55, 'F')
-        setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
-        const wLines = doc.splitTextToSize(weaknesses, W - 52) as string[]
-        doc.text(wLines.slice(0, 9), 26, y + 8)
-        y += 61
-      }
-
-      // Final recommendation box
-      y += 6
-      drawRoundedRect(18, y, W - 36, 32, 4, recColor.map(v => Math.round(v * 0.12)) as [number,number,number])
-      setDraw(recColor); doc.setLineWidth(0.5)
-      doc.roundedRect(18, y, W - 36, 32, 4, 4, 'S')
-      setColor(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-      doc.text('DECISIÓN FINAL DEL ENTREVISTADOR', W / 2, y + 8, { align: 'center' })
-      setColor(recColor); doc.setFontSize(14); doc.setFont('helvetica', 'bold')
-      doc.text(recLabel, W / 2, y + 19, { align: 'center' })
-      // Rating dots centered
-      const dotStartX = W / 2 - 22
-      for (let di = 0; di < 5; di++) {
-        const cx = dotStartX + di * 11
-        if (di < overallRating) {
-          setFill(AMBER); doc.circle(cx, y + 27, 3.5, 'F')
-        } else {
-          setFill(SURFACE2); doc.circle(cx, y + 27, 3.5, 'F')
-        }
-      }
-
-      pageNum(4, TOTAL_PAGES)
+    // Bottom logo watermark
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, 'PNG', W / 2 - 8, H - 30, 16, 16)
     }
+
+    footer(2, TOTAL)
 
     doc.save(`informe-${candidateName.replace(/\s+/g, '-').toLowerCase()}.pdf`)
   }
