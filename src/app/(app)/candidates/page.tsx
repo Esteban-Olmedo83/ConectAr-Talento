@@ -11,7 +11,7 @@ import {
 import { cn, formatRelativeDate, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
@@ -197,22 +197,25 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>Perfil del candidato</DialogTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => { setEditMode(e => !e); setSaveError('') }}
-              className="ml-4"
-            >
-              {editMode ? 'Cancelar' : 'Editar'}
-            </Button>
-          </div>
-        </DialogHeader>
+    <DraggableModal
+      open={open}
+      onClose={onClose}
+      title={
+        <div className="flex items-center justify-between w-full">
+          <span>Perfil del candidato</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => { setEditMode(e => !e); setSaveError('') }}
+            className="ml-4"
+          >
+            {editMode ? 'Cancelar' : 'Editar'}
+          </Button>
+        </div>
+      }
+      maxWidth="32rem"
+    >
         <div className="mt-2 space-y-4">
           {/* Avatar + name */}
           <div className="flex items-center gap-3">
