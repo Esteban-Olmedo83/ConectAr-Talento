@@ -283,7 +283,10 @@ export default function DashboardPage() {
 
   const filteredCandidates = filterClient === 'all'
     ? candidates
-    : candidates.filter(c => filteredCandidateIds!.has(c.id))
+    : candidates.filter(c =>
+        c.clientId === filterClient ||
+        filteredCandidateIds!.has(c.id)
+      )
 
   // Derive filtered interviews: those whose vacancy belongs to the selected client
   const filteredInterviews = filterClient === 'all'
