@@ -10,10 +10,10 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { Client, Vacancy, Application } from '@/types'
+import type { Client, Vacancy, Application, Candidate } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -87,91 +87,83 @@ function EditClientDialog({ client, onClose, onSave }: {
   }
 
   return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="max-w-lg w-full"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Editar cliente</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+    <DraggableModal open onClose={onClose} title="Editar cliente" maxWidth="32rem">
+      <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+            Empresa *
+          </label>
+          <input
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            required
+            placeholder="Nombre de la empresa"
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+            Industria
+          </label>
+          <select
+            value={form.industry}
+            onChange={e => set('industry', e.target.value)}
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          >
+            <option value="">Seleccionar...</option>
+            {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-              Empresa *
-            </label>
-            <input
-              value={form.name}
-              onChange={e => set('name', e.target.value)}
-              required
-              placeholder="Nombre de la empresa"
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
-              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-              Industria
-            </label>
-            <select
-              value={form.industry}
-              onChange={e => set('industry', e.target.value)}
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Contacto</label>
+            <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Nombre del contacto"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            >
-              <option value="">Seleccionar...</option>
-              {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Contacto</label>
-              <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Nombre del contacto"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Email</label>
-              <input type="email" value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="email@empresa.com"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Teléfono</label>
-              <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="+54 11..."
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Sitio web</label>
-              <input value={form.website} onChange={e => set('website', e.target.value)} placeholder="www.empresa.com"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Notas internas</label>
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
-              placeholder="Contexto del cliente, preferencias, acuerdos..."
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
-          {saveError && (
-            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
-              {saveError}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
-            <Button type="submit" disabled={saving || !form.name.trim()} style={{ background: 'var(--accent)', color: '#fff' }}>
-              {saving ? 'Guardando...' : 'Guardar cambios'}
-            </Button>
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Email</label>
+            <input type="email" value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="email@empresa.com"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Teléfono</label>
+            <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="+54 11..."
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Sitio web</label>
+            <input value={form.website} onChange={e => set('website', e.target.value)} placeholder="www.empresa.com"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Notas internas</label>
+          <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
+            placeholder="Contexto del cliente, preferencias, acuerdos..."
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
+            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        </div>
+        {saveError && (
+          <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
+            {saveError}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+          <Button type="submit" disabled={saving || !form.name.trim()} style={{ background: 'var(--accent)', color: '#fff' }}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </div>
+      </form>
+    </DraggableModal>
   )
 }
 
@@ -184,26 +176,18 @@ function DeleteConfirmDialog({ name, onConfirm, onClose, deleting }: {
   deleting: boolean
 }) {
   return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="max-w-sm"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Eliminar cliente</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
-          ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? Las vacantes
-          vinculadas quedarán sin cliente asignado.
-        </p>
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
-          <Button onClick={onConfirm} disabled={deleting} style={{ background: 'var(--coral)', color: '#fff' }}>
-            {deleting ? 'Eliminando...' : 'Eliminar'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DraggableModal open onClose={onClose} title="Eliminar cliente" maxWidth="24rem">
+      <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
+        ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? Las vacantes
+        vinculadas quedarán sin cliente asignado.
+      </p>
+      <div className="flex justify-end gap-2 mt-4">
+        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+        <Button onClick={onConfirm} disabled={deleting} style={{ background: 'var(--coral)', color: '#fff' }}>
+          {deleting ? 'Eliminando...' : 'Eliminar'}
+        </Button>
+      </div>
+    </DraggableModal>
   )
 }
 
@@ -290,15 +274,19 @@ function VacancyRow({ vacancy, applications, clientId }: {
 
 // ─── Candidate Row ────────────────────────────────────────────────────────────
 
-function CandidateRow({ application, vacancyTitle }: {
-  application: Application
+function CandidateRow({ application, candidate, vacancyTitle }: {
+  application: Application | null
+  candidate: Candidate | null
   vacancyTitle: string
 }) {
-  const candidate = application.candidate
-  const stagePill = STAGE_COLORS[application.status] ?? STAGE_COLORS['Nuevas Vacantes']
-  const name = candidate?.fullName ?? `Candidato ${application.candidateId.slice(0, 6)}`
-  const email = candidate?.email
-  const score = candidate?.atsScore
+  const resolvedCandidate = candidate ?? application?.candidate ?? null
+  const stagePill = application
+    ? (STAGE_COLORS[application.status] ?? STAGE_COLORS['Nuevas Vacantes'])
+    : null
+  const fallbackId = application?.candidateId ?? resolvedCandidate?.id ?? 'unknown'
+  const name = resolvedCandidate?.fullName ?? `Candidato ${fallbackId.slice(0, 6)}`
+  const email = resolvedCandidate?.email
+  const score = resolvedCandidate?.atsScore
 
   return (
     <div
@@ -326,7 +314,7 @@ function CandidateRow({ application, vacancyTitle }: {
         </div>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        {score !== undefined && (
+        {score !== undefined && score !== null && (
           <span
             className="text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}
@@ -334,12 +322,21 @@ function CandidateRow({ application, vacancyTitle }: {
             {score}%
           </span>
         )}
-        <span
-          className="text-xs px-2 py-0.5 rounded-full"
-          style={{ background: stagePill.bg, color: stagePill.text }}
-        >
-          {application.status}
-        </span>
+        {stagePill && application ? (
+          <span
+            className="text-xs px-2 py-0.5 rounded-full"
+            style={{ background: stagePill.bg, color: stagePill.text }}
+          >
+            {application.status}
+          </span>
+        ) : (
+          <span
+            className="text-xs px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--surface2)', color: 'var(--muted2)' }}
+          >
+            Sin postulación
+          </span>
+        )}
       </div>
     </div>
   )
@@ -377,6 +374,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [client, setClient] = React.useState<Client | null>(null)
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
+  const [directCandidates, setDirectCandidates] = React.useState<Candidate[]>([])
   const [loading, setLoading] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)
   const [tab, setTab] = React.useState<'vacantes' | 'candidatos'>('vacantes')
@@ -387,10 +385,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   async function load() {
     if (!user?.tenantId) return
     setLoading(true)
-    const [cr, vr, ar] = await Promise.all([
+    const [cr, vr, ar, candResult] = await Promise.all([
       provider.getClients(user.tenantId),
       provider.getVacancies(user.tenantId),
       provider.getApplications(undefined, user.tenantId),
+      provider.getCandidates(user.tenantId),
     ])
     const found = cr.data?.find(c => c.id === id) ?? null
     if (!found) {
@@ -403,6 +402,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     setVacancies(clientVacancies)
     const vacancyIds = new Set(clientVacancies.map(v => v.id))
     setApplications((ar.data ?? []).filter(a => vacancyIds.has(a.vacancyId)))
+    const directCands = (candResult.data ?? []).filter(c => c.clientId === id)
+    setDirectCandidates(directCands)
     setLoading(false)
   }
 
@@ -417,7 +418,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const totalCandidates = new Set(applications.map(a => a.candidateId)).size
+  const totalCandidates = React.useMemo(() => {
+    const ids = new Set(applications.map(a => a.candidateId))
+    directCandidates.forEach(c => ids.add(c.id))
+    return ids.size
+  }, [applications, directCandidates])
   const shortlisted = applications.filter(a => FINAL_STAGES.has(a.status)).length
 
   const appsByVacancy = React.useMemo(() => {
@@ -431,18 +436,26 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   const uniqueCandidateApps = React.useMemo(() => {
     const seen = new Set<string>()
-    const result: Array<{ application: Application; vacancyTitle: string }> = []
+    const result: Array<{ application: Application | null; candidate: Candidate | null; vacancyTitle: string }> = []
+    // First, candidates via applications (sorted by most recently updated)
     applications
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .forEach(a => {
         if (!seen.has(a.candidateId)) {
           seen.add(a.candidateId)
           const vacancy = vacancies.find(v => v.id === a.vacancyId)
-          result.push({ application: a, vacancyTitle: vacancy?.title ?? '—' })
+          result.push({ application: a, candidate: a.candidate ?? null, vacancyTitle: vacancy?.title ?? '—' })
         }
       })
+    // Then, directly-assigned candidates without an application
+    directCandidates.forEach(c => {
+      if (!seen.has(c.id)) {
+        seen.add(c.id)
+        result.push({ application: null, candidate: c, vacancyTitle: '—' })
+      }
+    })
     return result
-  }, [applications, vacancies])
+  }, [applications, vacancies, directCandidates])
 
   if (loading) return <Skeleton />
 
@@ -647,10 +660,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </p>
             </div>
           ) : (
-            uniqueCandidateApps.map(({ application, vacancyTitle }) => (
+            uniqueCandidateApps.map(({ application, candidate, vacancyTitle }, idx) => (
               <CandidateRow
-                key={application.id}
+                key={application?.id ?? candidate?.id ?? idx}
                 application={application}
+                candidate={candidate}
                 vacancyTitle={vacancyTitle}
               />
             ))
