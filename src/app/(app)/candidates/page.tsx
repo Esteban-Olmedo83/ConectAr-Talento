@@ -1240,15 +1240,15 @@ export default function CandidatesPage() {
   }, [candidates, vacancies, applications, filterClient, search, filterScore, filterSource])
 
   const kpis = React.useMemo(() => {
-    const total = candidates.length
-    const withScore = candidates.filter(c => c.atsScore !== undefined).length
+    const total = filtered.length
+    const withScore = filtered.filter(c => c.atsScore !== undefined).length
     const avgScore = withScore > 0
-      ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / withScore)
+      ? Math.round(filtered.reduce((s, c) => s + (c.atsScore ?? 0), 0) / withScore)
       : 0
     const weekAgo = new Date(new Date(metricsNowIso).getTime() - 7 * 86400000).toISOString()
-    const newThisWeek = candidates.filter(c => c.createdAt >= weekAgo).length
+    const newThisWeek = filtered.filter(c => c.createdAt >= weekAgo).length
     return { total, withScore, avgScore, newThisWeek }
-  }, [candidates, metricsNowIso])
+  }, [filtered, metricsNowIso])
 
   function checkCandidateLimit(): boolean {
     if (candidates.length >= planLimits.candidates) {
@@ -1294,7 +1294,11 @@ export default function CandidatesPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Candidatos</h1>
-          <p className="text-sm text-muted-foreground">{kpis.total} candidatos en la base de datos</p>
+          <p className="text-sm text-muted-foreground">
+            {filterClient !== 'all' || filterScore !== 'all' || filterSource !== 'all' || search
+              ? `${kpis.total} candidatos encontrados`
+              : `${kpis.total} candidatos en la base de datos`}
+          </p>
         </div>
         <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
           <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Agregar candidato</span><span className="sm:hidden">Agregar</span>
