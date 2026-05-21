@@ -1188,6 +1188,8 @@ export default function CandidatesPage() {
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [clients, setClients] = React.useState<import('@/types').Client[]>([])
+  const [applications, setApplications] = React.useState<import('@/types').Application[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
   const [loading, setLoading] = React.useState(true)
   const [view, setView] = React.useState<'table' | 'grid'>('table')
   const [search, setSearch] = React.useState('')
@@ -1209,14 +1211,16 @@ export default function CandidatesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [cRes, vRes, clRes] = await Promise.all([
+    const [cRes, vRes, clRes, appRes] = await Promise.all([
       provider.getCandidates(tid),
       provider.getVacancies(tid),
       provider.getClients(tid),
+      provider.getApplications(undefined, tid),
     ])
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
     setClients(clRes.data ?? [])
+    setApplications(appRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
@@ -1230,6 +1234,11 @@ export default function CandidatesPage() {
 
   const filtered = React.useMemo(() => {
     return candidates.filter(c => {
+      if (filterClient !== 'all') {
+        const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
+        const appliedToClient = applications.some(a => a.candidateId === c.id && clientVacancyIds.has(a.vacancyId))
+        if (c.clientId !== filterClient && !appliedToClient) return false
+      }
       if (search && !c.fullName.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false
       if (filterScore === '80+' && (c.atsScore ?? 0) < 80) return false
       if (filterScore === '60-79' && ((c.atsScore ?? 0) < 60 || (c.atsScore ?? 0) >= 80)) return false
@@ -1238,7 +1247,7 @@ export default function CandidatesPage() {
       if (filterSource !== 'all' && c.source !== filterSource) return false
       return true
     })
-  }, [candidates, search, filterScore, filterSource])
+  }, [candidates, vacancies, applications, filterClient, search, filterScore, filterSource])
 
   const kpis = React.useMemo(() => {
     const total = candidates.length
@@ -1345,6 +1354,15 @@ export default function CandidatesPage() {
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         </div>
+        {clients.length > 0 && (
+          <div className="relative">
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
+              <option value="all">Todos los clientes</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        )}
         <div className="flex rounded-md border border-input overflow-hidden ml-auto">
           <button onClick={() => setView('table')} className={cn('px-2.5 py-2', view === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}>
             <List className="h-4 w-4" />

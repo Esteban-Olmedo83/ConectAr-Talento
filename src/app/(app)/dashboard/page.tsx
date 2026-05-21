@@ -268,9 +268,6 @@ export default function DashboardPage() {
   const vacancyMap = new Map<string, Vacancy>()
   vacancies.forEach(v => vacancyMap.set(v.id, v))
 
-  // Build Set of candidateIds that have at least one interview
-  const candidateIdsWithInterview = new Set<string>(interviews.map(i => i.candidateId))
-
   // Apply client filter
   const applications = filterClient === 'all'
     ? allApplications
@@ -279,11 +276,31 @@ export default function DashboardPage() {
         return vac?.clientId === filterClient
       })
 
+  // Derive filtered candidates: those who appear in filtered applications (or all if no filter)
+  const filteredCandidateIds = filterClient === 'all'
+    ? null
+    : new Set(applications.map(a => a.candidateId))
+
+  const filteredCandidates = filterClient === 'all'
+    ? candidates
+    : candidates.filter(c => filteredCandidateIds!.has(c.id))
+
+  // Derive filtered interviews: those whose vacancy belongs to the selected client
+  const filteredInterviews = filterClient === 'all'
+    ? interviews
+    : interviews.filter(i => {
+        const v = vacancyMap.get(i.vacancyId ?? '')
+        return v?.clientId === filterClient
+      })
+
+  // Build Set of candidateIds that have at least one interview
+  const candidateIdsWithInterview = new Set<string>(filteredInterviews.map(i => i.candidateId))
+
   // KPI computations
-  const totalCandidates = candidates.length
-  const aiAnalyzed = candidates.filter(c => (c.atsScore ?? 0) > 0).length
-  const avgScore = candidates.length > 0
-    ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / candidates.length)
+  const totalCandidates = filteredCandidates.length
+  const aiAnalyzed = filteredCandidates.filter(c => (c.atsScore ?? 0) > 0).length
+  const avgScore = filteredCandidates.length > 0
+    ? Math.round(filteredCandidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / filteredCandidates.length)
     : 0
 
   // Average days per stage
@@ -340,7 +357,7 @@ export default function DashboardPage() {
 
   // Source counts
   const sourceCounts: Record<string, number> = {}
-  candidates.forEach(c => {
+  filteredCandidates.forEach(c => {
     sourceCounts[c.source] = (sourceCounts[c.source] ?? 0) + 1
   })
   const SOURCE_COLORS: Record<string, string> = {
@@ -363,7 +380,7 @@ export default function DashboardPage() {
     }))
 
   // Top candidates by atsScore
-  const topCandidates = [...candidates]
+  const topCandidates = [...filteredCandidates]
     .filter(c => (c.atsScore ?? 0) > 0)
     .sort((a, b) => (b.atsScore ?? 0) - (a.atsScore ?? 0))
     .slice(0, 5)

@@ -21,6 +21,7 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Download,
   FileText,
@@ -252,6 +253,8 @@ export default function ReportsPage() {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [range, setRange] = React.useState<DateRange>('month')
   const [selectedSource, setSelectedSource] = React.useState('all')
+  const [clients, setClients] = React.useState<import('@/types').Client[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
@@ -265,16 +268,18 @@ export default function ReportsPage() {
 
     async function load() {
       const tenantId = user!.tenantId ?? user!.id
-      const [vResult, cResult, appResult, intResult] = await Promise.all([
+      const [vResult, cResult, appResult, intResult, clResult] = await Promise.all([
         provider.getVacancies(tenantId),
         provider.getCandidates(tenantId),
         provider.getApplications(undefined, tenantId),
         provider.getInterviews(undefined, tenantId),
+        provider.getClients(tenantId),
       ])
       setVacancies(vResult.data ?? [])
       setCandidates(cResult.data ?? [])
       setApplications(appResult.data ?? [])
       setInterviews(intResult.data ?? [])
+      setClients(clResult.data ?? [])
       setLoading(false)
     }
     load()
@@ -286,12 +291,28 @@ export default function ReportsPage() {
     [candidates]
   )
 
+  const vacancyMap = React.useMemo(() => new Map(vacancies.map(v => [v.id, v])), [vacancies])
+
+  const clientFilteredApplications = React.useMemo(() => {
+    if (filterClient === 'all') return applications
+    return applications.filter(a => {
+      const v = vacancyMap.get(a.vacancyId)
+      return v?.clientId === filterClient
+    })
+  }, [applications, filterClient, vacancyMap])
+
+  const clientFilteredCandidates = React.useMemo(() => {
+    if (filterClient === 'all') return candidates
+    const ids = new Set(clientFilteredApplications.map(a => a.candidateId))
+    return candidates.filter(c => ids.has(c.id))
+  }, [candidates, filterClient, clientFilteredApplications])
+
   const filteredCandidates = React.useMemo(
     () =>
       selectedSource === 'all'
-        ? candidates
-        : candidates.filter((candidate) => candidate.source === selectedSource),
-    [candidates, selectedSource]
+        ? clientFilteredCandidates
+        : clientFilteredCandidates.filter((candidate) => candidate.source === selectedSource),
+    [clientFilteredCandidates, selectedSource]
   )
 
   const candidateIdSet = React.useMemo(
@@ -301,16 +322,22 @@ export default function ReportsPage() {
 
   const filteredApplications = React.useMemo(
     () =>
-      applications.filter(
+      clientFilteredApplications.filter(
         (application) =>
           candidateIdSet.has(application.candidateId) && new Date(application.appliedAt) >= dateFrom
       ),
-    [applications, candidateIdSet, dateFrom]
+    [clientFilteredApplications, candidateIdSet, dateFrom]
   )
 
   const filteredInterviews = React.useMemo(
-    () => interviews.filter((interview) => new Date(interview.scheduledAt) >= dateFrom),
-    [interviews, dateFrom]
+    () => interviews.filter((i) => {
+      if (filterClient !== 'all') {
+        const v = vacancyMap.get(i.vacancyId ?? '')
+        if (v?.clientId !== filterClient) return false
+      }
+      return new Date(i.scheduledAt) >= dateFrom
+    }),
+    [interviews, filterClient, vacancyMap, dateFrom]
   )
 
   const funnelData = React.useMemo<FunnelRow[]>(
