@@ -232,7 +232,7 @@ export default function DashboardPage() {
       const [candResult, appResult, intResult, vacResult, clientResult] = await Promise.all([
         provider.getCandidates(tenantId),
         provider.getApplications(undefined, tenantId),
-        provider.getInterviews(),
+        provider.getInterviews(undefined, tenantId),
         provider.getVacancies(tenantId),
         provider.getClients(tenantId),
       ])

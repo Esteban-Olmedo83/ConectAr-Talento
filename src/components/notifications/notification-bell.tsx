@@ -85,7 +85,7 @@ export function NotificationBell() {
     const result: Notif[] = []
 
     const [intRes, vacRes, candRes] = await Promise.all([
-      provider.getInterviews(),
+      provider.getInterviews(undefined, user.tenantId),
       provider.getVacancies(user.tenantId),
       provider.getCandidates(user.tenantId),
     ])

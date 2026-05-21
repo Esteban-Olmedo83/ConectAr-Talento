@@ -2067,7 +2067,7 @@ export default function PipelinePage() {
       provider.getApplications(),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
-      provider.getInterviews(),
+      provider.getInterviews(undefined, tenantId),
       provider.getTemplates(tenantId),
     ])
     const vacs = vacResult.data ?? []

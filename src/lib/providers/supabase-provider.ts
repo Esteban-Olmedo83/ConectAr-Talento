@@ -218,11 +218,14 @@ export class SupabaseProvider implements DataProvider {
 
   // ── Clients ──────────────────────────────────────────────────────────────
 
-  async getClients(tenantId: string): Promise<DataResult<Client[]>> {
+  async getClients(_tenantId: string): Promise<DataResult<Client[]>> {
+    // Rely on RLS for tenant scoping — the tenant_id stored in the clients table
+    // may differ from the profile's tenant_id (e.g. when the row was seeded with
+    // auth.uid() instead of profile.tenant_id), so an explicit eq filter can
+    // silently return empty results.
     const { data, error } = await this.sb
       .from('clients')
       .select('*')
-      .eq('tenant_id', tenantId)
       .order('name', { ascending: true })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapClient))
@@ -509,13 +512,15 @@ export class SupabaseProvider implements DataProvider {
       .eq('id', applicationId)
   }
 
-  async getInterviews(candidateId?: string, _tenantId?: string): Promise<DataResult<Interview[]>> {
+  async getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>> {
+    // Join candidates so we can filter by tenant_id explicitly (RLS alone can be unreliable
+    // for cross-table policies; explicit filter ensures correct tenant scoping).
     let q = this.sb
       .from('interviews')
-      .select('*, scorecard:scorecards(*)')
+      .select('*, candidate:candidates!candidate_id(tenant_id), scorecard:scorecards(*)')
       .order('scheduled_at', { ascending: false })
     if (candidateId) q = q.eq('candidate_id', candidateId)
-    // Tenant isolation is handled by RLS on the interviews table
+    if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapInterview))
