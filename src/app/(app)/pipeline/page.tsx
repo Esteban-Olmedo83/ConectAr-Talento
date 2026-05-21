@@ -215,6 +215,22 @@ function StagePillsBar({
 }
 
 // ─── Email Modal ───────────────────────────────────────────────────────────────
+const VARIABLE_LABELS: Record<string, string> = {
+  vacante: 'Vacante', empresa: 'Empresa', nombre_candidato: 'Nombre del Candidato',
+  salario: 'Salario', modalidad: 'Modalidad', fecha_inicio: 'Fecha de Inicio',
+  fecha_entrevista: 'Fecha de Entrevista', hora_entrevista: 'Hora de Entrevista',
+  modalidad_entrevista: 'Modalidad Entrevista', link_reunion: 'Link de Reunión',
+  reclutador: 'Reclutador', fecha_vencimiento_oferta: 'Fecha Vencimiento Oferta',
+  dias_revision: 'Días Hábiles', email_contacto: 'Email de Contacto',
+  resultado_mensaje: 'Resultado', mensaje_adicional: 'Mensaje Adicional',
+  ubicacion: 'Ubicación', empresa_cliente: 'Empresa Cliente',
+}
+
+function extractUnfilledVars(text: string): string[] {
+  const matches = text.match(/\{\{(\w+)\}\}/g) ?? []
+  return [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))]
+}
+
 function EmailModal({
   candidate,
   templates,
@@ -229,14 +245,18 @@ function EmailModal({
   onClose: () => void
 }) {
   const emailTemplates = templates.filter(t => t.channel === 'email')
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
+    emailTemplates.length > 0 ? emailTemplates[0].id : ''
+  )
   const [subject, setSubject] = React.useState('')
   const [body, setBody] = React.useState('')
   const [copied, setCopied] = React.useState(false)
+  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  const [extraVars, setExtraVars] = React.useState<Record<string, string>>({})
 
   const selectedTemplate = emailTemplates.find(t => t.id === selectedTemplateId)
 
-  function fillVars(text: string): string {
+  function autoFill(text: string): string {
     const salario = vacancy?.salaryMin
       ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
       : ''
@@ -247,7 +267,7 @@ function EmailModal({
     const timeStr = intDate
       ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
       : ''
-    let out = text
+    return text
       .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
       .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
       .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
@@ -260,19 +280,40 @@ function EmailModal({
       .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
       .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
       .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
-    // Remove emoji-prefixed lines that still have unresolved {{vars}}
+  }
+
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      const filledSubj = autoFill(selectedTemplate.subject ?? '')
+      const filledBody = autoFill(selectedTemplate.body)
+      setSubject(filledSubj)
+      setBody(filledBody)
+      // Detect remaining unfilled vars
+      const remaining = extractUnfilledVars(filledBody + ' ' + filledSubj)
+      setExtraVars(Object.fromEntries(remaining.map(v => [v, ''])))
+    } else {
+      setSubject('')
+      setBody(`Hola ${candidate.fullName},\n\n`)
+      setExtraVars({})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId, candidate.fullName, vacancy])
+
+  function applyExtraVars(text: string): string {
+    let out = text
+    for (const [k, v] of Object.entries(extraVars)) {
+      out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
+    }
+    // Remove lines with emoji+unfilled vars
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
     return out
   }
 
-  React.useEffect(() => {
-    if (selectedTemplate) {
-      setSubject(fillVars(selectedTemplate.subject ?? ''))
-      setBody(fillVars(selectedTemplate.body))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplate, candidate.fullName, vacancy])
+  const previewSubject = applyExtraVars(subject)
+  const previewBody = applyExtraVars(body)
+
+  const mailtoHref = `mailto:${candidate.email}${previewSubject ? `?subject=${encodeURIComponent(previewSubject)}` : ''}${previewBody ? `${previewSubject ? '&' : '?'}body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -280,8 +321,6 @@ function EmailModal({
       setTimeout(() => setCopied(false), 2000)
     })
   }
-
-  const mailtoHref = `mailto:${candidate.email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}${body ? `${subject ? '&' : '?'}body=${encodeURIComponent(body)}` : ''}`
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -329,7 +368,7 @@ function EmailModal({
             </div>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Enviar email</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName} · {selectedTemplate?.name ?? 'Sin template'}</p>
             </div>
           </div>
           <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
@@ -337,46 +376,14 @@ function EmailModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Candidate email */}
-          <div>
-            <label style={labelStyle}>Email del candidato</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ ...inputStyle, flex: 1, color: 'var(--accent-2)', fontWeight: 500 }}>
-                {candidate.email}
-              </div>
-              <button
-                onClick={handleCopyEmail}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: copied ? 'rgba(52,211,153,0.15)' : 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  color: copied ? '#34d399' : 'var(--muted)',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  transition: 'all 0.15s',
-                  whiteSpace: 'nowrap' as const,
-                }}
-              >
-                <Copy style={{ width: 12, height: 12 }} />
-                {copied ? 'Copiado' : 'Copiar email'}
-              </button>
-            </div>
-          </div>
-
-          {/* Template selector */}
+        {/* Template selector */}
+        <div style={{ padding: '12px 20px 0', borderBottom: '1px solid var(--border)' }}>
           {emailTemplates.length > 0 && (
-            <div>
-              <label style={labelStyle}>Template (opcional)</label>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>Template</label>
               <select
                 value={selectedTemplateId}
-                onChange={e => setSelectedTemplateId(e.target.value)}
+                onChange={e => { setSelectedTemplateId(e.target.value); setTab('fill') }}
                 style={{ ...inputStyle, appearance: 'none' as const }}
               >
                 <option value="">Sin template</option>
@@ -386,30 +393,101 @@ function EmailModal({
               </select>
             </div>
           )}
-
-          {/* Subject */}
-          <div>
-            <label style={labelStyle}>Asunto</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="Asunto del email..."
-              style={inputStyle}
-            />
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            {(['fill', 'preview'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: tab === t ? 'var(--accent-2)' : 'var(--muted)',
+                  borderBottom: `2px solid ${tab === t ? 'var(--accent-2)' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t === 'fill' ? 'Completar variables' : 'Vista previa'}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Body */}
-          <div>
-            <label style={labelStyle}>Mensaje</label>
-            <textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Escribí tu mensaje..."
-              rows={6}
-              style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }}
-            />
-          </div>
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {tab === 'fill' ? (
+            <>
+              {/* Email address */}
+              <div>
+                <label style={labelStyle}>Email del candidato</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ ...inputStyle, flex: 1, color: 'var(--accent-2)', fontWeight: 500 }}>
+                    {candidate.email}
+                  </div>
+                  <button
+                    onClick={handleCopyEmail}
+                    style={{ padding: '8px 12px', borderRadius: 8, background: copied ? 'rgba(52,211,153,0.15)' : 'var(--surface2)', border: '1px solid var(--border)', color: copied ? '#34d399' : 'var(--muted)', cursor: 'pointer', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', whiteSpace: 'nowrap' as const }}
+                  >
+                    <Copy style={{ width: 12, height: 12 }} />
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Manual variable inputs for unfilled vars */}
+              {Object.keys(extraVars).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={labelStyle}>Variables a completar</label>
+                  {Object.entries(extraVars).map(([k, v]) => (
+                    <div key={k}>
+                      <label style={{ ...labelStyle, textTransform: 'none', fontSize: 12 }}>
+                        {VARIABLE_LABELS[k] ?? k}
+                      </label>
+                      <input
+                        type="text"
+                        value={v}
+                        onChange={e => setExtraVars(prev => ({ ...prev, [k]: e.target.value }))}
+                        placeholder={VARIABLE_LABELS[k] ?? k}
+                        style={inputStyle}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Subject editable */}
+              <div>
+                <label style={labelStyle}>Asunto</label>
+                <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Asunto del email..." style={inputStyle} />
+              </div>
+
+              {/* Body editable */}
+              <div>
+                <label style={labelStyle}>Mensaje</label>
+                <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Escribí tu mensaje..." rows={6} style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Vista previa */}
+              {previewSubject && (
+                <div>
+                  <label style={labelStyle}>Asunto</label>
+                  <div style={{ ...inputStyle, color: 'var(--text)', fontWeight: 500 }}>{previewSubject}</div>
+                </div>
+              )}
+              <div>
+                <label style={labelStyle}>Mensaje</label>
+                <div style={{ ...inputStyle, whiteSpace: 'pre-wrap' as const, lineHeight: 1.6, minHeight: 120, color: 'var(--text)' }}>
+                  {previewBody || <span style={{ color: 'var(--muted)' }}>Sin contenido</span>}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -424,23 +502,10 @@ function EmailModal({
             href={mailtoHref}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              background: 'var(--accent)',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              textDecoration: 'none',
-            }}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
           >
             <Mail style={{ width: 13, height: 13 }} />
-            Abrir cliente de email
+            Enviar por Email
           </a>
         </div>
       </div>

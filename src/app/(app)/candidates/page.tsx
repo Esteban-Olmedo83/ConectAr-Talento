@@ -772,10 +772,23 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
             Eliminar candidato
           </DialogTitle>
         </DialogHeader>
-        <p className="text-sm" style={{ color: 'var(--text)' }}>
-          ¿Estás seguro de que querés eliminar a <strong>{candidate.fullName}</strong>?
-          Esta acción no se puede deshacer.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm" style={{ color: 'var(--text)' }}>
+            Estás a punto de eliminar definitivamente a <strong>{candidate.fullName}</strong> del sistema.
+          </p>
+          <div className="px-3 py-2.5 rounded-lg text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <ul className="ml-3 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
+              <li>El perfil completo del candidato</li>
+              <li>Todas las entrevistas y scorecards asociadas</li>
+              <li>El historial de postulaciones y etapas del proceso</li>
+              <li>Archivos adjuntos (CV, foto de perfil)</li>
+            </ul>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Solo los administradores pueden realizar esta acción.
+          </p>
+        </div>
         <div className="flex justify-end gap-2 mt-2">
           <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
           <Button

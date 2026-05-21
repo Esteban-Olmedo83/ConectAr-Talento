@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { Candidate, Application, VacancyStatus } from '@/types'
+import type { Candidate, Application, VacancyStatus, Interview, Vacancy, Client } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name: string): string {
@@ -209,12 +209,16 @@ function DonutChart({ slices }: { slices: DonutSlice[] }) {
 interface DashboardData {
   candidates: Candidate[]
   applications: Application[]
+  interviews: Interview[]
+  vacancies: Vacancy[]
+  clients: Client[]
 }
 
 export default function DashboardPage() {
   const { user } = useUser()
   const [data, setData] = React.useState<DashboardData | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [filterClient, setFilterClient] = React.useState<string>('all')
 
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
@@ -225,13 +229,19 @@ export default function DashboardPage() {
     async function load() {
       // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
       const tenantId = user!.tenantId ?? user!.id
-      const [candResult, appResult] = await Promise.all([
+      const [candResult, appResult, intResult, vacResult, clientResult] = await Promise.all([
         provider.getCandidates(tenantId),
         provider.getApplications(undefined, tenantId),
+        provider.getInterviews(),
+        provider.getVacancies(tenantId),
+        provider.getClients(tenantId),
       ])
       setData({
         candidates: candResult.data ?? [],
         applications: appResult.data ?? [],
+        interviews: intResult.data ?? [],
+        vacancies: vacResult.data ?? [],
+        clients: clientResult.data ?? [],
       })
       setLoading(false)
     }
@@ -243,7 +253,25 @@ export default function DashboardPage() {
   }
 
   const candidates = data?.candidates ?? []
-  const applications = data?.applications ?? []
+  const allApplications = data?.applications ?? []
+  const interviews = data?.interviews ?? []
+  const vacancies = data?.vacancies ?? []
+  const clients = data?.clients ?? []
+
+  // Build a vacancyMap for client lookups
+  const vacancyMap = new Map<string, Vacancy>()
+  vacancies.forEach(v => vacancyMap.set(v.id, v))
+
+  // Build Set of candidateIds that have at least one interview
+  const candidateIdsWithInterview = new Set<string>(interviews.map(i => i.candidateId))
+
+  // Apply client filter
+  const applications = filterClient === 'all'
+    ? allApplications
+    : allApplications.filter(a => {
+        const vac = vacancyMap.get(a.vacancyId)
+        return vac?.clientId === filterClient
+      })
 
   // KPI computations
   const totalCandidates = candidates.length
@@ -284,7 +312,8 @@ export default function DashboardPage() {
     return days >= 5
   }).length
 
-  // Funnel by stage
+  // Funnel by stage — apply same hydration as pipeline page:
+  // if a candidate has an interview and is in 'Nuevas Vacantes' or 'En Proceso', count as 'Entrevistas'
   const funnelCounts: Record<VacancyStatus, number> = {
     'Nuevas Vacantes': 0,
     'En Proceso': 0,
@@ -294,7 +323,12 @@ export default function DashboardPage() {
     'Descartado': 0,
   }
   applications.forEach(a => {
-    if (funnelCounts[a.status] !== undefined) funnelCounts[a.status]++
+    const effectiveStatus: VacancyStatus =
+      candidateIdsWithInterview.has(a.candidateId) &&
+      (a.status === 'Nuevas Vacantes' || a.status === 'En Proceso')
+        ? 'Entrevistas'
+        : a.status
+    if (funnelCounts[effectiveStatus] !== undefined) funnelCounts[effectiveStatus]++
   })
   const maxFunnel = Math.max(...Object.values(funnelCounts), 1)
 
@@ -362,6 +396,41 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-5">
+
+      {/* Header row: title + client filter */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+        {clients.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label
+              htmlFor="client-filter"
+              style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}
+            >
+              Cliente
+            </label>
+            <select
+              id="client-filter"
+              value={filterClient}
+              onChange={e => setFilterClient(e.target.value)}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+                fontSize: 12,
+                fontWeight: 500,
+                padding: '5px 10px',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="all">Todos</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
