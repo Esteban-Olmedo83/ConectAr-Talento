@@ -323,6 +323,113 @@ function ProfileCard({
   )
 }
 
+// ─── Edit Rubro Modal ─────────────────────────────────────────────────────────
+
+function EditRubroModal({
+  rubro,
+  onClose,
+  onSave,
+}: {
+  rubro: JobRubro
+  onClose: () => void
+  onSave: (updated: JobRubro) => void
+}) {
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [name, setName] = React.useState(rubro.name)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    setName(rubro.name)
+    setError(null)
+  }, [rubro])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim() || name.trim() === rubro.name) { onClose(); return }
+    setSaving(true)
+    setError(null)
+    const result = await provider.updateJobRubro(rubro.id, name.trim())
+    setSaving(false)
+    if (result.data) {
+      onSave(result.data)
+      onClose()
+    } else {
+      setError(result.error ?? 'Error al guardar')
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent
+        className="max-w-sm w-full"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        <DialogHeader>
+          <DialogTitle style={{ color: 'var(--text)' }}>Editar Rubro</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text)' }}>
+              Nombre del rubro <span style={{ color: '#f87171' }}>*</span>
+            </label>
+            <input
+              className={INPUT_CLASS}
+              style={{ color: 'var(--text)' }}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Salud, Logística, Tecnología..."
+              required
+              autoFocus
+            />
+          </div>
+          {error && (
+            <p style={{ fontSize: '0.8rem', color: '#f87171' }}>{error}</p>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: '0.85rem',
+                color: 'var(--muted)',
+                cursor: 'pointer',
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !name.trim()}
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 18px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: saving || !name.trim() ? 'not-allowed' : 'pointer',
+                opacity: saving || !name.trim() ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              Guardar
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Nuevo Rubro Modal ────────────────────────────────────────────────────────
 
 function NuevoRubroModal({
@@ -793,6 +900,8 @@ export default function JobProfilesPage() {
   const [rubroModalOpen, setRubroModalOpen] = React.useState(false)
   const [profileModalOpen, setProfileModalOpen] = React.useState(false)
   const [editingProfile, setEditingProfile] = React.useState<CustomJobProfile | null>(null)
+  const [rubroToDelete, setRubroToDelete] = React.useState<JobRubro | null>(null)
+  const [rubroToEdit, setRubroToEdit] = React.useState<JobRubro | null>(null)
 
   // Load data
   React.useEffect(() => {
@@ -906,6 +1015,24 @@ export default function JobProfilesPage() {
     handleProfileSaved(p)
   }
 
+  async function handleDeleteRubro(rubro: JobRubro) {
+    const result = await provider.deleteJobRubro(rubro.id)
+    if (result.error) { alert(result.error); return }
+    setCustomRubros(prev => prev.filter(r => r.id !== rubro.id))
+    setCustomProfiles(prev => prev.filter(p => p.rubro !== rubro.name))
+    if (selectedRubro === rubro.name) setSelectedRubro('all')
+    setRubroToDelete(null)
+  }
+
+  function handleRubroEdited(updated: JobRubro) {
+    const oldName = rubroToEdit?.name
+    setCustomRubros(prev => prev.map(r => r.id === updated.id ? updated : r))
+    if (oldName && oldName !== updated.name) {
+      setCustomProfiles(prev => prev.map(p => p.rubro === oldName ? { ...p, rubro: updated.name } : p))
+      if (selectedRubro === oldName) setSelectedRubro(updated.name)
+    }
+  }
+
   return (
     <div
       style={{
@@ -988,14 +1115,33 @@ export default function JobProfilesPage() {
           marginBottom: 24,
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
           {/* "Todos" tab */}
-          {['all', ...allRubroNames].map((rubro) => {
+          <button
+            key="all"
+            onClick={() => setSelectedRubro('all')}
+            style={{
+              background: selectedRubro === 'all' ? 'var(--accent)' : 'var(--surface)',
+              color: selectedRubro === 'all' ? '#fff' : 'var(--muted)',
+              border: selectedRubro === 'all' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              borderRadius: 20,
+              padding: '6px 14px',
+              fontSize: '0.82rem',
+              fontWeight: selectedRubro === 'all' ? 600 : 400,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s',
+            }}
+          >
+            Todos
+          </button>
+
+          {/* Builtin rubros (no edit/delete) */}
+          {builtinRubros.map((rubro) => {
             const isActive = selectedRubro === rubro
-            const label = rubro === 'all' ? 'Todos' : rubro
             return (
               <button
-                key={rubro}
+                key={`builtin-${rubro}`}
                 onClick={() => setSelectedRubro(rubro)}
                 style={{
                   background: isActive ? 'var(--accent)' : 'var(--surface)',
@@ -1010,8 +1156,69 @@ export default function JobProfilesPage() {
                   transition: 'all 0.15s',
                 }}
               >
-                {label}
+                {rubro}
               </button>
+            )
+          })}
+
+          {/* Custom rubros (with edit/delete) */}
+          {customRubros.map((rubroObj) => {
+            const rubro = rubroObj.name
+            const isActive = selectedRubro === rubro
+            return (
+              <div key={`custom-${rubroObj.id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <button
+                  onClick={() => setSelectedRubro(rubro)}
+                  style={{
+                    background: isActive ? 'var(--accent)' : 'var(--surface)',
+                    color: isActive ? '#fff' : 'var(--muted)',
+                    border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    borderRadius: 20,
+                    padding: '6px 14px',
+                    fontSize: '0.82rem',
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {rubro}
+                </button>
+                <button
+                  onClick={() => setRubroToEdit(rubroObj)}
+                  title="Editar"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '3px 4px',
+                    cursor: 'pointer',
+                    color: 'var(--muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  <Pencil size={11} />
+                </button>
+                <button
+                  onClick={() => setRubroToDelete(rubroObj)}
+                  title="Eliminar"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '3px 4px',
+                    cursor: 'pointer',
+                    color: '#f87171',
+                    display: 'flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
             )
           })}
         </div>
@@ -1117,6 +1324,76 @@ export default function JobProfilesPage() {
         onSave={handleProfileModalSave}
         tenantId={user?.tenantId ?? ''}
       />
+
+      {/* Delete rubro confirmation dialog */}
+      {rubroToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setRubroToDelete(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 400,
+              width: '100%',
+            }}
+          >
+            <h3 style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: 700, margin: 0 }}>
+              Eliminar rubro &quot;{rubroToDelete.name}&quot;
+            </h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: 8 }}>
+              Todos los perfiles personalizados de este rubro también serán eliminados. Esta acción no se puede deshacer.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setRubroToDelete(null)}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  fontSize: '0.85rem',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDeleteRubro(rubroToDelete)}
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit rubro modal */}
+      {rubroToEdit && (
+        <EditRubroModal
+          rubro={rubroToEdit}
+          onClose={() => setRubroToEdit(null)}
+          onSave={(updated) => {
+            handleRubroEdited(updated)
+            setRubroToEdit(null)
+          }}
+        />
+      )}
     </div>
   )
 }

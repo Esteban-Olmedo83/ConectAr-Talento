@@ -3,7 +3,7 @@
 import * as React from 'react'
 import {
   Plus, Search, Building2, Briefcase, Mail, Phone,
-  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink,
+  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink, MapPin,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -547,11 +547,26 @@ function ClientCard({
           )}
         </div>
 
+        {client.address && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+            <span className="text-xs" style={{ color: 'var(--muted2)' }}>
+              {client.address}
+            </span>
+          </div>
+        )}
         {client.interviewAddress && (
           <div className="flex items-start gap-2 mt-1.5">
-            <Building2 className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent-2)' }} />
             <span className="text-xs" style={{ color: 'var(--muted2)' }}>
-              {client.interviewAddress}
+              Entrevistas: {client.interviewAddress}
+            </span>
+          </div>
+        )}
+        {client.interviewArrivalDetails && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <span className="text-xs italic" style={{ color: 'var(--muted)', paddingLeft: '1.375rem' }}>
+              {client.interviewArrivalDetails}
             </span>
           </div>
         )}

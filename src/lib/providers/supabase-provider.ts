@@ -718,6 +718,17 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
+  async updateJobRubro(id: string, name: string): Promise<DataResult<JobRubro>> {
+    const { data, error } = await this.sb
+      .from('job_rubros')
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapJobRubro(data as Record<string, unknown>))
+  }
+
   // ── Job Profiles ──
   async getJobProfiles(_tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
     let q = this.sb.from('job_profiles').select('*')
