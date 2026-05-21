@@ -234,13 +234,15 @@ function extractUnfilledVars(text: string): string[] {
 function EmailModal({
   candidate,
   templates,
-  vacancy,
+  vacancies,
+  initialVacancy,
   interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
-  vacancy?: Vacancy
+  vacancies: Vacancy[]
+  initialVacancy?: Vacancy
   interview?: Interview
   onClose: () => void
 }) {
@@ -248,18 +250,24 @@ function EmailModal({
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
     emailTemplates.length > 0 ? emailTemplates[0].id : ''
   )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState<string>(
+    initialVacancy?.id ?? ''
+  )
   const [subject, setSubject] = React.useState('')
   const [body, setBody] = React.useState('')
   const [copied, setCopied] = React.useState(false)
   const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
   const [extraVars, setExtraVars] = React.useState<Record<string, string>>({})
+  const [diasRevisionEnabled, setDiasRevisionEnabled] = React.useState(false)
+  const [diasRevisionValue, setDiasRevisionValue] = React.useState('')
 
   const selectedTemplate = emailTemplates.find(t => t.id === selectedTemplateId)
+  const vacancy = vacancies.find(v => v.id === selectedVacancyId) ?? initialVacancy
 
   function autoFill(text: string): string {
     const salario = vacancy?.salaryMin
       ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
-      : ''
+      : null
     const intDate = interview ? new Date(interview.scheduledAt) : null
     const dateStr = intDate
       ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -267,19 +275,20 @@ function EmailModal({
     const timeStr = intDate
       ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
       : ''
-    return text
+    let out = text
       .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
-      .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
-      .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
-      .replace(/\{\{modalidad\}\}/g, vacancy?.modality ?? '')
-      .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
-      .replace(/\{\{salario\}\}/g, salario)
-      .replace(/\{\{fecha_inicio\}\}/g, '')
       .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
       .replace(/\{\{hora_entrevista\}\}/g, timeStr)
       .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
       .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
       .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    if (vacancy?.title) out = out.replace(/\{\{vacante\}\}/g, vacancy.title)
+    if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
+    if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
+    if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    // Only replace salario/fecha_inicio if we have a real value; otherwise leave {{var}} intact
+    if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
+    return out
   }
 
   React.useEffect(() => {
@@ -290,19 +299,25 @@ function EmailModal({
       setBody(filledBody)
       // Detect remaining unfilled vars
       const remaining = extractUnfilledVars(filledBody + ' ' + filledSubj)
-      setExtraVars(Object.fromEntries(remaining.map(v => [v, ''])))
+      // dias_revision handled separately via toggle
+      const withoutDias = remaining.filter(v => v !== 'dias_revision')
+      setExtraVars(Object.fromEntries(withoutDias.map(v => [v, ''])))
     } else {
       setSubject('')
       setBody(`Hola ${candidate.fullName},\n\n`)
       setExtraVars({})
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, candidate.fullName, vacancy])
+  }, [selectedTemplateId, candidate.fullName, selectedVacancyId])
 
   function applyExtraVars(text: string): string {
     let out = text
     for (const [k, v] of Object.entries(extraVars)) {
       out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
+    }
+    // Apply dias_revision if toggle enabled and value provided
+    if (diasRevisionEnabled && diasRevisionValue) {
+      out = out.replace(/\{\{dias_revision\}\}/g, diasRevisionValue)
     }
     // Remove lines with emoji+unfilled vars
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
@@ -393,6 +408,25 @@ function EmailModal({
               </select>
             </div>
           )}
+          {/* Vacancy selector */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>Vacante</label>
+            <select
+              value={selectedVacancyId}
+              onChange={e => { setSelectedVacancyId(e.target.value); setTab('fill') }}
+              style={{ ...inputStyle, appearance: 'none' as const }}
+            >
+              <option value="">Sin vacante</option>
+              {vacancies.map(v => (
+                <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+              ))}
+            </select>
+            {vacancy?.client?.name && (
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Cliente: <span style={{ color: 'var(--accent-2)', fontWeight: 500 }}>{vacancy.client.name}</span>
+              </p>
+            )}
+          </div>
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0 }}>
             {(['fill', 'preview'] as const).map(t => (
@@ -439,7 +473,7 @@ function EmailModal({
               </div>
 
               {/* Manual variable inputs for unfilled vars */}
-              {Object.keys(extraVars).length > 0 && (
+              {(Object.keys(extraVars).length > 0 || (body + subject).includes('{{dias_revision}}')) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label style={labelStyle}>Variables a completar</label>
                   {Object.entries(extraVars).map(([k, v]) => (
@@ -456,6 +490,35 @@ function EmailModal({
                       />
                     </div>
                   ))}
+                  {/* dias_revision toggle */}
+                  {(body + subject).includes('{{dias_revision}}') && (
+                    <div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={diasRevisionEnabled}
+                          onChange={e => {
+                            setDiasRevisionEnabled(e.target.checked)
+                            if (!e.target.checked) setDiasRevisionValue('')
+                          }}
+                          style={{ width: 15, height: 15, accentColor: 'var(--accent-2)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                          Especificar días hábiles de revisión
+                        </span>
+                      </label>
+                      {diasRevisionEnabled && (
+                        <input
+                          type="number"
+                          min={1}
+                          value={diasRevisionValue}
+                          onChange={e => setDiasRevisionValue(e.target.value)}
+                          placeholder="Ej: 5"
+                          style={{ ...inputStyle, marginTop: 8, width: 120 }}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -536,9 +599,6 @@ function WhatsAppModal({
   const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
 
   function fillVars(text: string): string {
-    const salario = vacancy?.salaryMin
-      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
-      : ''
     const intDate = interview ? new Date(interview.scheduledAt) : null
     const dateStr = intDate
       ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -546,19 +606,21 @@ function WhatsAppModal({
     const timeStr = intDate
       ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
       : ''
+    const salario = vacancy?.salaryMin
+      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
+      : null
     let out = text
       .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
-      .replace(/\{\{vacante\}\}/g, vacancy?.title ?? '')
-      .replace(/\{\{empresa\}\}/g, vacancy?.client?.name ?? '')
-      .replace(/\{\{modalidad\}\}/g, vacancy?.modality ?? '')
-      .replace(/\{\{ubicacion\}\}/g, vacancy?.location ?? '')
-      .replace(/\{\{salario\}\}/g, salario)
-      .replace(/\{\{fecha_inicio\}\}/g, '')
       .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
       .replace(/\{\{hora_entrevista\}\}/g, timeStr)
       .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
       .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
       .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    if (vacancy?.title) out = out.replace(/\{\{vacante\}\}/g, vacancy.title)
+    if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
+    if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
+    if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
     out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
     return out
@@ -2350,7 +2412,8 @@ export default function PipelinePage() {
           <EmailModal
             candidate={activeModal.candidate}
             templates={templates}
-            vacancy={vac}
+            vacancies={vacancies}
+            initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
           />
