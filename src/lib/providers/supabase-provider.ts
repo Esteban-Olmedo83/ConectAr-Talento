@@ -342,6 +342,7 @@ export class SupabaseProvider implements DataProvider {
       .from('vacancies')
       .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
+      .not('client_id', 'is', null)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapVacancy))
@@ -562,7 +563,9 @@ export class SupabaseProvider implements DataProvider {
     // for cross-table policies; explicit filter ensures correct tenant scoping).
     let q = this.sb
       .from('interviews')
-      .select('*, candidate:candidates!candidate_id(tenant_id), scorecard:scorecards(*)')
+      .select('*, candidate:candidates!candidate_id(tenant_id), scorecard:scorecards(*), vacancy:vacancies!vacancy_id(client_id)')
+      .not('vacancy_id', 'is', null)
+      .not('vacancy.client_id', 'is', null)
       .order('scheduled_at', { ascending: false })
     if (candidateId) q = q.eq('candidate_id', candidateId)
     if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
