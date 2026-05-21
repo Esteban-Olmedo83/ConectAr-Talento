@@ -88,16 +88,22 @@ function SchedulerModal({
   })
   const [saving, setSaving] = React.useState(false)
 
-  // Sync prefill when it changes (e.g. opening for different candidates)
+  // Full reset every time the modal opens so old data never bleeds through
   React.useEffect(() => {
     if (open) {
-      setForm(f => ({
-        ...f,
-        candidateId: prefill?.candidateId ?? f.candidateId,
-        vacancyId:   prefill?.vacancyId   ?? f.vacancyId,
-      }))
+      setForm({
+        candidateId: prefill?.candidateId ?? '',
+        vacancyId:   prefill?.vacancyId   ?? '',
+        type: 'RRHH' as InterviewType,
+        interviewerName: '',
+        date: '',
+        time: '10:00',
+        platform: 'google_meet' as MeetingPlatform,
+        meetingLink: '',
+        notes: '',
+      })
     }
-  }, [open, prefill?.candidateId, prefill?.vacancyId])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

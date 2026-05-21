@@ -1015,7 +1015,7 @@ function AddCandidateDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Años de experiencia</label>
-              <input type="number" min="0" max="50" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: e.target.value}))} className={inputCls} placeholder="3" />
+              <input type="number" min="0" max="50" step="1" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: String(Math.round(Number(e.target.value)))}))} className={inputCls} placeholder="3" />
             </div>
             <div>
               <label className={labelCls}>Score ATS (0-100)</label>

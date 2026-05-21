@@ -273,7 +273,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         skills: Array.isArray(parsed.skills)
           ? (parsed.skills as unknown[]).map(s => String(s)).filter(Boolean)
           : [],
-        experienceYears: typeof parsed.experienceYears === 'number' ? parsed.experienceYears : undefined,
+        experienceYears: typeof parsed.experienceYears === 'number' ? Math.round(parsed.experienceYears) : undefined,
         education: parsed.education ? String(parsed.education).trim() : undefined,
         strengths: Array.isArray(parsed.strengths)
           ? (parsed.strengths as unknown[]).map(s => String(s)).filter(Boolean)

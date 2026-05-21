@@ -678,6 +678,18 @@ export default function VacanciesPage() {
 
   React.useEffect(() => { load() }, [load])
 
+  React.useEffect(() => {
+    const handle = () => load()
+    window.addEventListener('application:stage-changed', handle)
+    window.addEventListener('vacancy:created', handle)
+    window.addEventListener('vacancy:updated', handle)
+    return () => {
+      window.removeEventListener('application:stage-changed', handle)
+      window.removeEventListener('vacancy:created', handle)
+      window.removeEventListener('vacancy:updated', handle)
+    }
+  }, [load])
+
   const filtered = React.useMemo(() => vacancies.filter(v => {
     if (filterClient !== 'all' && v.clientId !== filterClient) return false
     if (search && !v.title.toLowerCase().includes(search.toLowerCase()) && !v.department.toLowerCase().includes(search.toLowerCase())) return false
