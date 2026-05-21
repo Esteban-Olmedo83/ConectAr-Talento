@@ -326,9 +326,9 @@ function EmailModal({
       out = out.replace(/\{\{dias_revision\}\}/g, '')
     }
     // Remove lines with emoji+unfilled vars
-    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gmu, '')
     // Remove emoji lines where the value is empty (e.g. link presencial)
-    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*$\n?/gm, '')
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*$\n?/gmu, '')
     // Clean up double spaces (e.g. from removed inline {{var}})
     out = out.replace(/  +/g, ' ')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
@@ -338,7 +338,8 @@ function EmailModal({
   const previewSubject = applyExtraVars(subject)
   const previewBody = applyExtraVars(body)
 
-  const mailtoHref = `mailto:${candidate.email}${previewSubject ? `?subject=${encodeURIComponent(previewSubject)}` : ''}${previewBody ? `${previewSubject ? '&' : '?'}body=${encodeURIComponent(previewBody)}` : ''}`
+  // Gmail compose URL — works in-browser without needing a default mail client
+  const gmailHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(candidate.email)}${previewSubject ? `&su=${encodeURIComponent(previewSubject)}` : ''}${previewBody ? `&body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -572,13 +573,13 @@ function EmailModal({
             Cancelar
           </button>
           <a
-            href={mailtoHref}
+            href={gmailHref}
             target="_blank"
             rel="noopener noreferrer"
             style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
           >
             <Mail style={{ width: 13, height: 13 }} />
-            Enviar por Email
+            Abrir en Gmail
           </a>
         </div>
       </div>
@@ -640,9 +641,9 @@ function WhatsAppModal({
     if (vacancy?.client?.interviewArrivalDetails) out = out.replace(/\{\{instrucciones_llegada\}\}/g, vacancy.client.interviewArrivalDetails)
     if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
     // Remove emoji lines with unfilled vars
-    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gmu, '')
     // Remove emoji lines with empty values (e.g. link when presencial)
-    out = out.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*$\n?/gm, '')
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*$\n?/gmu, '')
     out = out.replace(/\n{3,}/g, '\n\n').trim()
     return out
   }
