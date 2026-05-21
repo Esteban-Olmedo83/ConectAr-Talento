@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Loader2, X, Copy, BookOpen } from 'lucide-react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { skillsLibrary, rubros as builtinRubros } from '@/lib/skills'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import type { CustomJobProfile, JobRubro, CreateJobProfileInput, SkillProfile } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -360,15 +360,8 @@ function EditRubroModal({
   }
 
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="max-w-sm w-full"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Editar Rubro</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+    <DraggableModal open onClose={onClose} title="Editar Rubro" maxWidth="24rem">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text)' }}>
               Nombre del rubro <span style={{ color: '#f87171' }}>*</span>
@@ -425,8 +418,7 @@ function EditRubroModal({
             </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -470,15 +462,8 @@ function NuevoRubroModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="max-w-sm w-full"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Nuevo Rubro</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+    <DraggableModal open={open} onClose={onClose} title="Nuevo Rubro" maxWidth="24rem">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text)' }}>
               Nombre del rubro <span style={{ color: '#f87171' }}>*</span>
@@ -535,8 +520,7 @@ function NuevoRubroModal({
             </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -667,21 +651,7 @@ function ProfileFormModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="max-w-lg w-full"
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>
-            {editProfile ? 'Editar Perfil' : 'Nuevo Perfil'}
-          </DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title={editProfile ? 'Editar Perfil' : 'Nuevo Perfil'} maxWidth="32rem">
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
           {/* Rubro */}
@@ -878,8 +848,7 @@ function ProfileFormModal({
             </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 

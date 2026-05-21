@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
@@ -384,16 +384,8 @@ function DeleteClientDialog({
   }, [client.id, provider])
 
   return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Eliminar cliente: {client.name}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-3 mt-2">
+    <DraggableModal open onClose={onClose} title={`Eliminar cliente: ${client.name}`} maxWidth="28rem">
+        <div className="space-y-3">
           <p className="text-sm" style={{ color: 'var(--text)' }}>
             Estás a punto de eliminar permanentemente al cliente <strong>{client.name}</strong> y toda su información del sistema.
           </p>
@@ -452,8 +444,7 @@ function DeleteClientDialog({
             Eliminar cliente
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
