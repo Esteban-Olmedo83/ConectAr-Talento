@@ -48,6 +48,7 @@ import { useUser } from '@/lib/context/user-context'
 import type {
   Application,
   Candidate,
+  Client,
   Vacancy,
   VacancyStatus,
   CandidateDisposition,
@@ -2074,10 +2075,19 @@ function HireDialog({
 export default function PipelinePage() {
   const [applications, setApplications] = React.useState<HydratedApplication[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [clients, setClients] = React.useState<Client[]>([])
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [loading, setLoading] = React.useState(true)
   const [activeApp, setActiveApp] = React.useState<HydratedApplication | null>(null)
-  const [filterVacancy, setFilterVacancy] = React.useState<string>('all')
+  const searchParams = useSearchParams()
+  const [filterVacancy, setFilterVacancy] = React.useState<string>(() => {
+    const param = searchParams.get('vacancy')
+    return param ?? 'all'
+  })
+  const [filterClient, setFilterClient] = React.useState<string>(() => {
+    const param = searchParams.get('client')
+    return param ?? 'all'
+  })
   const [filterScore, setFilterScore] = React.useState<string>('all')
   const [searchText, setSearchText] = React.useState('')
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
@@ -2089,19 +2099,19 @@ export default function PipelinePage() {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   const load = React.useCallback(async () => {
     if (!user) return
 
     const tenantId = user.tenantId
     setLoading(true)
-    const [appsResult, vacResult, candResult, intResult, tplResult] = await Promise.all([
+    const [appsResult, vacResult, candResult, intResult, tplResult, clientsResult] = await Promise.all([
       provider.getApplications(),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
       provider.getInterviews(undefined, tenantId),
       provider.getTemplates(tenantId),
+      provider.getClients(tenantId),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
@@ -2165,13 +2175,10 @@ export default function PipelinePage() {
 
     setApplications([...hydrated, ...virtualApps])
     setVacancies(vacs)
+    setClients(clientsResult.data ?? [])
     setTemplates(tplResult.data ?? [])
-    const vacancyParam = searchParams.get('vacancy')
-    if (vacancyParam && vacs.some(v => v.id === vacancyParam)) {
-      setFilterVacancy(vacancyParam)
-    }
     setLoading(false)
-  }, [provider, user, searchParams])
+  }, [provider, user])
 
   React.useEffect(() => {
     if (pathname === '/pipeline') {
@@ -2211,6 +2218,10 @@ export default function PipelinePage() {
       const c = a.candidate
       if (!c) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
+      if (filterClient !== 'all') {
+        const vac = vacancies.find(v => v.id === a.vacancyId)
+        if (!vac || vac.clientId !== filterClient) return false
+      }
       if (filterVacancy !== 'all' && a.vacancyId !== filterVacancy) return false
       if (filterScore === '80+' && (c.atsScore ?? 0) < 80) return false
       if (filterScore === '60-79' && ((c.atsScore ?? 0) < 60 || (c.atsScore ?? 0) >= 80)) return false
@@ -2218,7 +2229,7 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, activeStage, filterVacancy, filterScore, searchText])
+  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies])
 
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {
@@ -2229,11 +2240,11 @@ export default function PipelinePage() {
       'Contratado': 0,
       'Descartado': 0,
     }
-    applications.forEach(a => {
+    filtered.forEach(a => {
       if (map[a.status] !== undefined) map[a.status]++
     })
     return map
-  }, [applications])
+  }, [filtered])
 
   const byStage = React.useMemo(() => {
     const map: Record<VacancyStatus, HydratedApplication[]> = {
@@ -2406,12 +2417,25 @@ export default function PipelinePage() {
         </div>
         <div className="relative">
           <select
+            value={filterClient}
+            onChange={e => { setFilterClient(e.target.value); setFilterVacancy('all') }}
+            style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
+          >
+            <option value="all">Todos los clientes</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
+        </div>
+        <div className="relative">
+          <select
             value={filterVacancy}
             onChange={e => setFilterVacancy(e.target.value)}
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
             <option value="all">Todas las vacantes</option>
-            {vacancies.map(v => (
+            {(filterClient === 'all' ? vacancies : vacancies.filter(v => v.clientId === filterClient)).map(v => (
               <option key={v.id} value={v.id}>{v.title}</option>
             ))}
           </select>
@@ -2436,9 +2460,9 @@ export default function PipelinePage() {
             style={{ color: 'var(--muted)' }}
           />
         </div>
-        {(filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
+        {(filterClient !== 'all' || filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
-            onClick={() => { setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
+            onClick={() => { setFilterClient('all'); setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
             className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
             style={{ color: 'var(--muted)' }}
           >
