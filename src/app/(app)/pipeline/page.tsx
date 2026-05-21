@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import type {
   Application,
@@ -248,6 +249,7 @@ function EmailModal({
   interview?: Interview
   onClose: () => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const emailTemplates = templates.filter(t => t.channel === 'email')
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
     emailTemplates.length > 0 ? emailTemplates[0].id : ''
@@ -379,15 +381,20 @@ function EmailModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 520,
+          maxWidth: 'min(520px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Mail style={{ width: 15, height: 15, color: '#818cf8' }} />
@@ -603,6 +610,7 @@ function WhatsAppModal({
   interview?: Interview
   onClose: () => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
     waTemplates.length > 0 ? waTemplates[0].id : ''
@@ -709,15 +717,20 @@ function WhatsAppModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'min(480px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <MessageCircle style={{ width: 15, height: 15, color: '#4ade80' }} />
@@ -835,6 +848,7 @@ function ScheduleInterviewModal({
   applicationId?: string
   vacancyId?: string
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const { user } = useUser()
   const [form, setForm] = React.useState({
     scheduledAt: '',
@@ -911,15 +925,20 @@ function ScheduleInterviewModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'min(480px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar style={{ width: 15, height: 15, color: '#a78bfa' }} />
@@ -1097,6 +1116,7 @@ function NotesModal({
   onClose: () => void
   onSaved?: (notes: string) => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [notes, setNotes] = React.useState(candidate.notes ?? '')
   const [saving, setSaving] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
@@ -1141,14 +1161,20 @@ function NotesModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 460,
+          maxWidth: 'min(460px, 95vw)',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText style={{ width: 15, height: 15, color: '#fbbf24' }} />
@@ -1164,7 +1190,7 @@ function NotesModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <textarea
             value={notes}
             onChange={e => { setNotes(e.target.value); setSaved(false) }}
@@ -1601,6 +1627,7 @@ function ProcessDetailModal({
   onAction: (modal: ActiveModal) => void
   onDecide?: (appId: string, action: DecisionAction) => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const c = app.candidate
   if (!c) return null
 
@@ -1627,16 +1654,20 @@ function ProcessDetailModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 520,
+          maxWidth: 'min(520px, 95vw)',
           maxHeight: '90vh',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ padding: '20px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div
+          style={{ padding: '20px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div
               style={{
@@ -1988,6 +2019,7 @@ function HireDialog({
   onClose: () => void
   onVacancyClosed: (vacancyId: string) => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [closing, setClosing] = React.useState(false)
   const candidateName = app.candidate?.fullName ?? 'el candidato'
   const vacancyTitle = app.vacancyTitle
@@ -2002,8 +2034,8 @@ function HireDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <div style={{ padding: '20px 20px 0' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(420px, 95vw)', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', ...dragStyle }}>
+        <div style={{ padding: '20px 20px 0', ...headerStyle }} onMouseDown={onMouseDown}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CheckCircle2 style={{ width: 18, height: 18, color: '#34d399' }} />

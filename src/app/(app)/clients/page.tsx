@@ -103,7 +103,7 @@ function ClientFormDialog({
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent
-        className="max-w-lg w-full"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <DialogHeader>
@@ -337,7 +337,7 @@ function DeleteClientDialog({
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent
-        className="max-w-md"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <DialogHeader>

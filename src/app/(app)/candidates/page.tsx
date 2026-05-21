@@ -198,7 +198,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Perfil del candidato</DialogTitle>
@@ -655,7 +655,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agendar entrevista</DialogTitle>
         </DialogHeader>
@@ -792,7 +792,7 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
   if (!candidate) return null
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />
@@ -973,7 +973,7 @@ function AddCandidateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agregar candidato</DialogTitle>
         </DialogHeader>
