@@ -657,6 +657,8 @@ export default function VacanciesPage() {
   const [search, setSearch] = React.useState('')
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
+  const [clients, setClients] = React.useState<Client[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
 
   const { user } = useUser()
@@ -664,9 +666,10 @@ export default function VacanciesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [vRes, aRes] = await Promise.all([
+    const [vRes, aRes, clRes] = await Promise.all([
       provider.getVacancies(tid),
       provider.getApplications(undefined, tid),
+      provider.getClients(tid),
     ])
     const apps = aRes.data ?? []
     const hydrated = (vRes.data ?? []).map(v => ({
@@ -674,16 +677,18 @@ export default function VacanciesPage() {
       applications: apps.filter(a => a.vacancyId === v.id),
     }))
     setVacancies(hydrated)
+    setClients(clRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 
   const filtered = React.useMemo(() => vacancies.filter(v => {
+    if (filterClient !== 'all' && v.clientId !== filterClient) return false
     if (search && !v.title.toLowerCase().includes(search.toLowerCase()) && !v.department.toLowerCase().includes(search.toLowerCase())) return false
     if (filterPriority !== 'all' && v.priority !== filterPriority) return false
     return true
-  }), [vacancies, search, filterPriority])
+  }), [vacancies, search, filterPriority, filterClient])
 
   const kpis = React.useMemo(() => ({
     total: vacancies.length,
@@ -790,6 +795,15 @@ export default function VacanciesPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar vacante..." className="pl-8 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring w-full" />
         </div>
+        {clients.length > 0 && (
+          <div className="relative">
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
+              <option value="all">Todos los clientes</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        )}
         <div className="relative">
           <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
             <option value="all">Todas las prioridades</option>

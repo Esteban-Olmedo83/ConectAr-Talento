@@ -4,7 +4,7 @@ import * as React from 'react'
 import {
   Plus, Calendar, Clock, User2, Video, Users,
   CheckCircle2, XCircle, AlertCircle,
-  Star, Loader2, FileDown, Sparkles, LayoutList, Layers, ArrowRight
+  Star, Loader2, FileDown, Sparkles, LayoutList, Layers, ArrowRight, ChevronDown
 } from 'lucide-react'
 import { cn, formatDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import type {
   Interview, Candidate, Vacancy, InterviewType, InterviewStatus,
-  MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus, CandidateDisposition
+  MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus, CandidateDisposition, Client
 } from '@/types'
 
 type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
@@ -1333,22 +1333,26 @@ export default function InterviewsPage() {
   const [schedulePrefill, setSchedulePrefill] = React.useState<{ candidateId?: string; vacancyId?: string } | undefined>()
   const [activeTab, setActiveTab]     = React.useState('proximas')
   const [viewMode, setViewMode]       = React.useState<'agenda' | 'vacancy'>('agenda')
+  const [clients, setClients]         = React.useState<Client[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [iRes, cRes, vRes, aRes] = await Promise.all([
+    const [iRes, cRes, vRes, aRes, clRes] = await Promise.all([
       provider.getInterviews(undefined, tid),
       provider.getCandidates(tid),
       provider.getVacancies(tid),
       provider.getApplications(undefined, tid),
+      provider.getClients(tid),
     ])
     setInterviews(iRes.data ?? [])
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
     setApplications(aRes.data ?? [])
+    setClients(clRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
@@ -1356,6 +1360,14 @@ export default function InterviewsPage() {
 
   const candidateMap = React.useMemo(() => new Map(candidates.map(c => [c.id, c])), [candidates])
   const vacancyMap   = React.useMemo(() => new Map(vacancies.map(v => [v.id, v])), [vacancies])
+
+  const filteredInterviews = React.useMemo(() => {
+    if (filterClient === 'all') return interviews
+    return interviews.filter(i => {
+      const v = vacancyMap.get(i.vacancyId ?? '')
+      return v?.clientId === filterClient
+    })
+  }, [interviews, filterClient, vacancyMap])
 
   const appByCandidateVacancy = React.useMemo(() => {
     const map = new Map<string, Application>()
@@ -1370,22 +1382,22 @@ export default function InterviewsPage() {
   const in48h = new Date(now.getTime() + 48 * 3600000)
 
   const tabs = React.useMemo(() => ({
-    proximas:   interviews.filter(i => i.status === 'Programada' && new Date(i.scheduledAt) >= now)
+    proximas:   filteredInterviews.filter(i => i.status === 'Programada' && new Date(i.scheduledAt) >= now)
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
-    semana:     interviews.filter(i => {
+    semana:     filteredInterviews.filter(i => {
       const d = new Date(i.scheduledAt); const end = new Date(now); end.setDate(now.getDate() + 7)
       return d >= now && d <= end
     }),
-    completadas: interviews.filter(i => i.status === 'Completada'),
-    canceladas:  interviews.filter(i => i.status === 'Cancelada'),
-  }), [interviews, now])
+    completadas: filteredInterviews.filter(i => i.status === 'Completada'),
+    canceladas:  filteredInterviews.filter(i => i.status === 'Cancelada'),
+  }), [filteredInterviews, now])
 
   const urgentes = tabs.proximas.filter(i => new Date(i.scheduledAt) <= in48h)
 
   // ── Por Vacante grouping ──
   const vacancyGroups = React.useMemo(() => {
     const groups = new Map<string, Map<string, Interview[]>>()
-    for (const iv of interviews) {
+    for (const iv of filteredInterviews) {
       const vid = iv.vacancyId || '__none__'
       if (!groups.has(vid)) groups.set(vid, new Map())
       const candMap = groups.get(vid)!
