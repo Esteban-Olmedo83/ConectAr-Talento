@@ -1409,7 +1409,7 @@ export default function InterviewsPage() {
       candMap.set(cid, rounds.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()))
     ))
     return groups
-  }, [interviews])
+  }, [filteredInterviews])
 
   // ── Actions ──
   async function handleCancel(id: string) {
@@ -1475,10 +1475,23 @@ export default function InterviewsPage() {
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Entrevistas</h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
-            {tabs.proximas.length} programada{tabs.proximas.length !== 1 ? 's' : ''} · {interviews.length} en total
+            {tabs.proximas.length} programada{tabs.proximas.length !== 1 ? 's' : ''} · {filteredInterviews.length} en total
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {clients.length > 0 && (
+            <div className="relative">
+              <select
+                value={filterClient}
+                onChange={e => setFilterClient(e.target.value)}
+                className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none"
+              >
+                <option value="all">Todos los clientes</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            </div>
+          )}
           {/* View toggle */}
           <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
             <button
