@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Client, Vacancy } from '@/types'
@@ -100,19 +101,47 @@ function ClientFormDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>
-            {client ? 'Editar cliente' : 'Nuevo cliente'}
-          </DialogTitle>
-        </DialogHeader>
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 'min(540px, 95vw)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          ...dragStyle,
+        }}
+      >
+        {/* Header */}
+        <div
+          onMouseDown={onMouseDown}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px', borderBottom: '1px solid var(--border)',
+            ...headerStyle,
+          }}
+        >
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+            {client ? 'Editar cliente' : 'Nuevo cliente'}
+          </h2>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Name */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
@@ -301,26 +330,26 @@ function ClientFormDialog({
           </div>
 
           {saveError && (
-            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
+            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
               {saveError}
             </p>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={saving || !form.name.trim()}
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving || !form.name.trim() ? 0.6 : 1 }}
             >
               {saving ? 'Guardando...' : client ? 'Guardar cambios' : 'Crear cliente'}
-            </Button>
+            </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }
 
