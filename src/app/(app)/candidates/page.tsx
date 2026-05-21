@@ -1061,7 +1061,7 @@ function AddCandidateDialog({
 }
 
 // ─── CV Analyzer Drop Zone ────────────────────────────────────────────────────
-function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
+function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; clients: import('@/types').Client[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -1176,6 +1176,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         open={showAdd}
         onClose={() => { setShowAdd(false); setStatus('idle') }}
         vacancies={vacancies}
+        clients={clients}
         prefill={prefill ?? undefined}
         onSave={c => { onCandidateAdded(c); setPrefill(null) }}
       />
@@ -1320,7 +1321,7 @@ export default function CandidatesPage() {
       </div>
 
       {/* CV Drop Zone */}
-      <CvDropZone vacancies={vacancies} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} onLimitReached={checkCandidateLimit} />
+      <CvDropZone vacancies={vacancies} clients={clients} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} onLimitReached={checkCandidateLimit} />
 
       {/* Filters + View Toggle */}
       <div className="flex items-center gap-3 flex-wrap">
