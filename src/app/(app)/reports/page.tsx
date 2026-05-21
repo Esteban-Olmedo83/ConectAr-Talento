@@ -304,7 +304,7 @@ export default function ReportsPage() {
   const clientFilteredCandidates = React.useMemo(() => {
     if (filterClient === 'all') return candidates
     const ids = new Set(clientFilteredApplications.map(a => a.candidateId))
-    return candidates.filter(c => ids.has(c.id))
+    return candidates.filter(c => ids.has(c.id) || c.clientId === filterClient)
   }, [candidates, filterClient, clientFilteredApplications])
 
   const filteredCandidates = React.useMemo(
