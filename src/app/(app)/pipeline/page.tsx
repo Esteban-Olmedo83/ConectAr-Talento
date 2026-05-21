@@ -463,9 +463,10 @@ function WhatsAppModal({
   onClose: () => void
 }) {
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
+    waTemplates.length > 0 ? waTemplates[0].id : ''
+  )
   const [message, setMessage] = React.useState('')
-  const [copied, setCopied] = React.useState(false)
 
   const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
 
@@ -515,28 +516,17 @@ function WhatsAppModal({
   }
 
   const phone = candidate.phone ? formatPhone(candidate.phone) : null
-  // Open WhatsApp WITHOUT text in URL — emojis and formatting are preserved
-  // by copying to clipboard first, then pasting in WhatsApp.
-  const waUrl = phone ? `https://wa.me/${phone}` : null
 
-  async function handleCopyAndOpen() {
-    try {
-      await navigator.clipboard.writeText(message)
-      setCopied(true)
-      setTimeout(() => {
-        if (waUrl) window.open(waUrl, '_blank', 'noopener,noreferrer')
-      }, 400)
-      setTimeout(() => setCopied(false), 3000)
-    } catch {
-      // Fallback: just open WhatsApp
-      if (waUrl) window.open(waUrl, '_blank', 'noopener,noreferrer')
-    }
-  }
-
-  async function handleCopyOnly() {
-    await navigator.clipboard.writeText(message)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
+  function handleSend() {
+    if (!phone) return
+    const a = document.createElement('a')
+    a.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    a.rel = 'noopener noreferrer'
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    onClose()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -609,13 +599,12 @@ function WhatsAppModal({
 
           {waTemplates.length > 0 && (
             <div>
-              <label style={labelStyle}>Template (opcional)</label>
+              <label style={labelStyle}>Template</label>
               <select
                 value={selectedTemplateId}
                 onChange={e => setSelectedTemplateId(e.target.value)}
                 style={{ ...inputStyle, appearance: 'none' as const }}
               >
-                <option value="">Sin template</option>
                 {waTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -631,31 +620,23 @@ function WhatsAppModal({
             />
           </div>
 
-          {/* Tip */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
-            <Copy style={{ width: 13, height: 13, color: '#4ade80', flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-              El botón principal copia el mensaje y abre WhatsApp. Solo pegá con <strong style={{ color: 'var(--text)' }}>Ctrl+V</strong> (o mantené presionado en móvil). Esto garantiza que los emojis y el formato lleguen correctamente.
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
           <button
-            onClick={handleCopyOnly}
-            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: copied ? '#4ade80' : 'var(--muted)', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}
+            onClick={onClose}
+            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
           >
-            {copied ? <CheckCircle2 style={{ width: 13, height: 13 }} /> : <Copy style={{ width: 13, height: 13 }} />}
-            {copied ? 'Copiado' : 'Solo copiar'}
+            Cancelar
           </button>
-          {waUrl ? (
+          {phone ? (
             <button
-              onClick={handleCopyAndOpen}
-              style={{ padding: '8px 16px', borderRadius: 8, background: copied ? 'rgba(22,163,74,0.8)' : '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
+              onClick={handleSend}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <MessageCircle style={{ width: 13, height: 13 }} />
-              {copied ? 'Abriendo WhatsApp...' : 'Copiar y abrir WhatsApp'}
+              Enviar por WhatsApp
             </button>
           ) : (
             <button disabled style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'not-allowed', fontSize: 13 }}>
