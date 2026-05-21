@@ -2201,10 +2201,12 @@ export default function PipelinePage() {
     window.addEventListener('vacancy:created', handleChange)
     window.addEventListener('vacancy:updated', handleChange)
     window.addEventListener('application:stage-changed', handleChange)
+    window.addEventListener('client:deleted', handleChange)
     return () => {
       window.removeEventListener('vacancy:created', handleChange)
       window.removeEventListener('vacancy:updated', handleChange)
       window.removeEventListener('application:stage-changed', handleChange)
+      window.removeEventListener('client:deleted', handleChange)
     }
   }, [load])
 

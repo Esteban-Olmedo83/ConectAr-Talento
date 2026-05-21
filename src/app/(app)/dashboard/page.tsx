@@ -222,31 +222,37 @@ export default function DashboardPage() {
 
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
-  React.useEffect(() => {
+  const load = React.useCallback(async () => {
     // Wait for user to be resolved — if null, the user context hasn't loaded yet
     if (user === null) return
-
-    async function load() {
-      // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
-      const tenantId = user!.tenantId ?? user!.id
-      const [candResult, appResult, intResult, vacResult, clientResult] = await Promise.all([
-        provider.getCandidates(tenantId),
-        provider.getApplications(undefined, tenantId),
-        provider.getInterviews(undefined, tenantId),
-        provider.getVacancies(tenantId),
-        provider.getClients(tenantId),
-      ])
-      setData({
-        candidates: candResult.data ?? [],
-        applications: appResult.data ?? [],
-        interviews: intResult.data ?? [],
-        vacancies: vacResult.data ?? [],
-        clients: clientResult.data ?? [],
-      })
-      setLoading(false)
-    }
-    load()
+    // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
+    const tenantId = user.tenantId ?? user.id
+    const [candResult, appResult, intResult, vacResult, clientResult] = await Promise.all([
+      provider.getCandidates(tenantId),
+      provider.getApplications(undefined, tenantId),
+      provider.getInterviews(undefined, tenantId),
+      provider.getVacancies(tenantId),
+      provider.getClients(tenantId),
+    ])
+    setData({
+      candidates: candResult.data ?? [],
+      applications: appResult.data ?? [],
+      interviews: intResult.data ?? [],
+      vacancies: vacResult.data ?? [],
+      clients: clientResult.data ?? [],
+    })
+    setLoading(false)
   }, [provider, user])
+
+  React.useEffect(() => {
+    load()
+  }, [load])
+
+  React.useEffect(() => {
+    function handleClientDeleted() { load() }
+    window.addEventListener('client:deleted', handleClientDeleted)
+    return () => window.removeEventListener('client:deleted', handleClientDeleted)
+  }, [load])
 
   if (loading) {
     return <DashboardSkeleton />

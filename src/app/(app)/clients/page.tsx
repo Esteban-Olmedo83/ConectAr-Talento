@@ -355,6 +355,13 @@ function ClientFormDialog({
 
 // ─── Delete Confirm Dialog ────────────────────────────────────────────────────
 
+interface DeleteCounts {
+  vacancies: number
+  applications: number
+  interviews: number
+  scorecards: number
+}
+
 function DeleteClientDialog({
   client, onConfirm, onClose,
 }: {
@@ -362,7 +369,20 @@ function DeleteClientDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [confirmed, setConfirmed] = React.useState(false)
+  const [counts, setCounts] = React.useState<DeleteCounts | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function fetchCounts() {
+      const result = await provider.getDeleteClientCounts(client.id)
+      if (!cancelled) setCounts(result)
+    }
+    fetchCounts()
+    return () => { cancelled = true }
+  }, [client.id, provider])
+
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent
@@ -382,11 +402,27 @@ function DeleteClientDialog({
             <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
             <ul className="ml-3 mt-1 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
               <li>El perfil y datos de contacto del cliente</li>
-              <li>Todas las vacantes asociadas a este cliente</li>
-              <li>Los procesos de reclutamiento y candidatos vinculados a esas vacantes</li>
-              <li>Las entrevistas y evaluaciones (scorecards) realizadas</li>
-              <li>Los candidatos que tengan este cliente asignado como referencia</li>
-              <li>Todo el historial de actividad y comunicaciones</li>
+              <li>
+                {counts == null
+                  ? 'Vacantes asociadas a este cliente'
+                  : `${counts.vacancies} ${counts.vacancies === 1 ? 'vacante asociada' : 'vacantes asociadas'} a este cliente`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Postulaciones vinculadas a esas vacantes'
+                  : `${counts.applications} ${counts.applications === 1 ? 'postulación vinculada' : 'postulaciones vinculadas'} a esas vacantes`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Entrevistas realizadas en esos procesos'
+                  : `${counts.interviews} ${counts.interviews === 1 ? 'entrevista realizada' : 'entrevistas realizadas'} en esos procesos`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Evaluaciones (scorecards) completadas'
+                  : `${counts.scorecards} ${counts.scorecards === 1 ? 'evaluación (scorecard) completada' : 'evaluaciones (scorecards) completadas'}`}
+              </li>
+              <li>Los candidatos con este cliente asignado quedarán desvinculados (no se eliminan)</li>
             </ul>
           </div>
 
@@ -679,6 +715,7 @@ export default function ClientsPage() {
     setClients(prev => prev.filter(c => c.id !== client.id))
     setVacancies(prev => prev.map(v => v.clientId === client.id ? { ...v, clientId: undefined, client: undefined } : v))
     setDeletingClient(undefined)
+    window.dispatchEvent(new CustomEvent('client:deleted', { detail: { clientId: client.id } }))
   }
 
   const atLimit = clients.length >= limits.clients

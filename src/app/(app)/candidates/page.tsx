@@ -1222,6 +1222,12 @@ export default function CandidatesPage() {
 
   React.useEffect(() => { load() }, [load])
 
+  React.useEffect(() => {
+    function handleClientDeleted() { load() }
+    window.addEventListener('client:deleted', handleClientDeleted)
+    return () => window.removeEventListener('client:deleted', handleClientDeleted)
+  }, [load])
+
   const filtered = React.useMemo(() => {
     return candidates.filter(c => {
       if (search && !c.fullName.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false
