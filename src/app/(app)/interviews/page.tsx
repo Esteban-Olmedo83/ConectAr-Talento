@@ -597,7 +597,7 @@ function ScorecardModal({
 
   async function handleSubmit() {
     setSaving(true)
-    await provider.createScorecard({
+    const scResult = await provider.createScorecard({
       interviewId: interview.id,
       overallRating,
       technicalSkills: scores.technicalSkills,
@@ -612,6 +612,9 @@ function ScorecardModal({
       if (updated.data) onComplete(updated.data)
     } else {
       setSaving(false)
+      if (scResult.data) {
+        onComplete({ ...interview, scorecard: scResult.data })
+      }
     }
     onClose()
   }

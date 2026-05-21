@@ -5,7 +5,8 @@ import {
   Search, Plus, Upload, Users, Brain, TrendingUp, Clock,
   Grid3X3, List, ChevronDown, Trash2, Calendar, Eye,
   X, Loader2, CheckCircle2, Mail, Phone, FileText, AlertTriangle,
-  ExternalLink, Award, Briefcase, BookOpen
+  ExternalLink, Award, Briefcase, BookOpen, ArrowRight,
+  Video, CheckCheck, XCircle, Star
 } from 'lucide-react'
 import { cn, formatRelativeDate, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform } from '@/types'
+import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
@@ -66,11 +67,12 @@ const SOURCE_TEXT: Record<string, string> = {
 }
 
 // ─── View Profile Dialog ──────────────────────────────────────────────────────
-function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate }: {
+function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, vacancies }: {
   candidate: Candidate | null
   open: boolean
   onClose: () => void
   onUpdate?: (c: Candidate) => void
+  vacancies?: Vacancy[]
 }) {
   const [candidate, setCandidate] = React.useState<Candidate | null>(null)
   const [editMode, setEditMode] = React.useState(false)
@@ -88,6 +90,11 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate }
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
+  // Process info state
+  const [applications, setApplications] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loadingProcess, setLoadingProcess] = React.useState(false)
+
   React.useEffect(() => {
     if (open && candidateProp) {
       setCandidate(candidateProp)
@@ -99,8 +106,18 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate }
       setEditSkills(candidateProp.skills.join(', '))
       setEditMode(false)
       setSaveError('')
+      // Load process info
+      setLoadingProcess(true)
+      Promise.all([
+        provider.getApplicationsByCandidateId(candidateProp.id),
+        provider.getInterviews(candidateProp.id),
+      ]).then(([appRes, intRes]) => {
+        setApplications(appRes.data ?? [])
+        setInterviews(intRes.data ?? [])
+        setLoadingProcess(false)
+      })
     }
-  }, [open, candidateProp])
+  }, [open, candidateProp, provider])
 
   async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -414,6 +431,97 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate }
               </a>
             </div>
           ) : null}
+
+          {/* Process info cards */}
+          {(loadingProcess || applications.length > 0 || interviews.length > 0) && (
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Estado del proceso
+              </p>
+              {loadingProcess ? (
+                <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <Loader2 className="h-3 w-3 animate-spin" /> Cargando...
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {applications.map(app => {
+                    const vacancy = vacancies?.find(v => v.id === app.vacancyId)
+                    const appInterviews = interviews.filter(i => i.vacancyId === app.vacancyId)
+                    const completed = appInterviews.filter(i => i.status === 'Completada')
+                    const pending = appInterviews.filter(i => i.status === 'Programada')
+                    const STATUS_STYLE: Record<string, { bg: string; color: string; icon: React.ElementType; label: string }> = {
+                      'Nuevas Vacantes': { bg: 'rgba(96,165,250,0.1)',  color: '#60a5fa', icon: Clock,       label: 'Nuevo' },
+                      'En Proceso':      { bg: 'rgba(167,114,250,0.1)', color: '#a78bfa', icon: TrendingUp,  label: 'En proceso' },
+                      'Entrevistas':     { bg: 'rgba(251,146,60,0.1)',  color: '#fb923c', icon: Video,       label: 'Entrevistas' },
+                      'Oferta Enviada':  { bg: 'rgba(52,211,153,0.1)',  color: '#34d399', icon: CheckCheck,  label: 'Oferta enviada' },
+                      'Contratado':      { bg: 'rgba(16,185,129,0.1)',  color: '#10b981', icon: CheckCircle2, label: 'Contratado' },
+                      'Descartado':      { bg: 'rgba(248,113,113,0.1)', color: '#f87171', icon: XCircle,     label: 'Descartado' },
+                    }
+                    const style = STATUS_STYLE[app.status] ?? STATUS_STYLE['En Proceso']
+                    const StatusIcon = style.icon
+                    const avgScore = completed.length > 0
+                      ? Math.round(completed.reduce((s, i) => {
+                          const sc = i.scorecard
+                          if (!sc) return s
+                          return s + ((sc.technicalSkills + sc.communication + sc.culturalFit) / 3)
+                        }, 0) / completed.filter(i => i.scorecard).length || 0)
+                      : null
+                    return (
+                      <a
+                        key={app.id}
+                        href="/pipeline"
+                        className="flex items-center gap-3 rounded-xl border p-3 transition-all hover:opacity-90 cursor-pointer no-underline"
+                        style={{ background: style.bg, borderColor: `${style.color}33` }}
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ background: `${style.color}20` }}>
+                          <StatusIcon className="h-4 w-4" style={{ color: style.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                            {vacancy?.title ?? 'Vacante'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs font-medium" style={{ color: style.color }}>{style.label}</span>
+                            {appInterviews.length > 0 && (
+                              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                                · {completed.length}/{appInterviews.length} entrevista{appInterviews.length !== 1 ? 's' : ''}
+                                {pending.length > 0 && ` (${pending.length} pendiente${pending.length !== 1 ? 's' : ''})`}
+                              </span>
+                            )}
+                            {avgScore != null && avgScore > 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-xs" style={{ color: '#fbbf24' }}>
+                                <Star className="h-2.5 w-2.5 fill-current" />
+                                {avgScore}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted)' }} />
+                      </a>
+                    )
+                  })}
+                  {applications.length === 0 && interviews.length > 0 && (
+                    <a
+                      href="/interviews"
+                      className="flex items-center gap-3 rounded-xl border p-3 transition-all hover:opacity-90 cursor-pointer no-underline"
+                      style={{ background: 'rgba(251,146,60,0.1)', borderColor: 'rgba(251,146,60,0.2)' }}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(251,146,60,0.2)' }}>
+                        <Video className="h-4 w-4" style={{ color: '#fb923c' }} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Entrevistas</p>
+                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                          {interviews.filter(i => i.status === 'Completada').length} completada{interviews.filter(i => i.status === 'Completada').length !== 1 ? 's' : ''} · {interviews.filter(i => i.status === 'Programada').length} programada{interviews.filter(i => i.status === 'Programada').length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted)' }} />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Dates */}
           <p className="text-xs" style={{ color: 'var(--muted)' }}>
@@ -1333,6 +1441,7 @@ export default function CandidatesPage() {
         open={viewCandidate !== null}
         onClose={() => setViewCandidate(null)}
         onUpdate={c => setCandidates(prev => prev.map(x => x.id === c.id ? c : x))}
+        vacancies={vacancies}
       />
 
       {/* Schedule interview dialog */}

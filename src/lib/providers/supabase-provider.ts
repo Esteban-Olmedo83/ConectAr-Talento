@@ -535,6 +535,9 @@ export class SupabaseProvider implements DataProvider {
     if (input.scheduledAt !== undefined) patch.scheduled_at = input.scheduledAt
     if (input.notes !== undefined) patch.notes = input.notes
     if (input.meetingLink !== undefined) patch.meeting_link = input.meetingLink
+    if (input.type !== undefined) patch.type = input.type
+    if (input.interviewerName !== undefined) patch.interviewer_name = input.interviewerName
+    if (input.meetingPlatform !== undefined) patch.meeting_platform = input.meetingPlatform
     const { data, error } = await this.sb
       .from('interviews')
       .update(patch)
