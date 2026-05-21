@@ -121,7 +121,7 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
       >
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 flex items-center justify-center animate-pulse">
-            <Image src="/logo.png" alt="ConectAr Talento" width={40} height={40} style={{ objectFit: 'contain' }} priority />
+            <Image src="/logo-transparent.png" alt="ConectAr Talento" width={40} height={40} style={{ objectFit: 'contain' }} priority />
           </div>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>Cargando...</p>
         </div>

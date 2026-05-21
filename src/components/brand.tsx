@@ -4,7 +4,7 @@ import Image from 'next/image'
 function LogoIcon({ size = 32 }: { size?: number }) {
   return (
     <Image
-      src="/logo.png"
+      src="/logo-transparent.png"
       alt="ConectAr Talento"
       width={size}
       height={size}

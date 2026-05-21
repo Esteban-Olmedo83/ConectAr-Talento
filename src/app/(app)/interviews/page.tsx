@@ -275,7 +275,7 @@ function ScorecardModal({
     // Load logo as base64 for embedding
     let logoDataUrl = ''
     try {
-      const res = await fetch('/logo.png')
+      const res = await fetch('/logo-transparent.png')
       const blob = await res.blob()
       logoDataUrl = await new Promise<string>(resolve => {
         const reader = new FileReader()
@@ -376,14 +376,14 @@ function ScorecardModal({
     setFill(TEAL); doc.rect(0, 0, W, 1.5, 'F')
     setFill(PURPLE); doc.rect(0, 0, W * 0.5, 1.5, 'F')
 
-    // Logo
-    drawLogo(18, 18, 22)
+    // Logo — cover (larger)
+    drawLogo(18, 14, 28)
 
     // "ConectAr Talento" text next to logo
     setColor(TEXT); doc.setFontSize(13); doc.setFont('helvetica', 'bold')
-    doc.text('ConectAr', 44, 27)
+    doc.text('ConectAr', 50, 24)
     setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-    doc.text('T A L E N T O', 44, 33)
+    doc.text('T A L E N T O', 50, 31)
 
     // Confidential badge
     drawRoundedRect(W - 50, 20, 32, 7, 2, SURFACE2)
@@ -430,15 +430,33 @@ function ScorecardModal({
       pillX += tw + 3
     })
 
-    // Recommendation badge on cover
-    const recBadgeW = 60
-    drawRoundedRect(W - recBadgeW - 18, 195, recBadgeW, 16, 3, recColor.map(v => Math.round(v * 0.15)) as [number,number,number])
-    setDraw(recColor); doc.setLineWidth(0.5)
-    doc.roundedRect(W - recBadgeW - 18, 195, recBadgeW, 16, 3, 3, 'S')
-    setColor(recColor); doc.setFontSize(7); doc.setFont('helvetica', 'bold')
-    doc.text(recLabel, W - recBadgeW / 2 - 18, 200.5, { align: 'center' })
-    doc.setFontSize(8)
-    doc.text('★'.repeat(overallRating) + '☆'.repeat(5 - overallRating), W - recBadgeW / 2 - 18, 207, { align: 'center' })
+    // Recommendation + rating on cover — two cards side by side
+    const covCardY = 192, covCardH = 26
+    // Rating card
+    drawRoundedRect(18, covCardY, 78, covCardH, 3, SURFACE)
+    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('CALIFICACIÓN', 57, covCardY + 6, { align: 'center' })
+    // Draw 5 filled/empty circles as rating dots
+    for (let di = 0; di < 5; di++) {
+      const cx = 30 + di * 10, cy = covCardY + 17
+      if (di < overallRating) {
+        setFill(AMBER); doc.circle(cx, cy, 3.5, 'F')
+      } else {
+        setFill(SURFACE2); doc.circle(cx, cy, 3.5, 'F')
+      }
+    }
+    setColor(AMBER); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text(`${overallRating}/5`, 73, covCardY + 20, { align: 'right' })
+    // Recommendation card
+    const covRecX = 100
+    drawRoundedRect(covRecX, covCardY, W - covRecX - 18, covCardH, 3, recColor.map(v => Math.round(v * 0.15)) as [number,number,number])
+    setDraw(recColor); doc.setLineWidth(0.4)
+    doc.roundedRect(covRecX, covCardY, W - covRecX - 18, covCardH, 3, 3, 'S')
+    setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('RESULTADO', W / 2 + 6, covCardY + 6, { align: 'center' })
+    setColor(recColor); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold')
+    const covRecLines = doc.splitTextToSize(recLabel, W - covRecX - 26) as string[]
+    doc.text(covRecLines, W / 2 + 6, covCardY + 15, { align: 'center' })
 
     // Bottom divider
     setFill(BORDER); doc.rect(18, H - 20, W - 36, 0.4, 'F')
@@ -463,17 +481,25 @@ function ScorecardModal({
     let y = sectionHeader('RESUMEN GENERAL', 34)
 
     // Rating + recommendation side by side cards
-    const cardH = 28
-    // Rating card (left)
+    const cardH = 32
+    // Rating card (left) — dot indicators
     drawRoundedRect(18, y, 82, cardH, 3, SURFACE)
     setColor(MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
     doc.text('CALIFICACIÓN GENERAL', 59, y + 7, { align: 'center' })
-    setColor(AMBER); doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-    doc.text('★'.repeat(overallRating), 36, y + 19)
-    setColor(MUTED); doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-    doc.text('☆'.repeat(5 - overallRating), 36 + overallRating * 6.5, y + 19)
-    setColor(TEXT); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-    doc.text(`${overallRating} / 5`, 83, y + 19, { align: 'right' })
+    // Large score number
+    setColor(AMBER); doc.setFontSize(20); doc.setFont('helvetica', 'bold')
+    doc.text(`${overallRating}`, 34, y + 24)
+    setColor(MUTED); doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+    doc.text('/ 5', 41, y + 24)
+    // Dot row
+    for (let di = 0; di < 5; di++) {
+      const cx = 57 + di * 8, cy = y + 20
+      if (di < overallRating) {
+        setFill(AMBER); doc.circle(cx, cy, 3, 'F')
+      } else {
+        setFill(SURFACE2); doc.circle(cx, cy, 3, 'F')
+      }
+    }
 
     // Recommendation card (right)
     drawRoundedRect(104, y, 88, cardH, 3, recColor.map(v => Math.round(v * 0.12)) as [number,number,number])
@@ -483,16 +509,14 @@ function ScorecardModal({
     doc.text('RECOMENDACIÓN', 148, y + 7, { align: 'center' })
     setColor(recColor); doc.setFontSize(9.5); doc.setFont('helvetica', 'bold')
     const recLines = doc.splitTextToSize(recLabel, 78) as string[]
-    doc.text(recLines, 148, y + 17, { align: 'center' })
+    doc.text(recLines, 148, y + 19, { align: 'center' })
     y += cardH + 8
 
-    // AI Summary
+    // Summary
     if (aiSummary) {
       drawRoundedRect(18, y, W - 36, 52, 3, SURFACE)
       setColor(TEAL); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-      doc.text('ANÁLISIS DE IA', 24, y + 8)
-      setColor(MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-      doc.text('Generado automáticamente', W - 24, y + 8, { align: 'right' })
+      doc.text('RESUMEN DE LA ENTREVISTA', 24, y + 8)
       setColor(TEXT); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
       const summaryLines = doc.splitTextToSize(aiSummary, W - 52) as string[]
       const maxL = Math.min(summaryLines.length, 12)
@@ -656,9 +680,17 @@ function ScorecardModal({
       setColor(MUTED); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
       doc.text('DECISIÓN FINAL DEL ENTREVISTADOR', W / 2, y + 8, { align: 'center' })
       setColor(recColor); doc.setFontSize(14); doc.setFont('helvetica', 'bold')
-      doc.text(recLabel, W / 2, y + 20, { align: 'center' })
-      setColor(AMBER); doc.setFontSize(14)
-      doc.text('★'.repeat(overallRating) + '☆'.repeat(5 - overallRating), W / 2, y + 28, { align: 'center' })
+      doc.text(recLabel, W / 2, y + 19, { align: 'center' })
+      // Rating dots centered
+      const dotStartX = W / 2 - 22
+      for (let di = 0; di < 5; di++) {
+        const cx = dotStartX + di * 11
+        if (di < overallRating) {
+          setFill(AMBER); doc.circle(cx, y + 27, 3.5, 'F')
+        } else {
+          setFill(SURFACE2); doc.circle(cx, y + 27, 3.5, 'F')
+        }
+      }
 
       pageNum(4, TOTAL_PAGES)
     }

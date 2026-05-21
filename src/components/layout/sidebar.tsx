@@ -156,8 +156,8 @@ export function Sidebar({
         >
           <Link href="/pipeline" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
             {/* Logo */}
-            <div className="shrink-0 flex items-center justify-center" style={{ width: 30, height: 30 }}>
-              <Image src="/logo.png" alt="ConectAr Talento" width={30} height={30} style={{ objectFit: 'contain' }} priority />
+            <div className="shrink-0 flex items-center justify-center" style={{ width: 36, height: 36 }}>
+              <Image src="/logo-transparent.png" alt="ConectAr Talento" width={36} height={36} style={{ objectFit: 'contain' }} priority />
             </div>
             {!isCollapsed && (
               <div className="min-w-0">
