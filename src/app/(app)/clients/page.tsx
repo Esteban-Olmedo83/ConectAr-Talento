@@ -3,7 +3,7 @@
 import * as React from 'react'
 import {
   Plus, Search, Building2, Briefcase, Mail, Phone,
-  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink, MapPin,
+  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink, MapPin, Camera, Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -35,8 +35,13 @@ function ClientFormDialog({
 }) {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const supabase = React.useMemo(() => { const { createClient: sc } = require('@/lib/supabase/client') as typeof import('@/lib/supabase/client'); return sc() }, [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
+  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(client?.logoUrl)
+  const [uploadingLogo, setUploadingLogo] = React.useState(false)
+  const logoInputRef = React.useRef<HTMLInputElement>(null)
   const [form, setForm] = React.useState({
     name: client?.name ?? '',
     industry: client?.industry ?? '',
@@ -52,6 +57,7 @@ function ClientFormDialog({
 
   React.useEffect(() => {
     if (open) {
+      setLogoUrl(client?.logoUrl)
       setForm({
         name: client?.name ?? '',
         industry: client?.industry ?? '',
@@ -66,6 +72,24 @@ function ClientFormDialog({
       })
     }
   }, [open, client])
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `logos/${client?.id ?? 'new'}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('cvs').upload(path, file, { upsert: true })
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+        setLogoUrl(publicUrl)
+      }
+    } finally {
+      setUploadingLogo(false)
+      e.target.value = ''
+    }
+  }
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -88,6 +112,7 @@ function ClientFormDialog({
       interviewAddress: form.interviewAddress || undefined,
       interviewArrivalDetails: form.interviewArrivalDetails || undefined,
       notes: form.notes || undefined,
+      logoUrl: logoUrl || undefined,
     }
     const result = client
       ? await provider.updateClient(client.id, input)
@@ -142,6 +167,51 @@ function ClientFormDialog({
         </div>
 
         <form onSubmit={handleSubmit} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Logo upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              onClick={() => logoInputRef.current?.click()}
+              style={{
+                width: 72, height: 72, borderRadius: 12, flexShrink: 0,
+                background: 'var(--surface2)', border: '2px dashed var(--border)',
+                cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {logoUrl
+                ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <Building2 style={{ width: 28, height: 28, color: 'var(--muted)' }} />
+              }
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0, transition: 'opacity 0.15s',
+              }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+              >
+                {uploadingLogo
+                  ? <Loader2 style={{ width: 18, height: 18, color: '#fff' }} className="animate-spin" />
+                  : <Camera style={{ width: 18, height: 18, color: '#fff' }} />
+                }
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Logo del cliente</p>
+              <p style={{ fontSize: 11, color: 'var(--muted)' }}>PNG, JPG o WebP · Se muestra en tarjetas y reportes</p>
+              <button type="button" onClick={() => logoInputRef.current?.click()}
+                style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                {logoUrl ? 'Cambiar logo' : 'Subir logo'}
+              </button>
+              {logoUrl && (
+                <button type="button" onClick={() => setLogoUrl(undefined)}
+                  style={{ marginTop: 6, marginLeft: 10, fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Quitar
+                </button>
+              )}
+            </div>
+            <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+          </div>
           {/* Name */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
@@ -482,14 +552,17 @@ function ClientCard({
         <div className="flex items-start justify-between gap-2 mb-3">
           <Link href={`/clients/${client.id}`} className="flex items-center gap-3 min-w-0 group">
             <div
-              className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold"
+              className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold overflow-hidden"
               style={{
                 width: 40,
                 height: 40,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                background: client.logoUrl ? 'transparent' : 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               }}
             >
-              {client.name.charAt(0).toUpperCase()}
+              {client.logoUrl
+                ? <img src={client.logoUrl} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : client.name.charAt(0).toUpperCase()
+              }
             </div>
             <div className="min-w-0">
               <h3

@@ -9,28 +9,40 @@ export const runtime = 'nodejs'
 const MONTHLY_ANALYSIS_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
 function extractJpegFromPdf(buffer: Buffer): Buffer | null {
-  // Find first JPEG SOI marker: FF D8 FF
-  let start = -1
-  for (let i = 0; i < buffer.length - 2; i++) {
-    if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8 && buffer[i + 2] === 0xFF) {
-      start = i
-      break
+  // Collect ALL JPEGs embedded in the PDF, then pick the largest one
+  // (logos/icons are small; a portrait photo is typically the biggest JPEG)
+  const candidates: Buffer[] = []
+  let searchFrom = 0
+  while (searchFrom < buffer.length - 2) {
+    // Find next JPEG SOI: FF D8 FF
+    let start = -1
+    for (let i = searchFrom; i < buffer.length - 2; i++) {
+      if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8 && buffer[i + 2] === 0xFF) {
+        start = i
+        break
+      }
     }
-  }
-  if (start === -1) return null
-  // Find last EOI marker: FF D9
-  let end = -1
-  for (let i = buffer.length - 2; i > start; i--) {
-    if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
-      end = i + 2
-      break
+    if (start === -1) break
+    // Find the EOI marker: FF D9 that closes this JPEG
+    let end = -1
+    for (let i = buffer.length - 2; i > start; i--) {
+      if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+        end = i + 2
+        break
+      }
     }
+    if (end === -1) break
+    const jpeg = buffer.slice(start, end)
+    // Keep JPEGs between 3 KB and 2 MB (portrait photos can be large or small)
+    if (jpeg.length >= 3072 && jpeg.length <= 2 * 1024 * 1024) {
+      candidates.push(jpeg)
+    }
+    searchFrom = end
   }
-  if (end === -1) return null
-  const jpeg = buffer.slice(start, end)
-  // Only treat as portrait photo if between 5 KB and 800 KB
-  if (jpeg.length < 5120 || jpeg.length > 800 * 1024) return null
-  return jpeg
+  if (candidates.length === 0) return null
+  // Return the largest JPEG — most likely the portrait photo, not an icon
+  candidates.sort((a, b) => b.length - a.length)
+  return candidates[0]
 }
 
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
