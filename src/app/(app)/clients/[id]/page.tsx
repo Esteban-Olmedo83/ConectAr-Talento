@@ -209,9 +209,10 @@ function DeleteConfirmDialog({ name, onConfirm, onClose, deleting }: {
 
 // ─── Vacancy Row ──────────────────────────────────────────────────────────────
 
-function VacancyRow({ vacancy, applications }: {
+function VacancyRow({ vacancy, applications, clientId }: {
   vacancy: Vacancy
   applications: Application[]
+  clientId: string
 }) {
   const stageCount = React.useMemo(() => {
     const counts: Record<string, number> = {}
@@ -275,7 +276,7 @@ function VacancyRow({ vacancy, applications }: {
       </div>
 
       <Link
-        href={`/pipeline?vacancy=${vacancy.id}`}
+        href={`/pipeline?client=${clientId}&vacancy=${vacancy.id}`}
         className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--surface)]"
         style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
       >
@@ -627,6 +628,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 key={v.id}
                 vacancy={v}
                 applications={appsByVacancy.get(v.id) ?? []}
+                clientId={id}
               />
             ))
           )}
