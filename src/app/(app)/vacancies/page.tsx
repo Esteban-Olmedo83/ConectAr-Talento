@@ -422,7 +422,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
           </span>
           <span className="flex items-center gap-1">
             <Users className="h-3 w-3" />
-            {vacancy.applications.length} candidatos
+            {vacancy.applications.length} candidato{vacancy.applications.length !== 1 ? 's' : ''}
           </span>
         </div>
 
