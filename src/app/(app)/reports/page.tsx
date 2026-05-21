@@ -498,7 +498,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto">
             <label className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-sm text-text-secondary">
               <Filter className="h-4 w-4 text-text-secondary" />
               <select
@@ -526,6 +526,16 @@ export default function ReportsPage() {
                 ))}
               </select>
             </label>
+
+            {clients.length > 0 && (
+              <div className="relative">
+                <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="w-full pl-3 pr-8 py-2 text-sm rounded-[var(--radius)] border border-border bg-surface text-text-primary outline-none appearance-none">
+                  <option value="all">Todos los clientes</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-secondary pointer-events-none" />
+              </div>
+            )}
 
             <button
               type="button"
