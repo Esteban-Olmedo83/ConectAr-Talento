@@ -580,8 +580,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -657,11 +656,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agendar entrevista</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title="Agendar entrevista" maxWidth="28rem">
         <p className="text-sm text-muted-foreground -mt-1">
           Candidato: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
         </p>
@@ -779,8 +774,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             </div>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -794,14 +788,12 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
 }) {
   if (!candidate) return null
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-sm max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />
-            Eliminar candidato
-          </DialogTitle>
-        </DialogHeader>
+    <DraggableModal
+      open={open}
+      onClose={onClose}
+      title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />Eliminar candidato</span>}
+      maxWidth="24rem"
+    >
         <div className="space-y-3">
           <p className="text-sm" style={{ color: 'var(--text)' }}>
             Estás a punto de eliminar definitivamente a <strong>{candidate.fullName}</strong> del sistema.
@@ -830,8 +822,7 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
             Eliminar
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -975,11 +966,7 @@ function AddCandidateDialog({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agregar candidato</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title="Agregar candidato" maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1058,8 +1045,7 @@ function AddCandidateDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 

@@ -9,7 +9,7 @@ import {
 import { cn, formatDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import type {
@@ -123,9 +123,7 @@ function SchedulerModal({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Agendar entrevista</DialogTitle></DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title="Agendar entrevista" maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
           <div>
             <label className={labelCls}>Candidato *</label>
@@ -189,8 +187,7 @@ function SchedulerModal({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -620,11 +617,7 @@ function ScorecardModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Scorecard — {candidateName}</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title={`Scorecard — ${candidateName}`} maxWidth="42rem">
         <div className="space-y-5 mt-2">
           <div className="space-y-3">
             {Object.entries(scores).map(([k, v]) => (
@@ -711,8 +704,7 @@ function ScorecardModal({
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -782,23 +774,25 @@ function InterviewDetailModal({
   const formattedTime = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-2">
-            <DialogTitle>Detalle de entrevista</DialogTitle>
-            <Button
-              type="button"
-              variant={editing ? 'default' : 'outline'}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setEditing(e => !e)}
-            >
-              {editing ? 'Cancelar edición' : 'Editar'}
-            </Button>
-          </div>
-        </DialogHeader>
-
+    <DraggableModal
+      open={open}
+      onClose={onClose}
+      title={
+        <div className="flex items-center justify-between w-full">
+          <span>Detalle de entrevista</span>
+          <Button
+            type="button"
+            variant={editing ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setEditing(e => !e)}
+          >
+            {editing ? 'Cancelar edición' : 'Editar'}
+          </Button>
+        </div>
+      }
+      maxWidth="32rem"
+    >
         <div className="space-y-4 mt-2">
           {/* Read-only info block */}
           {!editing ? (
@@ -912,8 +906,7 @@ function InterviewDetailModal({
             <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
