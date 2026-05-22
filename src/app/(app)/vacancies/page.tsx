@@ -680,13 +680,18 @@ export default function VacanciesPage() {
 
   React.useEffect(() => {
     const handle = () => load()
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
     window.addEventListener('application:stage-changed', handle)
     window.addEventListener('vacancy:created', handle)
     window.addEventListener('vacancy:updated', handle)
+    document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('application:stage-changed', handle)
       window.removeEventListener('vacancy:created', handle)
       window.removeEventListener('vacancy:updated', handle)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
 
@@ -700,11 +705,14 @@ export default function VacanciesPage() {
   const kpis = React.useMemo(() => ({
     total: vacancies.length,
     open: vacancies.filter(v => v.status !== 'Contratado').length,
-    totalCandidates: vacancies.reduce((s, v) => s + v.applications.length, 0),
+    totalCandidates: new Set(
+      (filtered.length === vacancies.length ? vacancies : filtered)
+        .flatMap(v => v.applications.map(a => a.candidateId))
+    ).size,
     avgDays: vacancies.length > 0
       ? Math.round(vacancies.reduce((s, v) => s + Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000), 0) / vacancies.length)
       : 0,
-  }), [vacancies])
+  }), [vacancies, filtered])
 
   const planLimits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
 

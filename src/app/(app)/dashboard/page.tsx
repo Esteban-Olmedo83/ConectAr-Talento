@@ -250,15 +250,20 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     function handleChange() { load() }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
     window.addEventListener('client:deleted', handleChange)
     window.addEventListener('application:stage-changed', handleChange)
     window.addEventListener('vacancy:created', handleChange)
     window.addEventListener('vacancy:updated', handleChange)
+    document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('client:deleted', handleChange)
       window.removeEventListener('application:stage-changed', handleChange)
       window.removeEventListener('vacancy:created', handleChange)
       window.removeEventListener('vacancy:updated', handleChange)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
 

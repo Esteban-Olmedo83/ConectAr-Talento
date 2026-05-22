@@ -1357,6 +1357,16 @@ export default function InterviewsPage() {
 
   React.useEffect(() => { load() }, [load])
 
+  React.useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [load])
+
   const candidateMap = React.useMemo(() => new Map(candidates.map(c => [c.id, c])), [candidates])
   const vacancyMap   = React.useMemo(() => new Map(vacancies.map(v => [v.id, v])), [vacancies])
 
