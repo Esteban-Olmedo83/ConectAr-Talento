@@ -48,6 +48,23 @@ function saveSettings(s: NotifSettings) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch { /* ignore */ }
 }
 
+const SEEN_KEY = 'ct_notif_seen'
+
+function loadSeen(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(SEEN_KEY)
+    if (raw) return new Set(JSON.parse(raw) as string[])
+  } catch { /* ignore */ }
+  return new Set()
+}
+
+function addSeen(ids: string[]) {
+  const seen = loadSeen()
+  ids.forEach(id => seen.add(id))
+  try { sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen])) } catch { /* ignore */ }
+  return seen
+}
+
 const URGENCY_COLOR: Record<Urgency, string> = {
   high:   '#f87171',
   medium: '#fbbf24',
@@ -71,12 +88,17 @@ export function NotificationBell() {
   const [notifications, setNotifications] = React.useState<Notif[]>([])
   const [settings, setSettings] = React.useState<NotifSettings>(DEFAULT_SETTINGS)
   const [tempSettings, setTempSettings] = React.useState<NotifSettings>(DEFAULT_SETTINGS)
+  const [seenIds, setSeenIds] = React.useState<Set<string>>(new Set())
   const ref = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     const s = loadSettings()
     setSettings(s)
     setTempSettings(s)
+  }, [])
+
+  React.useEffect(() => {
+    setSeenIds(loadSeen())
   }, [])
 
   const compute = React.useCallback(async (s: NotifSettings) => {
@@ -176,20 +198,28 @@ export function NotificationBell() {
     compute(tempSettings)
   }
 
-  const highCount = notifications.filter(n => n.urgency === 'high').length
   const total = notifications.length
+  const unseenCount = notifications.filter(n => !seenIds.has(n.id)).length
+  const highCount = notifications.filter(n => n.urgency === 'high' && !seenIds.has(n.id)).length
 
   return (
     <div className="relative" ref={ref}>
       {/* Bell button */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => {
+          const willOpen = !open
+          if (willOpen && notifications.length > 0) {
+            const newSeen = addSeen(notifications.map(n => n.id))
+            setSeenIds(newSeen)
+          }
+          setOpen(v => !v)
+        }}
         className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
         aria-label="Notificaciones"
         style={{ color: 'var(--muted)' }}
       >
         <Bell className="h-4 w-4" />
-        {total > 0 ? (
+        {unseenCount > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-white font-bold leading-none"
             style={{
@@ -200,12 +230,7 @@ export function NotificationBell() {
               paddingInline: 2,
             }}
           >
-            {total > 9 ? '9+' : total}
-          </span>
-        ) : (
-          <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--accent)' }} />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: 'var(--accent)' }} />
+            {unseenCount > 9 ? '9+' : unseenCount}
           </span>
         )}
       </button>

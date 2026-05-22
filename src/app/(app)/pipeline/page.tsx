@@ -1269,7 +1269,9 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
+  const pointerStart = React.useRef<{ x: number; y: number } | null>(null)
   const pointerMoved = React.useRef(false)
+  const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
 
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
@@ -1290,8 +1292,19 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onPointerDown={() => { pointerMoved.current = false }}
-      onPointerMove={() => { pointerMoved.current = true }}
+      onPointerDown={(e) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY }
+        pointerMoved.current = false
+      }}
+      onPointerMove={(e) => {
+        if (pointerStart.current) {
+          const dx = e.clientX - pointerStart.current.x
+          const dy = e.clientY - pointerStart.current.y
+          if (dx * dx + dy * dy > 64) { // 8px threshold (8^2 = 64)
+            pointerMoved.current = true
+          }
+        }
+      }}
       onClick={() => {
         if (!pointerMoved.current && !isDragging) {
           onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })
@@ -1581,7 +1594,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       </div>
 
       {/* Decision buttons — only visible on hover for Entrevistas stage */}
-      {app.status === 'Entrevistas' && onDecide && hovered && !isDragging && (
+      {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice.current) && !isDragging && (
         <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
           {(Object.entries(DECISION_CONFIG) as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
             <button

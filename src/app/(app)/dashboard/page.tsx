@@ -249,9 +249,17 @@ export default function DashboardPage() {
   }, [load])
 
   React.useEffect(() => {
-    function handleClientDeleted() { load() }
-    window.addEventListener('client:deleted', handleClientDeleted)
-    return () => window.removeEventListener('client:deleted', handleClientDeleted)
+    function handleChange() { load() }
+    window.addEventListener('client:deleted', handleChange)
+    window.addEventListener('application:stage-changed', handleChange)
+    window.addEventListener('vacancy:created', handleChange)
+    window.addEventListener('vacancy:updated', handleChange)
+    return () => {
+      window.removeEventListener('client:deleted', handleChange)
+      window.removeEventListener('application:stage-changed', handleChange)
+      window.removeEventListener('vacancy:created', handleChange)
+      window.removeEventListener('vacancy:updated', handleChange)
+    }
   }, [load])
 
   if (loading) {
