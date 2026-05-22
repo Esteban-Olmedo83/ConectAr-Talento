@@ -122,7 +122,11 @@ function SchedulerModal({
       notes:           form.notes || undefined,
     })
     setSaving(false)
-    if (result.data) { onSaved(result.data); onClose() }
+    if (result.data) {
+      window.dispatchEvent(new CustomEvent('interview:scheduled'))
+      onSaved(result.data)
+      onClose()
+    }
   }
 
   const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
