@@ -262,28 +262,63 @@ export default function ReportsPage() {
   const [loading, setLoading] = React.useState(true)
   const [exporting, setExporting] = React.useState(false)
 
+  const load = React.useCallback(async () => {
+    if (user === null) return
+    const tenantId = user.tenantId ?? user.id
+    const [vResult, cResult, appResult, intResult, clResult] = await Promise.all([
+      provider.getVacancies(tenantId),
+      provider.getCandidates(tenantId),
+      provider.getApplications(undefined, tenantId),
+      provider.getInterviews(undefined, tenantId),
+      provider.getClients(tenantId),
+    ])
+    setVacancies(vResult.data ?? [])
+    setCandidates(cResult.data ?? [])
+    setApplications(appResult.data ?? [])
+    setInterviews(intResult.data ?? [])
+    setClients(clResult.data ?? [])
+    setLoading(false)
+  }, [provider, user])
+
   React.useEffect(() => {
     // Wait for user to be resolved before loading data
     if (user === null) return
-
-    async function load() {
-      const tenantId = user!.tenantId ?? user!.id
-      const [vResult, cResult, appResult, intResult, clResult] = await Promise.all([
-        provider.getVacancies(tenantId),
-        provider.getCandidates(tenantId),
-        provider.getApplications(undefined, tenantId),
-        provider.getInterviews(undefined, tenantId),
-        provider.getClients(tenantId),
-      ])
-      setVacancies(vResult.data ?? [])
-      setCandidates(cResult.data ?? [])
-      setApplications(appResult.data ?? [])
-      setInterviews(intResult.data ?? [])
-      setClients(clResult.data ?? [])
-      setLoading(false)
-    }
     load()
-  }, [provider, user])
+  }, [load, user])
+
+  React.useEffect(() => {
+    const EVENTS = [
+      'application:stage-changed',
+      'vacancy:created',
+      'vacancy:updated',
+      'vacancy:deleted',
+      'interview:scheduled',
+      'candidate:created',
+      'candidate:updated',
+      'candidate:deleted',
+      'client:created',
+      'client:updated',
+      'client:deleted',
+    ]
+
+    function handleReload() {
+      load()
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        load()
+      }
+    }
+
+    EVENTS.forEach((event) => window.addEventListener(event, handleReload))
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      EVENTS.forEach((event) => window.removeEventListener(event, handleReload))
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [load])
 
   const dateFrom = getDateFrom(range)
   const sourceOptions = React.useMemo(

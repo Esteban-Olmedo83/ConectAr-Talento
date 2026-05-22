@@ -733,6 +733,7 @@ export default function VacanciesPage() {
   async function handleArchive(id: string) {
     await provider.deleteVacancy(id)
     setVacancies(prev => prev.filter(v => v.id !== id))
+    window.dispatchEvent(new CustomEvent('vacancy:deleted'))
   }
 
   function handleSaved(v: Vacancy) {

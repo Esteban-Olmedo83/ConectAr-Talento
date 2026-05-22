@@ -768,8 +768,10 @@ export default function ClientsPage() {
       if (idx !== -1) {
         const next = [...prev]
         next[idx] = c
+        window.dispatchEvent(new CustomEvent('client:updated'))
         return next
       }
+      window.dispatchEvent(new CustomEvent('client:created'))
       return [c, ...prev]
     })
   }

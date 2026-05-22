@@ -958,6 +958,7 @@ function AddCandidateDialog({
           positionInStage: 0,
         })
       }
+      window.dispatchEvent(new CustomEvent('candidate:created'))
       onSave(result.data)
       onClose()
     }
@@ -1294,6 +1295,7 @@ export default function CandidatesPage() {
     setDeleting(true)
     await provider.deleteCandidate(deleteCandidate.id)
     setCandidates(prev => prev.filter(c => c.id !== deleteCandidate.id))
+    window.dispatchEvent(new CustomEvent('candidate:deleted'))
     setDeleting(false)
     setDeleteCandidate(null)
   }
@@ -1536,7 +1538,7 @@ export default function CandidatesPage() {
         candidate={viewCandidate}
         open={viewCandidate !== null}
         onClose={() => setViewCandidate(null)}
-        onUpdate={c => setCandidates(prev => prev.map(x => x.id === c.id ? c : x))}
+        onUpdate={c => { setCandidates(prev => prev.map(x => x.id === c.id ? c : x)); window.dispatchEvent(new CustomEvent('candidate:updated')) }}
         vacancies={vacancies}
         clients={clients}
       />
