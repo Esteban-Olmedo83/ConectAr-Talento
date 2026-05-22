@@ -995,7 +995,17 @@ function AddCandidateDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Cliente</label>
-              <select value={form.clientId} onChange={e => setForm(f => ({...f, clientId: e.target.value}))} className={inputCls}>
+              <select value={form.clientId} onChange={e => {
+                const newClientId = e.target.value
+                setForm(f => ({
+                  ...f,
+                  clientId: newClientId,
+                  // Clear vacancy if it doesn't belong to the new client
+                  vacancyId: (!newClientId || vacancies.find(v => v.id === f.vacancyId)?.clientId === newClientId)
+                    ? f.vacancyId
+                    : '',
+                }))
+              }} className={inputCls}>
                 <option value="">Sin cliente asignado</option>
                 {(clients ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -1004,7 +1014,10 @@ function AddCandidateDialog({
               <label className={labelCls}>Vacante</label>
               <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
                 <option value="">Sin vacante asignada</option>
-                {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+                {(form.clientId
+                  ? vacancies.filter(v => v.clientId === form.clientId)
+                  : vacancies
+                ).map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
               </select>
             </div>
           </div>
@@ -1218,8 +1231,15 @@ export default function CandidatesPage() {
 
   React.useEffect(() => {
     function handleClientDeleted() { load() }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
     window.addEventListener('client:deleted', handleClientDeleted)
-    return () => window.removeEventListener('client:deleted', handleClientDeleted)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('client:deleted', handleClientDeleted)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [load])
 
   const filtered = React.useMemo(() => {
