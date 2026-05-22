@@ -263,11 +263,11 @@ export function Sidebar({
           {/* Admin — only visible to owner */}
           {user?.email === 'conectar.rrhh.ar@gmail.com' && (
             <>
-              <SectionLabel label="Owner" collapsed={isCollapsed} />
+              <SectionLabel label="Administración" collapsed={isCollapsed} />
               <NavItem
                 href="/admin"
                 icon={ShieldCheck}
-                label="Admin"
+                label="Panel de Admin"
                 isActive={isActive('/admin')}
                 isCollapsed={isCollapsed}
                 onClick={onClose}

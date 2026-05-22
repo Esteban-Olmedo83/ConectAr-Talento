@@ -889,6 +889,7 @@ function ScheduleInterviewModal({
       if (applicationId && !applicationId.startsWith('virtual-')) {
         await provider.updateApplicationStatus(applicationId, 'Entrevistas')
       }
+      window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       onScheduled?.()
       setTimeout(onClose, 1200)

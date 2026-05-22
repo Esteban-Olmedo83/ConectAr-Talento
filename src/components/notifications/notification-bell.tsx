@@ -181,6 +181,23 @@ export function NotificationBell() {
     return () => clearInterval(id)
   }, [compute, settings])
 
+  // Auto-refresh when interviews/vacancies change or tab becomes visible
+  React.useEffect(() => {
+    function refresh() { compute(settings) }
+    window.addEventListener('application:stage-changed', refresh)
+    window.addEventListener('vacancy:created', refresh)
+    window.addEventListener('vacancy:updated', refresh)
+    window.addEventListener('interview:scheduled', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('application:stage-changed', refresh)
+      window.removeEventListener('vacancy:created', refresh)
+      window.removeEventListener('vacancy:updated', refresh)
+      window.removeEventListener('interview:scheduled', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [compute, settings])
+
   // Close on outside click
   React.useEffect(() => {
     if (!open) return
@@ -271,7 +288,7 @@ export function NotificationBell() {
               style={{ background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}
             >
               <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                Configurar alertas
+                Configuración de alertas
               </p>
               {([
                 { key: 'interviewHours', label: 'Avisar antes de entrevista', unit: 'horas', min: 1, max: 72 },

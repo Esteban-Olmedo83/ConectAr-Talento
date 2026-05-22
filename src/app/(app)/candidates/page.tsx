@@ -647,6 +647,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
     if (result.error) {
       setError(result.error)
     } else {
+      window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       setTimeout(onClose, 1200)
     }
