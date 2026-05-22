@@ -9,7 +9,12 @@ import type {
   Scorecard,
   MessageTemplate,
   Integration,
+  JobRubro,
+  CustomJobProfile,
+  CreateJobRubroInput,
+  CreateJobProfileInput,
   VacancyStatus,
+  CandidateDisposition,
 } from '@/types'
 import type {
   DataProvider,
@@ -39,7 +44,12 @@ function mapClient(row: Record<string, unknown>): Client {
     industry: (row.industry as string) ?? undefined,
     contactName: (row.contact_name as string) ?? undefined,
     contactEmail: (row.contact_email as string) ?? undefined,
+    recruitmentEmail: (row.recruitment_email as string) ?? undefined,
     contactPhone: (row.contact_phone as string) ?? undefined,
+    whatsappPhone: (row.whatsapp_phone as string) ?? undefined,
+    address: (row.address as string) ?? undefined,
+    interviewAddress: (row.interview_address as string) ?? undefined,
+    interviewArrivalDetails: (row.interview_arrival_details as string) ?? undefined,
     website: (row.website as string) ?? undefined,
     logoUrl: (row.logo_url as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
@@ -70,6 +80,8 @@ function mapVacancy(row: Record<string, unknown>): Vacancy {
     createdBy: (row.created_by as string) ?? undefined,
     createdAt: row.created_at as string,
     applications: [],
+    rubro: (row.rubro as string) ?? '',
+    perfil: (row.perfil as string) ?? '',
   }
 }
 
@@ -77,6 +89,8 @@ function mapCandidate(row: Record<string, unknown>): Candidate {
   return {
     id: row.id as string,
     tenantId: row.tenant_id as string,
+    clientId: (row.client_id as string) ?? undefined,
+    client: row.client ? mapClient(row.client as Record<string, unknown>) : undefined,
     fullName: row.full_name as string,
     email: row.email as string,
     phone: (row.phone as string) ?? undefined,
@@ -139,6 +153,7 @@ function mapApplication(row: Record<string, unknown>): Application {
     appliedAt: row.applied_at as string,
     updatedAt: row.updated_at as string,
     candidate: row.candidate ? mapCandidate(row.candidate as Record<string, unknown>) : undefined,
+    disposition: (row.disposition as CandidateDisposition | null) ?? null,
   }
 }
 
@@ -171,16 +186,46 @@ function mapIntegration(row: Record<string, unknown>): Integration {
   }
 }
 
+function mapJobRubro(row: Record<string, unknown>): JobRubro {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    name: row.name as string,
+    createdAt: row.created_at as string,
+  }
+}
+
+function mapCustomJobProfile(row: Record<string, unknown>): CustomJobProfile {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    rubro: row.rubro as string,
+    perfil: row.perfil as string,
+    nivel: row.nivel as string,
+    skills: {
+      tecnicas: (row.skills_tecnicas as string[]) ?? [],
+      blandas: (row.skills_blandas as string[]) ?? [],
+      herramientas: (row.skills_herramientas as string[]) ?? [],
+      certificaciones: (row.skills_certificaciones as string[]) ?? [],
+    },
+    descripcionTipica: (row.descripcion_tipica as string) ?? '',
+    createdAt: row.created_at as string,
+  }
+}
+
 export class SupabaseProvider implements DataProvider {
   private get sb() { return createClient() }
 
   // ── Clients ──────────────────────────────────────────────────────────────
 
-  async getClients(tenantId: string): Promise<DataResult<Client[]>> {
+  async getClients(_tenantId: string): Promise<DataResult<Client[]>> {
+    // Rely on RLS for tenant scoping — the tenant_id stored in the clients table
+    // may differ from the profile's tenant_id (e.g. when the row was seeded with
+    // auth.uid() instead of profile.tenant_id), so an explicit eq filter can
+    // silently return empty results.
     const { data, error } = await this.sb
       .from('clients')
       .select('*')
-      .eq('tenant_id', tenantId)
       .order('name', { ascending: true })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapClient))
@@ -195,7 +240,12 @@ export class SupabaseProvider implements DataProvider {
         industry: input.industry ?? null,
         contact_name: input.contactName ?? null,
         contact_email: input.contactEmail ?? null,
+        recruitment_email: input.recruitmentEmail ?? null,
         contact_phone: input.contactPhone ?? null,
+        whatsapp_phone: input.whatsappPhone ?? null,
+        address: input.address || undefined,
+        interview_address: input.interviewAddress || undefined,
+        interview_arrival_details: input.interviewArrivalDetails || undefined,
         website: input.website ?? null,
         logo_url: input.logoUrl ?? null,
         notes: input.notes ?? null,
@@ -212,7 +262,12 @@ export class SupabaseProvider implements DataProvider {
     if (input.industry !== undefined) patch.industry = input.industry
     if (input.contactName !== undefined) patch.contact_name = input.contactName
     if (input.contactEmail !== undefined) patch.contact_email = input.contactEmail
+    if (input.recruitmentEmail !== undefined) patch.recruitment_email = input.recruitmentEmail
     if (input.contactPhone !== undefined) patch.contact_phone = input.contactPhone
+    if (input.whatsappPhone !== undefined) patch.whatsapp_phone = input.whatsappPhone
+    if (input.address !== undefined) patch.address = input.address
+    if (input.interviewAddress !== undefined) patch.interview_address = input.interviewAddress
+    if (input.interviewArrivalDetails !== undefined) patch.interview_arrival_details = input.interviewArrivalDetails
     if (input.website !== undefined) patch.website = input.website
     if (input.logoUrl !== undefined) patch.logo_url = input.logoUrl
     if (input.notes !== undefined) patch.notes = input.notes
@@ -228,11 +283,56 @@ export class SupabaseProvider implements DataProvider {
   }
 
   async deleteClient(id: string): Promise<DataResult<void>> {
-    // Unlink vacancies first
-    await this.sb.from('vacancies').update({ client_id: null }).eq('client_id', id)
+    // DB cascades handle: vacancies → applications → interviews → scorecards
+    // candidates.client_id is SET NULL by the FK constraint
     const { error } = await this.sb.from('clients').delete().eq('id', id)
     if (error) return err(error.message)
     return ok(undefined)
+  }
+
+  async getDeleteClientCounts(clientId: string): Promise<{ vacancies: number; applications: number; interviews: number; scorecards: number }> {
+    // Get vacancy IDs for this client
+    const { data: vacancyRows } = await this.sb
+      .from('vacancies')
+      .select('id')
+      .eq('client_id', clientId)
+    const vacancyIds = (vacancyRows ?? []).map((v: { id: string }) => v.id)
+    const vacancyCount = vacancyIds.length
+
+    if (vacancyCount === 0) {
+      return { vacancies: 0, applications: 0, interviews: 0, scorecards: 0 }
+    }
+
+    // Count applications for those vacancies
+    const { count: appCount } = await this.sb
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .in('vacancy_id', vacancyIds)
+
+    // Get interview IDs for those vacancies
+    const { data: interviewRows } = await this.sb
+      .from('interviews')
+      .select('id')
+      .in('vacancy_id', vacancyIds)
+    const interviewIds = (interviewRows ?? []).map((i: { id: string }) => i.id)
+    const interviewCount = interviewIds.length
+
+    // Count scorecards for those interviews
+    let scorecardCount = 0
+    if (interviewCount > 0) {
+      const { count } = await this.sb
+        .from('scorecards')
+        .select('id', { count: 'exact', head: true })
+        .in('interview_id', interviewIds)
+      scorecardCount = count ?? 0
+    }
+
+    return {
+      vacancies: vacancyCount,
+      applications: appCount ?? 0,
+      interviews: interviewCount,
+      scorecards: scorecardCount,
+    }
   }
 
   // ── Vacancies ─────────────────────────────────────────────────────────────
@@ -242,6 +342,7 @@ export class SupabaseProvider implements DataProvider {
       .from('vacancies')
       .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
+      .not('client_id', 'is', null)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapVacancy))
@@ -265,6 +366,8 @@ export class SupabaseProvider implements DataProvider {
         modality: input.modality,
         priority: input.priority,
         closing_date: input.closingDate ?? null,
+        rubro: input.rubro ?? null,
+        perfil: input.perfil ?? null,
       })
       .select('*, client:clients(*)')
       .single()
@@ -287,6 +390,8 @@ export class SupabaseProvider implements DataProvider {
     if (input.modality !== undefined) patch.modality = input.modality
     if (input.priority !== undefined) patch.priority = input.priority
     if (input.closingDate !== undefined) patch.closing_date = input.closingDate
+    if (input.rubro !== undefined) patch.rubro = input.rubro
+    if (input.perfil !== undefined) patch.perfil = input.perfil
     const { data, error } = await this.sb
       .from('vacancies')
       .update(patch)
@@ -306,7 +411,7 @@ export class SupabaseProvider implements DataProvider {
   async getCandidates(tenantId: string): Promise<DataResult<Candidate[]>> {
     const { data, error } = await this.sb
       .from('candidates')
-      .select('*')
+      .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
@@ -318,9 +423,11 @@ export class SupabaseProvider implements DataProvider {
       .from('candidates')
       .insert({
         tenant_id: input.tenantId,
+        client_id: input.clientId ?? null,
         full_name: input.fullName,
         email: input.email,
         phone: input.phone ?? null,
+        avatar_url: input.avatarUrl ?? null,
         ats_score: input.atsScore ?? null,
         skills: input.skills,
         experience_years: input.experienceYears ?? null,
@@ -331,7 +438,7 @@ export class SupabaseProvider implements DataProvider {
         cv_url: input.cvUrl ?? null,
         cv_file_name: input.cvFileName ?? null,
       })
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapCandidate(data as Record<string, unknown>))
@@ -350,11 +457,13 @@ export class SupabaseProvider implements DataProvider {
     if (input.notes !== undefined) patch.notes = input.notes
     if (input.cvUrl !== undefined) patch.cv_url = input.cvUrl
     if (input.cvFileName !== undefined) patch.cv_file_name = input.cvFileName
+    if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl
+    if (input.clientId !== undefined) patch.client_id = input.clientId ?? null
     const { data, error } = await this.sb
       .from('candidates')
       .update(patch)
       .eq('id', id)
-      .select()
+      .select('*, client:clients(*)')
       .single()
     if (error) return err(error.message)
     return ok(mapCandidate(data as Record<string, unknown>))
@@ -415,6 +524,20 @@ export class SupabaseProvider implements DataProvider {
     return ok(mapApplication(data as Record<string, unknown>))
   }
 
+  async updateApplicationDisposition(
+    id: string,
+    disposition: CandidateDisposition | null
+  ): Promise<DataResult<Application>> {
+    const { data, error } = await this.sb
+      .from('applications')
+      .update({ disposition, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*, candidate:candidates(*)')
+      .single()
+    if (error) return err(error.message)
+    return ok(mapApplication(data as Record<string, unknown>))
+  }
+
   // Stage mapping used by the pipeline drag-and-drop.
   // The DB stores the Spanish VacancyStatus labels directly, so we just
   // delegate to updateApplicationStatus after mapping the short key.
@@ -435,13 +558,17 @@ export class SupabaseProvider implements DataProvider {
       .eq('id', applicationId)
   }
 
-  async getInterviews(candidateId?: string, _tenantId?: string): Promise<DataResult<Interview[]>> {
+  async getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>> {
+    // Join candidates so we can filter by tenant_id explicitly (RLS alone can be unreliable
+    // for cross-table policies; explicit filter ensures correct tenant scoping).
     let q = this.sb
       .from('interviews')
-      .select('*, scorecard:scorecards(*)')
+      .select('*, candidate:candidates!candidate_id(tenant_id), scorecard:scorecards(*), vacancy:vacancies!vacancy_id(client_id)')
+      .not('vacancy_id', 'is', null)
+      .not('vacancy.client_id', 'is', null)
       .order('scheduled_at', { ascending: false })
     if (candidateId) q = q.eq('candidate_id', candidateId)
-    // Tenant isolation is handled by RLS on the interviews table
+    if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
     const { data, error } = await q
     if (error) return err(error.message)
     return ok((data ?? []).map(mapInterview))
@@ -474,6 +601,9 @@ export class SupabaseProvider implements DataProvider {
     if (input.scheduledAt !== undefined) patch.scheduled_at = input.scheduledAt
     if (input.notes !== undefined) patch.notes = input.notes
     if (input.meetingLink !== undefined) patch.meeting_link = input.meetingLink
+    if (input.type !== undefined) patch.type = input.type
+    if (input.interviewerName !== undefined) patch.interviewer_name = input.interviewerName
+    if (input.meetingPlatform !== undefined) patch.meeting_platform = input.meetingPlatform
     const { data, error } = await this.sb
       .from('interviews')
       .update(patch)
@@ -487,7 +617,7 @@ export class SupabaseProvider implements DataProvider {
   async createScorecard(input: CreateScorecardInput): Promise<DataResult<Scorecard>> {
     const { data, error } = await this.sb
       .from('scorecards')
-      .insert({
+      .upsert({
         interview_id: input.interviewId,
         overall_rating: input.overallRating,
         technical_skills: input.technicalSkills,
@@ -498,7 +628,7 @@ export class SupabaseProvider implements DataProvider {
         recommendation: input.recommendation,
         ai_summary: input.aiSummary ?? null,
         notes: input.notes ?? null,
-      })
+      }, { onConflict: 'interview_id' })
       .select()
       .single()
     if (error) return err(error.message)
@@ -597,7 +727,7 @@ export class SupabaseProvider implements DataProvider {
   async getApplicationsByCandidateId(candidateId: string): Promise<DataResult<Application[]>> {
     const { data, error } = await this.sb
       .from('applications')
-      .select('*, candidate:candidates(*)')
+      .select('*, candidate:candidates(*, client:clients(*))')
       .eq('candidate_id', candidateId)
       .order('applied_at', { ascending: false })
     if (error) return err(error.message)
@@ -613,5 +743,97 @@ export class SupabaseProvider implements DataProvider {
       .single()
     if (error) return err(error.message)
     return ok(mapVacancy(data as Record<string, unknown>))
+  }
+
+  // ── Job Rubros ──
+  async getJobRubros(_tenantId: string): Promise<DataResult<JobRubro[]>> {
+    const { data, error } = await this.sb
+      .from('job_rubros')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapJobRubro))
+  }
+
+  async createJobRubro(input: CreateJobRubroInput): Promise<DataResult<JobRubro>> {
+    const { data, error } = await this.sb
+      .from('job_rubros')
+      .insert({ tenant_id: input.tenantId, name: input.name })
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapJobRubro(data as Record<string, unknown>))
+  }
+
+  async deleteJobRubro(id: string): Promise<DataResult<void>> {
+    const { error } = await this.sb.from('job_rubros').delete().eq('id', id)
+    if (error) return err(error.message)
+    return ok(undefined)
+  }
+
+  async updateJobRubro(id: string, name: string): Promise<DataResult<JobRubro>> {
+    const { data, error } = await this.sb
+      .from('job_rubros')
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapJobRubro(data as Record<string, unknown>))
+  }
+
+  // ── Job Profiles ──
+  async getJobProfiles(_tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
+    let q = this.sb.from('job_profiles').select('*')
+    if (rubro) q = q.eq('rubro', rubro)
+    const { data, error } = await q.order('perfil', { ascending: true })
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapCustomJobProfile))
+  }
+
+  async createJobProfile(input: CreateJobProfileInput): Promise<DataResult<CustomJobProfile>> {
+    const { data, error } = await this.sb
+      .from('job_profiles')
+      .insert({
+        tenant_id: input.tenantId,
+        rubro: input.rubro,
+        perfil: input.perfil,
+        nivel: input.nivel,
+        skills_tecnicas: input.skillsTecnicas ?? [],
+        skills_blandas: input.skillsBlandas ?? [],
+        skills_herramientas: input.skillsHerramientas ?? [],
+        skills_certificaciones: input.skillsCertificaciones ?? [],
+        descripcion_tipica: input.descripcionTipica ?? '',
+      })
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapCustomJobProfile(data as Record<string, unknown>))
+  }
+
+  async updateJobProfile(id: string, input: Partial<CreateJobProfileInput>): Promise<DataResult<CustomJobProfile>> {
+    const patch: Record<string, unknown> = {}
+    if (input.perfil !== undefined) patch.perfil = input.perfil
+    if (input.nivel !== undefined) patch.nivel = input.nivel
+    if (input.rubro !== undefined) patch.rubro = input.rubro
+    if (input.skillsTecnicas !== undefined) patch.skills_tecnicas = input.skillsTecnicas
+    if (input.skillsBlandas !== undefined) patch.skills_blandas = input.skillsBlandas
+    if (input.skillsHerramientas !== undefined) patch.skills_herramientas = input.skillsHerramientas
+    if (input.skillsCertificaciones !== undefined) patch.skills_certificaciones = input.skillsCertificaciones
+    if (input.descripcionTipica !== undefined) patch.descripcion_tipica = input.descripcionTipica
+    const { data, error } = await this.sb
+      .from('job_profiles')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    return ok(mapCustomJobProfile(data as Record<string, unknown>))
+  }
+
+  async deleteJobProfile(id: string): Promise<DataResult<void>> {
+    const { error } = await this.sb.from('job_profiles').delete().eq('id', id)
+    if (error) return err(error.message)
+    return ok(undefined)
   }
 }

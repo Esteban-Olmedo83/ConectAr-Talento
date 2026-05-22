@@ -217,6 +217,8 @@ export function VacancyForm({ vacancy, onSave, onClose }: VacancyFormProps) {
       closingDate: values.closingDate ? new Date(values.closingDate).toISOString() : undefined,
       createdAt: vacancy?.createdAt ?? now,
       applications: vacancy?.applications ?? [],
+      rubro: values.rubro ?? vacancy?.rubro ?? '',
+      perfil: values.perfil ?? vacancy?.perfil ?? '',
     }
     onSave(savedVacancy)
   }

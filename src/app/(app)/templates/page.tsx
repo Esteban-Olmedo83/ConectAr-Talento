@@ -25,8 +25,36 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { MessageTemplate, TemplateChannel, TemplateCategory } from '@/types'
+import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy, Application, Interview } from '@/types'
 import { generateId } from '@/lib/utils'
+
+const VARIABLE_LABELS: Record<string, string> = {
+  vacante: 'Vacante',
+  empresa: 'Empresa',
+  descripcion_perfil: 'Descripción del Perfil',
+  fecha_inicio: 'Fecha de Inicio',
+  modalidad: 'Modalidad',
+  salario: 'Salario',
+  ubicacion: 'Ubicación',
+  rubro: 'Rubro',
+  nombre_candidato: 'Nombre del Candidato',
+  especialidad: 'Especialidad',
+  reclutador: 'Reclutador',
+  enlace: 'Enlace',
+  empresa_cliente: 'Empresa Cliente',
+  nombre: 'Nombre',
+  puesto: 'Puesto',
+  resultado_mensaje: 'Resultado del Proceso',
+  mensaje_adicional: 'Mensaje Adicional',
+  dias_revision: 'Días Hábiles para Revisión',
+  email_contacto: 'Email de Contacto',
+  fecha_entrevista: 'Fecha de Entrevista',
+  hora_entrevista: 'Hora de Entrevista',
+  modalidad_entrevista: 'Modalidad de Entrevista',
+  link_reunion: 'Link de Reunión',
+  fecha_vencimiento_oferta: 'Fecha Vencimiento Oferta',
+  dias_revision_label: 'Días para Revisión',
+}
 
 function extractVariables(body: string): string[] {
   const matches = body.match(/\{\{(\w+)\}\}/g) ?? []
@@ -67,7 +95,7 @@ const DEFAULT_TEMPLATES: Omit<MessageTemplate, 'id' | 'tenantId' | 'createdAt'>[
     channel: 'email',
     category: 'interview_invite',
     subject: 'Invitación a entrevista – {{vacante}} en {{empresa}}',
-    body: `Estimado/a {{nombre_candidato}},\n\nNos complace invitarte a una entrevista para el puesto de {{vacante}} en {{empresa}}.\n\n📅 Fecha: {{fecha_entrevista}}\n🕐 Hora: {{hora_entrevista}}\n📍 Modalidad: {{modalidad_entrevista}}\n🔗 Link: {{link_reunion}}\n\nPor favor, confirmá tu asistencia respondiendo este email.\n\nSi necesitás reprogramar, no dudes en comunicárnoslo.\n\nQuedamos a disposición ante cualquier consulta.\n\nSaludos cordiales,\n{{reclutador}}\n{{empresa}}`,
+    body: `Estimado/a {{nombre_candidato}},\n\nNos complace invitarte a una entrevista para el puesto de {{vacante}} en {{empresa}}.\n\n📅 Fecha: {{fecha_entrevista}}\n🕐 Hora: {{hora_entrevista}}\n📍 Modalidad: {{modalidad_entrevista}}\n🔗 Link: {{link_reunion}}\n\nPor favor, confirmá tu asistencia respondiendo este email.\n\nSi necesitás reprogramar, no dudes en comunicarte con nosotros.\n\nQuedamos a disposición ante cualquier consulta.\n\nSaludos cordiales,\n{{reclutador}}\n{{empresa}}`,
     variables: ['nombre_candidato', 'vacante', 'empresa', 'fecha_entrevista', 'hora_entrevista', 'modalidad_entrevista', 'link_reunion', 'reclutador'],
     isDefault: true,
   },
@@ -159,26 +187,158 @@ const CATEGORY_LABELS: Record<TemplateCategory, string> = {
 }
 
 /* ─── SendModal ──────────────────────────────────────────────── */
+const MULTILINE_VARS = new Set(['resultado_mensaje', 'mensaje_adicional', 'descripcion_perfil'])
+
+const PLATFORM_LABELS: Record<string, string> = {
+  zoom: 'Zoom', google_meet: 'Google Meet', teams: 'Teams', presencial: 'Presencial',
+}
+
 function SendModal({
   template,
   onClose,
+  vacancies = [],
+  applications = [],
+  interviews = [],
 }: {
   template: MessageTemplate
   onClose: () => void
+  vacancies?: Vacancy[]
+  applications?: Application[]
+  interviews?: Interview[]
 }) {
   const [values, setValues] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(template.variables.map((v) => [v, '']))
   )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState('')
+  const [selectedCandidateId, setSelectedCandidateId] = React.useState('')
+  const [generatingAI, setGeneratingAI] = React.useState(false)
+  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  const [sending, setSending] = React.useState(false)
+  const [sendLabel, setSendLabel] = React.useState('')
+  const [waPhone, setWaPhone] = React.useState('')
+  const hasContratoClause = template.body.includes('Adjuntamos el contrato')
+  const [includeContrato, setIncludeContrato] = React.useState(true)
 
+  // Candidates for the selected vacancy
+  const vacancyCandidates = React.useMemo(() => {
+    if (!selectedVacancyId) return []
+    return applications
+      .filter(a => a.vacancyId === selectedVacancyId && a.candidate)
+      .map(a => a.candidate!)
+  }, [applications, selectedVacancyId])
+
+  // Interviews for the selected candidate+vacancy
+  const candidateInterviews = React.useMemo(() => {
+    if (!selectedCandidateId) return []
+    return interviews.filter(i =>
+      i.candidateId === selectedCandidateId &&
+      (!selectedVacancyId || i.vacancyId === selectedVacancyId)
+    ).sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+  }, [interviews, selectedCandidateId, selectedVacancyId])
+
+  // Helper: apply variable substitutions to any text
+  function applyVars(text: string, vals: Record<string, string>): string {
+    let out = text
+    for (const [k, v] of Object.entries(vals)) {
+      out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || '')
+    }
+    return out
+  }
+
+  // Preview: handle empty dias_revision by removing the surrounding phrase
   const preview = React.useMemo(() => {
     let text = template.body
+    if (!values.dias_revision?.trim()) {
+      text = text.replace(/\s*en los próximos\s*\{\{dias_revision\}\}\s*días hábiles/gi, '')
+    }
     for (const [k, v] of Object.entries(values)) {
       text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
     }
+    // Remove lines that still contain unresolved {{vars}} from empty optional fields
+    // Remove "🔗 Link: {{link_reunion}}" line if link_reunion is empty
+    if (!values.link_reunion?.trim()) {
+      text = text.replace(/🔗\s*Link:\s*\{\{link_reunion\}\}\n?/g, '')
+    }
+    // Remove any remaining lines that are ONLY an emoji prefix + unresolved var
+    text = text.replace(/^[^\S\n]*[📅🕐📍🔗💰📌]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gm, '')
+    // Clean up double blank lines left after removing lines
+    text = text.replace(/\n{3,}/g, '\n\n').trim()
+    // Remove contract clause if unchecked
+    if (hasContratoClause && !includeContrato) {
+      text = text.replace(/\n?Adjuntamos el contrato para tu revisión\. Ante cualquier duda, estamos disponibles\./g, '')
+      text = text.replace(/\n{3,}/g, '\n\n').trim()
+    }
     return text
-  }, [template.body, values])
+  }, [template.body, values, hasContratoClause, includeContrato])
 
-  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  function handleVacancySelect(vacancyId: string) {
+    setSelectedVacancyId(vacancyId)
+    setSelectedCandidateId('')
+    const vac = vacancies.find(v => v.id === vacancyId)
+    if (!vac) return
+    setValues(prev => ({
+      ...prev,
+      ...(prev.vacante !== undefined ? { vacante: vac.title } : {}),
+      ...(prev.empresa !== undefined ? { empresa: vac.client?.name ?? '' } : {}),
+      ...(prev.modalidad !== undefined ? { modalidad: vac.modality } : {}),
+      ...(prev.fecha_inicio !== undefined ? { fecha_inicio: vac.publishedAt?.slice(0,10) ?? vac.createdAt.slice(0,10) } : {}),
+      ...(prev.descripcion_perfil !== undefined ? { descripcion_perfil: vac.description ?? vac.title } : {}),
+      ...(prev.email_contacto !== undefined ? {
+        email_contacto: vac.client?.recruitmentEmail ?? vac.client?.contactEmail ?? ''
+      } : {}),
+    }))
+  }
+
+  function handleInterviewSelect(interviewId: string) {
+    const iv = candidateInterviews.find(i => i.id === interviewId)
+    if (!iv) return
+    const d = new Date(iv.scheduledAt)
+    const dateStr = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    setValues(prev => ({
+      ...prev,
+      ...(prev.fecha_entrevista !== undefined ? { fecha_entrevista: dateStr } : {}),
+      ...(prev.hora_entrevista !== undefined ? { hora_entrevista: `${timeStr} hs` } : {}),
+      ...(prev.modalidad_entrevista !== undefined ? { modalidad_entrevista: PLATFORM_LABELS[iv.meetingPlatform] ?? iv.meetingPlatform } : {}),
+      ...(prev.link_reunion !== undefined ? { link_reunion: iv.meetingLink ?? '' } : {}),
+      ...(prev.reclutador !== undefined && iv.interviewerName ? { reclutador: iv.interviewerName } : {}),
+    }))
+  }
+
+  async function handleGenerateAI() {
+    setGeneratingAI(true)
+    try {
+      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) {
+            aiHeaders['x-ai-api-key'] = cfg.apiKey
+            aiHeaders['x-ai-provider'] = cfg.provider ?? 'groq'
+          }
+        }
+      } catch { /* noop */ }
+
+      const context = [
+        values.vacante ? `Vacante: ${values.vacante}` : '',
+        values.nombre_candidato ? `Candidato: ${values.nombre_candidato}` : '',
+        values.empresa ? `Empresa: ${values.empresa}` : '',
+        values.resultado_mensaje ? `Resultado: ${values.resultado_mensaje}` : '',
+      ].filter(Boolean).join('. ')
+
+      const res = await fetch('/api/ai/generate-message', {
+        method: 'POST',
+        headers: aiHeaders,
+        body: JSON.stringify({ context, type: 'mensaje_adicional' }),
+      })
+      if (res.ok) {
+        const data = await res.json() as { message?: string }
+        if (data.message) setValues(prev => ({ ...prev, mensaje_adicional: data.message! }))
+      }
+    } catch { /* noop */ }
+    finally { setGeneratingAI(false) }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -225,21 +385,160 @@ function SendModal({
                     <p className="text-sm bg-muted rounded-lg px-3 py-2">{template.subject}</p>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {template.variables.map((v) => (
-                    <div key={v}>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        {`{{${v}}}`}
-                      </label>
-                      <input
-                        value={values[v] ?? ''}
-                        onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                        placeholder={v.replace(/_/g, ' ')}
-                        className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      />
-                    </div>
-                  ))}
+
+                {/* Vacancy autocomplete */}
+                {vacancies.length > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Autocompletar desde vacante
+                    </label>
+                    <select
+                      value={selectedVacancyId}
+                      onChange={e => handleVacancySelect(e.target.value)}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar vacante para autocompletar —</option>
+                      {vacancies.map(v => (
+                        <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Candidate selector (shown after vacancy is selected) */}
+                {selectedVacancyId && vacancyCandidates.length > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Candidato
+                    </label>
+                    <select
+                      value={selectedCandidateId}
+                      onChange={e => {
+                        const cid = e.target.value
+                        setSelectedCandidateId(cid)
+                        const c = vacancyCandidates.find(x => x.id === cid)
+                        if (c) {
+                          setValues(prev => ({
+                            ...prev,
+                            ...(prev.nombre_candidato !== undefined ? { nombre_candidato: c.fullName } : {}),
+                            ...(prev.nombre !== undefined ? { nombre: c.fullName.split(' ')[0] } : {}),
+                          }))
+                          if (c.phone && template.channel === 'whatsapp') {
+                            setWaPhone(c.phone)
+                          }
+                        }
+                      }}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar candidato —</option>
+                      {vacancyCandidates.map(c => (
+                        <option key={c.id} value={c.id}>{c.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Interview selector (shown after candidate is selected and template has interview vars) */}
+                {selectedCandidateId && candidateInterviews.length > 0 && (
+                  template.variables.some(v => ['fecha_entrevista','hora_entrevista','link_reunion','modalidad_entrevista'].includes(v))
+                ) && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Entrevista (autocompletar fecha, hora, link)
+                    </label>
+                    <select
+                      defaultValue=""
+                      onChange={e => { if (e.target.value) handleInterviewSelect(e.target.value) }}
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="">— Seleccionar entrevista —</option>
+                      {candidateInterviews.map(i => {
+                        const d = new Date(i.scheduledAt)
+                        const label = `${i.type} · ${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} · ${i.status}`
+                        return <option key={i.id} value={i.id}>{label}</option>
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                {/* WhatsApp phone field */}
+                {template.channel === 'whatsapp' && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">
+                      Teléfono del destinatario (con código de país)
+                    </label>
+                    <input
+                      value={waPhone}
+                      onChange={e => setWaPhone(e.target.value)}
+                      placeholder="Ej: +54 9 11 1234 5678"
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                )}
+
+                {/* Variable fields */}
+                <div className="space-y-3">
+                  {template.variables.map((v) => {
+                    const label = VARIABLE_LABELS[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    const isMultiline = MULTILINE_VARS.has(v)
+                    const isOptional = v === 'dias_revision'
+                    const isAI = v === 'mensaje_adicional'
+
+                    return (
+                      <div key={v}>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-medium text-muted-foreground">
+                            {label}
+                            {isOptional && <span className="ml-1 text-muted-foreground/60">(opcional)</span>}
+                          </label>
+                          {isAI && (
+                            <button
+                              onClick={handleGenerateAI}
+                              disabled={generatingAI}
+                              className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-2 py-0.5 rounded-md transition-colors disabled:opacity-50"
+                            >
+                              {generatingAI
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Sparkles className="h-3 w-3" />
+                              }
+                              Generar con IA
+                            </button>
+                          )}
+                        </div>
+                        {isMultiline ? (
+                          <textarea
+                            rows={3}
+                            value={values[v] ?? ''}
+                            onChange={(e) => setValues(prev => ({ ...prev, [v]: e.target.value }))}
+                            placeholder={label}
+                            className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                          />
+                        ) : (
+                          <input
+                            value={values[v] ?? ''}
+                            onChange={(e) => setValues(prev => ({ ...prev, [v]: e.target.value }))}
+                            placeholder={isOptional ? `${label} (dejar vacío para omitir)` : label}
+                            className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
+                {hasContratoClause && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border mt-4">
+                    <input
+                      type="checkbox"
+                      id="include-contrato"
+                      checked={includeContrato}
+                      onChange={e => setIncludeContrato(e.target.checked)}
+                      className="rounded"
+                    />
+                    <label htmlFor="include-contrato" className="text-sm text-muted-foreground cursor-pointer">
+                      Incluir cláusula de contrato adjunto
+                    </label>
+                  </div>
+                )}
               </div>
             )
           ) : (
@@ -257,11 +556,47 @@ function SendModal({
             Cancelar
           </button>
           <button
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            onClick={onClose}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+            disabled={sending}
+            onClick={async () => {
+              if (template.channel === 'email') {
+                const to = values.email_contacto || ''
+                const subject = applyVars(template.subject ?? '', values)
+                window.open(
+                  `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(preview)}`,
+                  '_blank'
+                )
+                onClose()
+              } else if (template.channel === 'whatsapp') {
+                let phone = waPhone || values.telefono || ''
+                phone = phone.replace(/[\s\-+()]/g, '')
+                if (phone.startsWith('0')) phone = phone.slice(1)
+                if (phone && !phone.startsWith('54')) phone = `54${phone}`
+                const url = phone
+                  ? `https://wa.me/${phone}?text=${encodeURIComponent(preview)}`
+                  : `https://wa.me/?text=${encodeURIComponent(preview)}`
+                const a = document.createElement('a')
+                a.href = url
+                a.target = '_blank'
+                a.rel = 'noopener noreferrer'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                onClose()
+              } else if (template.channel === 'linkedin') {
+                await navigator.clipboard.writeText(preview)
+                setSendLabel('Copiado ✓')
+                setSending(true)
+                setTimeout(() => {
+                  setSending(false)
+                  setSendLabel('')
+                  onClose()
+                }, 1500)
+              }
+            }}
           >
             <Send className="h-3.5 w-3.5" />
-            Enviar por {CHANNEL_CONFIG[template.channel].label}
+            {sendLabel || `Enviar por ${CHANNEL_CONFIG[template.channel].label}`}
           </button>
         </div>
       </div>
@@ -479,6 +814,9 @@ function EditorModal({
 export default function TemplatesPage() {
   const { user } = useUser()
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
+  const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [applications, setApplications] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
   const [filterChannel, setFilterChannel] = React.useState<TemplateChannel | 'all'>('all')
   const [sendTarget, setSendTarget] = React.useState<MessageTemplate | null>(null)
   const [editTarget, setEditTarget] = React.useState<Partial<MessageTemplate> | null | 'new'>(null)
@@ -488,6 +826,19 @@ export default function TemplatesPage() {
   React.useEffect(() => {
     const tenantId = user?.tenantId ?? ''
     if (!tenantId) return
+
+    provider.getVacancies(tenantId).then(r => {
+      const vacs = r.data ?? []
+      setVacancies(vacs)
+      // Fetch applications and interviews in parallel
+      Promise.all([
+        Promise.all(vacs.map(v => provider.getApplications(v.id))).then(results => results.flatMap(r => r.data ?? [])),
+        provider.getInterviews(undefined, tenantId).then(r => r.data ?? []),
+      ]).then(([apps, ivs]) => {
+        setApplications(apps)
+        setInterviews(ivs)
+      })
+    })
 
     provider.getTemplates(tenantId).then(async (res) => {
       const existing = res.data ?? []
@@ -709,7 +1060,7 @@ export default function TemplatesPage() {
       </div>
 
       {/* modals */}
-      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} />}
+      {sendTarget && <SendModal template={sendTarget} onClose={() => setSendTarget(null)} vacancies={vacancies} applications={applications} interviews={interviews} />}
       {editTarget !== null && (
         <EditorModal
           initial={editTarget === 'new' ? null : editTarget}

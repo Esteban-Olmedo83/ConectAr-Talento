@@ -3,14 +3,16 @@
 import * as React from 'react'
 import {
   Plus, Search, Building2, Briefcase, Mail, Phone,
-  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink,
+  Globe, Pencil, Trash2, MoreVertical, X, ExternalLink, MapPin, Camera, Loader2,
 } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Client, Vacancy } from '@/types'
@@ -33,8 +35,13 @@ function ClientFormDialog({
 }) {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const supabase = React.useMemo(() => { const { createClient: sc } = require('@/lib/supabase/client') as typeof import('@/lib/supabase/client'); return sc() }, [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
+  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(client?.logoUrl)
+  const [uploadingLogo, setUploadingLogo] = React.useState(false)
+  const logoInputRef = React.useRef<HTMLInputElement>(null)
   const [form, setForm] = React.useState({
     name: client?.name ?? '',
     industry: client?.industry ?? '',
@@ -42,11 +49,15 @@ function ClientFormDialog({
     contactEmail: client?.contactEmail ?? '',
     contactPhone: client?.contactPhone ?? '',
     website: client?.website ?? '',
+    address: client?.address ?? '',
+    interviewAddress: client?.interviewAddress ?? '',
+    interviewArrivalDetails: client?.interviewArrivalDetails ?? '',
     notes: client?.notes ?? '',
   })
 
   React.useEffect(() => {
     if (open) {
+      setLogoUrl(client?.logoUrl)
       setForm({
         name: client?.name ?? '',
         industry: client?.industry ?? '',
@@ -54,10 +65,31 @@ function ClientFormDialog({
         contactEmail: client?.contactEmail ?? '',
         contactPhone: client?.contactPhone ?? '',
         website: client?.website ?? '',
+        address: client?.address ?? '',
+        interviewAddress: client?.interviewAddress ?? '',
+        interviewArrivalDetails: client?.interviewArrivalDetails ?? '',
         notes: client?.notes ?? '',
       })
     }
   }, [open, client])
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `logos/${client?.id ?? 'new'}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('cvs').upload(path, file, { upsert: true })
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+        setLogoUrl(publicUrl)
+      }
+    } finally {
+      setUploadingLogo(false)
+      e.target.value = ''
+    }
+  }
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -76,7 +108,11 @@ function ClientFormDialog({
       contactEmail: form.contactEmail || undefined,
       contactPhone: form.contactPhone || undefined,
       website: form.website || undefined,
+      address: form.address || undefined,
+      interviewAddress: form.interviewAddress || undefined,
+      interviewArrivalDetails: form.interviewArrivalDetails || undefined,
       notes: form.notes || undefined,
+      logoUrl: logoUrl || undefined,
     }
     const result = client
       ? await provider.updateClient(client.id, input)
@@ -90,19 +126,92 @@ function ClientFormDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="max-w-lg w-full"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>
-            {client ? 'Editar cliente' : 'Nuevo cliente'}
-          </DialogTitle>
-        </DialogHeader>
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 'min(540px, 95vw)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          ...dragStyle,
+        }}
+      >
+        {/* Header */}
+        <div
+          onMouseDown={onMouseDown}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px', borderBottom: '1px solid var(--border)',
+            ...headerStyle,
+          }}
+        >
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+            {client ? 'Editar cliente' : 'Nuevo cliente'}
+          </h2>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Logo upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              onClick={() => logoInputRef.current?.click()}
+              style={{
+                width: 72, height: 72, borderRadius: 12, flexShrink: 0,
+                background: 'var(--surface2)', border: '2px dashed var(--border)',
+                cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {logoUrl
+                ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <Building2 style={{ width: 28, height: 28, color: 'var(--muted)' }} />
+              }
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0, transition: 'opacity 0.15s',
+              }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+              >
+                {uploadingLogo
+                  ? <Loader2 style={{ width: 18, height: 18, color: '#fff' }} className="animate-spin" />
+                  : <Camera style={{ width: 18, height: 18, color: '#fff' }} />
+                }
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Logo del cliente</p>
+              <p style={{ fontSize: 11, color: 'var(--muted)' }}>PNG, JPG o WebP · Se muestra en tarjetas y reportes</p>
+              <button type="button" onClick={() => logoInputRef.current?.click()}
+                style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                {logoUrl ? 'Cambiar logo' : 'Subir logo'}
+              </button>
+              {logoUrl && (
+                <button type="button" onClick={() => setLogoUrl(undefined)}
+                  style={{ marginTop: 6, marginLeft: 10, fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Quitar
+                </button>
+              )}
+            </div>
+            <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+          </div>
           {/* Name */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
@@ -216,6 +325,61 @@ function ClientFormDialog({
             </div>
           </div>
 
+          {/* Dirección de empresa */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Dirección de la empresa
+            </label>
+            <input
+              value={form.address}
+              onChange={e => set('address', e.target.value)}
+              placeholder="Ej: Av. Corrientes 1234, CABA"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
+          </div>
+
+          {/* Dirección de entrevistas */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Dirección para entrevistas
+            </label>
+            <input
+              value={form.interviewAddress}
+              onChange={e => set('interviewAddress', e.target.value)}
+              placeholder="Ej: Misma dirección o piso específico"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
+          </div>
+
+          {/* Instrucciones de llegada */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
+              Instrucciones al llegar
+            </label>
+            <textarea
+              value={form.interviewArrivalDetails}
+              onChange={e => set('interviewArrivalDetails', e.target.value)}
+              rows={2}
+              placeholder="Ej: Preguntar por Recepción, pedir por Recursos Humanos, mencionar que vas a entrevista con ConectAr..."
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            />
+          </div>
+
           {/* Notes */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
@@ -245,21 +409,28 @@ function ClientFormDialog({
             <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
               Cancelar
             </Button>
-            <Button
+            <button
               type="submit"
               disabled={saving || !form.name.trim()}
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving || !form.name.trim() ? 0.6 : 1 }}
             >
               {saving ? 'Guardando...' : client ? 'Guardar cambios' : 'Crear cliente'}
-            </Button>
+            </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }
 
 // ─── Delete Confirm Dialog ────────────────────────────────────────────────────
+
+interface DeleteCounts {
+  vacancies: number
+  applications: number
+  interviews: number
+  scorecards: number
+}
 
 function DeleteClientDialog({
   client, onConfirm, onClose,
@@ -268,29 +439,82 @@ function DeleteClientDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [confirmed, setConfirmed] = React.useState(false)
+  const [counts, setCounts] = React.useState<DeleteCounts | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function fetchCounts() {
+      const result = await provider.getDeleteClientCounts(client.id)
+      if (!cancelled) setCounts(result)
+    }
+    fetchCounts()
+    return () => { cancelled = true }
+  }, [client.id, provider])
+
   return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent
-        className="max-w-sm"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <DialogHeader>
-          <DialogTitle style={{ color: 'var(--text)' }}>Eliminar cliente</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
-          ¿Eliminar <strong style={{ color: 'var(--text)' }}>{client.name}</strong>? Las vacantes
-          vinculadas quedarán sin cliente asignado.
-        </p>
+    <DraggableModal open onClose={onClose} title={`Eliminar cliente: ${client.name}`} maxWidth="28rem">
+        <div className="space-y-3">
+          <p className="text-sm" style={{ color: 'var(--text)' }}>
+            Estás a punto de eliminar permanentemente al cliente <strong>{client.name}</strong> y toda su información del sistema.
+          </p>
+
+          <div className="rounded-lg px-3 py-2.5 text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <ul className="ml-3 mt-1 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
+              <li>El perfil y datos de contacto del cliente</li>
+              <li>
+                {counts == null
+                  ? 'Vacantes asociadas a este cliente'
+                  : `${counts.vacancies} ${counts.vacancies === 1 ? 'vacante asociada' : 'vacantes asociadas'} a este cliente`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Postulaciones vinculadas a esas vacantes'
+                  : `${counts.applications} ${counts.applications === 1 ? 'postulación vinculada' : 'postulaciones vinculadas'} a esas vacantes`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Entrevistas realizadas en esos procesos'
+                  : `${counts.interviews} ${counts.interviews === 1 ? 'entrevista realizada' : 'entrevistas realizadas'} en esos procesos`}
+              </li>
+              <li>
+                {counts == null
+                  ? 'Evaluaciones (scorecards) completadas'
+                  : `${counts.scorecards} ${counts.scorecards === 1 ? 'evaluación (scorecard) completada' : 'evaluaciones (scorecards) completadas'}`}
+              </li>
+              <li>Los candidatos con este cliente asignado quedarán desvinculados (no se eliminan)</li>
+            </ul>
+          </div>
+
+          <div className="flex items-start gap-2 pt-1">
+            <input
+              id="confirm-delete-client"
+              type="checkbox"
+              checked={confirmed}
+              onChange={e => setConfirmed(e.target.checked)}
+              className="mt-0.5"
+            />
+            <label htmlFor="confirm-delete-client" className="text-xs cursor-pointer" style={{ color: 'var(--muted)' }}>
+              Entiendo que esta acción es <strong style={{ color: 'var(--text)' }}>irreversible</strong> y que todos los datos relacionados se perderán definitivamente. Solo los administradores pueden realizar esta operación.
+            </label>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
             Cancelar
           </Button>
-          <Button onClick={onConfirm} style={{ background: 'var(--coral)', color: '#fff' }}>
-            Eliminar
+          <Button
+            onClick={onConfirm}
+            disabled={!confirmed}
+            style={{ background: confirmed ? 'var(--coral)' : 'var(--surface2)', color: confirmed ? '#fff' : 'var(--muted)', cursor: confirmed ? 'pointer' : 'not-allowed' }}
+          >
+            Eliminar cliente
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -326,20 +550,23 @@ function ClientCard({
       <CardContent className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <Link href={`/clients/${client.id}`} className="flex items-center gap-3 min-w-0 group">
             <div
-              className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold"
+              className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold overflow-hidden"
               style={{
                 width: 40,
                 height: 40,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                background: client.logoUrl ? 'transparent' : 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               }}
             >
-              {client.name.charAt(0).toUpperCase()}
+              {client.logoUrl
+                ? <img src={client.logoUrl} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : client.name.charAt(0).toUpperCase()
+              }
             </div>
             <div className="min-w-0">
               <h3
-                className="font-semibold text-sm truncate"
+                className="font-semibold text-sm truncate group-hover:underline"
                 style={{ color: 'var(--text)' }}
               >
                 {client.name}
@@ -350,7 +577,7 @@ function ClientCard({
                 </p>
               )}
             </div>
-          </div>
+          </Link>
 
           {/* Menu */}
           <div className="relative shrink-0" ref={menuRef}>
@@ -449,6 +676,30 @@ function ClientCard({
           )}
         </div>
 
+        {client.address && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+            <span className="text-xs" style={{ color: 'var(--muted2)' }}>
+              {client.address}
+            </span>
+          </div>
+        )}
+        {client.interviewAddress && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent-2)' }} />
+            <span className="text-xs" style={{ color: 'var(--muted2)' }}>
+              Entrevistas: {client.interviewAddress}
+            </span>
+          </div>
+        )}
+        {client.interviewArrivalDetails && (
+          <div className="flex items-start gap-2 mt-1.5">
+            <span className="text-xs italic" style={{ color: 'var(--muted)', paddingLeft: '1.375rem' }}>
+              {client.interviewArrivalDetails}
+            </span>
+          </div>
+        )}
+
         {client.notes && (
           <p
             className="mt-3 pt-3 text-xs line-clamp-2"
@@ -528,6 +779,7 @@ export default function ClientsPage() {
     setClients(prev => prev.filter(c => c.id !== client.id))
     setVacancies(prev => prev.map(v => v.clientId === client.id ? { ...v, clientId: undefined, client: undefined } : v))
     setDeletingClient(undefined)
+    window.dispatchEvent(new CustomEvent('client:deleted', { detail: { clientId: client.id } }))
   }
 
   const atLimit = clients.length >= limits.clients

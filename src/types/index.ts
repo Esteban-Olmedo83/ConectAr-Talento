@@ -4,6 +4,9 @@ export type VacancyStatus =
   | 'Entrevistas'
   | 'Oferta Enviada'
   | 'Contratado'
+  | 'Descartado'
+
+export type CandidateDisposition = 'a_considerar' | 'descartar_cv'
 
 export type VacancyModality = 'Presencial' | 'Remoto' | 'Híbrido'
 export type VacancyPriority = 'Alta' | 'Media' | 'Baja'
@@ -77,6 +80,8 @@ export interface User {
   googleDriveFolderId?: string
   googleSheetsDbId?: string
   createdAt: string
+  groqApiKey?: string
+  aiProvider?: string
 }
 
 export interface Scorecard {
@@ -112,6 +117,8 @@ export interface Interview {
 export interface Candidate {
   id: string
   tenantId: string
+  clientId?: string
+  client?: Client
   fullName: string
   email: string
   phone?: string
@@ -138,6 +145,7 @@ export interface Application {
   positionInStage: number
   appliedAt: string
   updatedAt: string
+  disposition?: CandidateDisposition | null
 }
 
 export interface Client {
@@ -146,8 +154,13 @@ export interface Client {
   name: string
   industry?: string
   contactName?: string
-  contactEmail?: string
+  contactEmail?: string       // corporate / main contact email
+  recruitmentEmail?: string   // email used for recruitment communications
   contactPhone?: string
+  whatsappPhone?: string      // phone number for WhatsApp
+  address?: string
+  interviewAddress?: string
+  interviewArrivalDetails?: string
   website?: string
   logoUrl?: string
   notes?: string
@@ -176,6 +189,8 @@ export interface Vacancy {
   createdBy?: string
   createdAt: string
   applications: Application[]
+  rubro: string
+  perfil: string
 }
 
 export interface SkillProfile {
@@ -215,4 +230,44 @@ export interface Integration {
   expiresAt?: string
   metadata?: Record<string, unknown>
   createdAt: string
+}
+
+export interface JobRubro {
+  id: string
+  tenantId: string
+  name: string
+  createdAt: string
+}
+
+export interface CustomJobProfile {
+  id: string
+  tenantId: string
+  rubro: string
+  perfil: string
+  nivel: string
+  skills: {
+    tecnicas: string[]
+    blandas: string[]
+    herramientas: string[]
+    certificaciones: string[]
+  }
+  descripcionTipica: string
+  createdAt: string
+}
+
+export interface CreateJobRubroInput {
+  tenantId: string
+  name: string
+}
+
+export interface CreateJobProfileInput {
+  tenantId: string
+  rubro: string
+  perfil: string
+  nivel: string
+  skillsTecnicas?: string[]
+  skillsBlandas?: string[]
+  skillsHerramientas?: string[]
+  skillsCertificaciones?: string[]
+  descripcionTipica?: string
 }

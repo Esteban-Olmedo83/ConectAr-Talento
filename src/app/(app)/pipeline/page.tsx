@@ -2,11 +2,13 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
   closestCorners,
@@ -30,23 +32,40 @@ import {
   X,
   Copy,
   CheckCircle2,
+  XCircle,
   Loader2,
   FileText,
+  ChevronUp,
+  UserX,
+  RotateCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import type {
   Application,
   Candidate,
+  Client,
   Vacancy,
   VacancyStatus,
+  CandidateDisposition,
   MessageTemplate,
+  Interview,
   InterviewType,
   MeetingPlatform,
+  Recommendation,
 } from '@/types'
+
+type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
+const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color: string; border: string }> = {
+  avanzar:      { label: 'Avanzar',      bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  rechazar:     { label: 'Rechazar',     bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  a_considerar: { label: 'A considerar', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  descartar_cv: { label: 'Descartar CV', bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -63,7 +82,14 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Entrevistas': '#a78bfa',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
+  'Descartado': '#6b7280',
 }
+
+const RECOMMENDATION_COLORS = {
+  Avanzar:    { bg: 'rgba(52,211,153,0.15)',  text: '#34d399' },
+  Considerar: { bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24' },
+  Rechazar:   { bg: 'rgba(248,113,113,0.15)', text: '#f87171' },
+} as const
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #6c63ff, #a78bfa)',
@@ -83,6 +109,7 @@ function avatarGradient(name: string): string {
 interface HydratedApplication extends Application {
   candidate?: Candidate
   vacancyTitle?: string
+  recommendation?: Recommendation
 }
 
 // ─── Source badge colors ──────────────────────────────────────────────────────
@@ -190,31 +217,132 @@ function StagePillsBar({
 }
 
 // ─── Email Modal ───────────────────────────────────────────────────────────────
+const VARIABLE_LABELS: Record<string, string> = {
+  vacante: 'Vacante', empresa: 'Empresa', nombre_candidato: 'Nombre del Candidato',
+  salario: 'Salario', modalidad: 'Modalidad', fecha_inicio: 'Fecha de Inicio',
+  fecha_entrevista: 'Fecha de Entrevista', hora_entrevista: 'Hora de Entrevista',
+  modalidad_entrevista: 'Modalidad Entrevista', link_reunion: 'Link de Reunión',
+  reclutador: 'Reclutador', fecha_vencimiento_oferta: 'Fecha Vencimiento Oferta',
+  dias_revision: 'Días Hábiles', email_contacto: 'Email de Contacto',
+  resultado_mensaje: 'Resultado', mensaje_adicional: 'Mensaje Adicional',
+  ubicacion: 'Ubicación', empresa_cliente: 'Empresa Cliente',
+  direccion_entrevista: 'Dirección de Entrevista',
+  instrucciones_llegada: 'Instrucciones al Llegar',
+}
+
+function extractUnfilledVars(text: string): string[] {
+  const matches = text.match(/\{\{(\w+)\}\}/g) ?? []
+  return [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))]
+}
+
 function EmailModal({
   candidate,
   templates,
+  vacancies,
+  initialVacancy,
+  interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
+  vacancies: Vacancy[]
+  initialVacancy?: Vacancy
+  interview?: Interview
   onClose: () => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const emailTemplates = templates.filter(t => t.channel === 'email')
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
+    emailTemplates.length > 0 ? emailTemplates[0].id : ''
+  )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState<string>(
+    initialVacancy?.id ?? ''
+  )
   const [subject, setSubject] = React.useState('')
   const [body, setBody] = React.useState('')
   const [copied, setCopied] = React.useState(false)
+  const [tab, setTab] = React.useState<'fill' | 'preview'>('fill')
+  const [extraVars, setExtraVars] = React.useState<Record<string, string>>({})
+  const [diasRevisionEnabled, setDiasRevisionEnabled] = React.useState(false)
+  const [diasRevisionValue, setDiasRevisionValue] = React.useState('')
 
   const selectedTemplate = emailTemplates.find(t => t.id === selectedTemplateId)
+  const vacancy = vacancies.find(v => v.id === selectedVacancyId) ?? initialVacancy
+
+  function autoFill(text: string): string {
+    const salario = vacancy?.salaryMin
+      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
+      : null
+    const intDate = interview ? new Date(interview.scheduledAt) : null
+    const dateStr = intDate
+      ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const timeStr = intDate
+      ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
+      : ''
+    let out = text
+      .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
+      .replace(/\{\{hora_entrevista\}\}/g, timeStr)
+      .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
+      .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
+      .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    if (vacancy?.title) out = out.replace(/\{\{vacante\}\}/g, vacancy.title)
+    if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
+    if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
+    if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    if (vacancy?.client?.interviewAddress) out = out.replace(/\{\{direccion_entrevista\}\}/g, vacancy.client.interviewAddress)
+    if (vacancy?.client?.interviewArrivalDetails) out = out.replace(/\{\{instrucciones_llegada\}\}/g, vacancy.client.interviewArrivalDetails)
+    // Only replace salario/fecha_inicio if we have a real value; otherwise leave {{var}} intact
+    if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
+    return out
+  }
 
   React.useEffect(() => {
     if (selectedTemplate) {
-      setSubject(selectedTemplate.subject ?? '')
-      // Pre-fill nombre_candidato variable if present
-      const filledBody = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      const filledSubj = autoFill(selectedTemplate.subject ?? '')
+      const filledBody = autoFill(selectedTemplate.body)
+      setSubject(filledSubj)
       setBody(filledBody)
+      // Detect remaining unfilled vars
+      const remaining = extractUnfilledVars(filledBody + ' ' + filledSubj)
+      // dias_revision handled separately via toggle
+      const withoutDias = remaining.filter(v => v !== 'dias_revision')
+      setExtraVars(Object.fromEntries(withoutDias.map(v => [v, ''])))
+    } else {
+      setSubject('')
+      setBody(`Hola ${candidate.fullName},\n\n`)
+      setExtraVars({})
     }
-  }, [selectedTemplate, candidate.fullName])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId, candidate.fullName, selectedVacancyId])
+
+  function applyExtraVars(text: string): string {
+    let out = text
+    for (const [k, v] of Object.entries(extraVars)) {
+      out = out.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v || `{{${k}}}`)
+    }
+    // Apply dias_revision: replace with value if enabled, otherwise strip placeholder
+    if (diasRevisionEnabled && diasRevisionValue) {
+      out = out.replace(/\{\{dias_revision\}\}/g, diasRevisionValue)
+    } else {
+      out = out.replace(/\{\{dias_revision\}\}/g, '')
+    }
+    // Remove lines with emoji+unfilled vars
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gmu, '')
+    // Remove emoji lines where the value is empty (e.g. link presencial)
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*$\n?/gmu, '')
+    // Clean up double spaces (e.g. from removed inline {{var}})
+    out = out.replace(/  +/g, ' ')
+    out = out.replace(/\n{3,}/g, '\n\n').trim()
+    return out
+  }
+
+  const previewSubject = applyExtraVars(subject)
+  const previewBody = applyExtraVars(body)
+
+  // Gmail compose URL — works in-browser without needing a default mail client
+  const gmailHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(candidate.email)}${previewSubject ? `&su=${encodeURIComponent(previewSubject)}` : ''}${previewBody ? `&body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -222,8 +350,6 @@ function EmailModal({
       setTimeout(() => setCopied(false), 2000)
     })
   }
-
-  const mailtoHref = `mailto:${candidate.email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}${body ? `${subject ? '&' : '?'}body=${encodeURIComponent(body)}` : ''}`
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -256,22 +382,27 @@ function EmailModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 520,
+          maxWidth: 'min(520px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Mail style={{ width: 15, height: 15, color: '#818cf8' }} />
             </div>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Enviar email</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName} · {selectedTemplate?.name ?? 'Sin template'}</p>
             </div>
           </div>
           <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
@@ -279,46 +410,14 @@ function EmailModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Candidate email */}
-          <div>
-            <label style={labelStyle}>Email del candidato</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ ...inputStyle, flex: 1, color: 'var(--accent-2)', fontWeight: 500 }}>
-                {candidate.email}
-              </div>
-              <button
-                onClick={handleCopyEmail}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: copied ? 'rgba(52,211,153,0.15)' : 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  color: copied ? '#34d399' : 'var(--muted)',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  transition: 'all 0.15s',
-                  whiteSpace: 'nowrap' as const,
-                }}
-              >
-                <Copy style={{ width: 12, height: 12 }} />
-                {copied ? 'Copiado' : 'Copiar email'}
-              </button>
-            </div>
-          </div>
-
-          {/* Template selector */}
+        {/* Template selector */}
+        <div style={{ padding: '12px 20px 0', borderBottom: '1px solid var(--border)' }}>
           {emailTemplates.length > 0 && (
-            <div>
-              <label style={labelStyle}>Template (opcional)</label>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>Template</label>
               <select
                 value={selectedTemplateId}
-                onChange={e => setSelectedTemplateId(e.target.value)}
+                onChange={e => { setSelectedTemplateId(e.target.value); setTab('fill') }}
                 style={{ ...inputStyle, appearance: 'none' as const }}
               >
                 <option value="">Sin template</option>
@@ -328,30 +427,149 @@ function EmailModal({
               </select>
             </div>
           )}
-
-          {/* Subject */}
-          <div>
-            <label style={labelStyle}>Asunto</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="Asunto del email..."
-              style={inputStyle}
-            />
+          {/* Vacancy selector */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>Vacante</label>
+            <select
+              value={selectedVacancyId}
+              onChange={e => { setSelectedVacancyId(e.target.value); setTab('fill') }}
+              style={{ ...inputStyle, appearance: 'none' as const }}
+            >
+              <option value="">Sin vacante</option>
+              {vacancies.map(v => (
+                <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+              ))}
+            </select>
+            {vacancy?.client?.name && (
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Cliente: <span style={{ color: 'var(--accent-2)', fontWeight: 500 }}>{vacancy.client.name}</span>
+              </p>
+            )}
           </div>
-
-          {/* Body */}
-          <div>
-            <label style={labelStyle}>Mensaje</label>
-            <textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Escribí tu mensaje..."
-              rows={6}
-              style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }}
-            />
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            {(['fill', 'preview'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: tab === t ? 'var(--accent-2)' : 'var(--muted)',
+                  borderBottom: `2px solid ${tab === t ? 'var(--accent-2)' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t === 'fill' ? 'Completar variables' : 'Vista previa'}
+              </button>
+            ))}
           </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {tab === 'fill' ? (
+            <>
+              {/* Email address */}
+              <div>
+                <label style={labelStyle}>Email del candidato</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ ...inputStyle, flex: 1, color: 'var(--accent-2)', fontWeight: 500 }}>
+                    {candidate.email}
+                  </div>
+                  <button
+                    onClick={handleCopyEmail}
+                    style={{ padding: '8px 12px', borderRadius: 8, background: copied ? 'rgba(52,211,153,0.15)' : 'var(--surface2)', border: '1px solid var(--border)', color: copied ? '#34d399' : 'var(--muted)', cursor: 'pointer', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', whiteSpace: 'nowrap' as const }}
+                  >
+                    <Copy style={{ width: 12, height: 12 }} />
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Manual variable inputs for unfilled vars */}
+              {(Object.keys(extraVars).length > 0 || (body + subject).includes('{{dias_revision}}')) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={labelStyle}>Variables a completar</label>
+                  {Object.entries(extraVars).map(([k, v]) => (
+                    <div key={k}>
+                      <label style={{ ...labelStyle, textTransform: 'none', fontSize: 12 }}>
+                        {VARIABLE_LABELS[k] ?? k}
+                      </label>
+                      <input
+                        type="text"
+                        value={v}
+                        onChange={e => setExtraVars(prev => ({ ...prev, [k]: e.target.value }))}
+                        placeholder={VARIABLE_LABELS[k] ?? k}
+                        style={inputStyle}
+                      />
+                    </div>
+                  ))}
+                  {/* dias_revision toggle */}
+                  {(body + subject).includes('{{dias_revision}}') && (
+                    <div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={diasRevisionEnabled}
+                          onChange={e => {
+                            setDiasRevisionEnabled(e.target.checked)
+                            if (!e.target.checked) setDiasRevisionValue('')
+                          }}
+                          style={{ width: 15, height: 15, accentColor: 'var(--accent-2)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                          Especificar días hábiles de revisión
+                        </span>
+                      </label>
+                      {diasRevisionEnabled && (
+                        <input
+                          type="number"
+                          min={1}
+                          value={diasRevisionValue}
+                          onChange={e => setDiasRevisionValue(e.target.value)}
+                          placeholder="Ej: 5"
+                          style={{ ...inputStyle, marginTop: 8, width: 120 }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Subject editable */}
+              <div>
+                <label style={labelStyle}>Asunto</label>
+                <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Asunto del email..." style={inputStyle} />
+              </div>
+
+              {/* Body editable */}
+              <div>
+                <label style={labelStyle}>Mensaje</label>
+                <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Escribí tu mensaje..." rows={6} style={{ ...inputStyle, resize: 'vertical' as const, fontFamily: 'inherit' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Vista previa */}
+              {previewSubject && (
+                <div>
+                  <label style={labelStyle}>Asunto</label>
+                  <div style={{ ...inputStyle, color: 'var(--text)', fontWeight: 500 }}>{previewSubject}</div>
+                </div>
+              )}
+              <div>
+                <label style={labelStyle}>Mensaje</label>
+                <div style={{ ...inputStyle, whiteSpace: 'pre-wrap' as const, lineHeight: 1.6, minHeight: 120, color: 'var(--text)' }}>
+                  {previewBody || <span style={{ color: 'var(--muted)' }}>Sin contenido</span>}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -363,26 +581,13 @@ function EmailModal({
             Cancelar
           </button>
           <a
-            href={mailtoHref}
+            href={gmailHref}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              background: 'var(--accent)',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              textDecoration: 'none',
-            }}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
           >
             <Mail style={{ width: 13, height: 13 }} />
-            Abrir cliente de email
+            Abrir en Gmail
           </a>
         </div>
       </div>
@@ -394,27 +599,72 @@ function EmailModal({
 function WhatsAppModal({
   candidate,
   templates,
+  vacancies,
+  initialVacancy,
+  interview,
   onClose,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
+  vacancies: Vacancy[]
+  initialVacancy?: Vacancy
+  interview?: Interview
   onClose: () => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('')
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(
+    waTemplates.length > 0 ? waTemplates[0].id : ''
+  )
+  const [selectedVacancyId, setSelectedVacancyId] = React.useState<string>(
+    initialVacancy?.id ?? ''
+  )
   const [message, setMessage] = React.useState('')
-  const [copied, setCopied] = React.useState(false)
 
   const selectedTemplate = waTemplates.find(t => t.id === selectedTemplateId)
+  const vacancy = vacancies.find(v => v.id === selectedVacancyId) ?? initialVacancy
+
+  function fillVars(text: string): string {
+    const intDate = interview ? new Date(interview.scheduledAt) : null
+    const dateStr = intDate
+      ? intDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const timeStr = intDate
+      ? intDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs'
+      : ''
+    const salario = vacancy?.salaryMin
+      ? `${vacancy.currency ?? 'ARS'} ${vacancy.salaryMin.toLocaleString()}`
+      : null
+    let out = text
+      .replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
+      .replace(/\{\{fecha_entrevista\}\}/g, dateStr)
+      .replace(/\{\{hora_entrevista\}\}/g, timeStr)
+      .replace(/\{\{modalidad_entrevista\}\}/g, interview?.meetingPlatform ?? '')
+      .replace(/\{\{link_reunion\}\}/g, interview?.meetingLink ?? '')
+      .replace(/\{\{reclutador\}\}/g, interview?.interviewerName ?? '')
+    if (vacancy?.title) out = out.replace(/\{\{vacante\}\}/g, vacancy.title)
+    if (vacancy?.client?.name) out = out.replace(/\{\{empresa\}\}/g, vacancy.client.name)
+    if (vacancy?.modality) out = out.replace(/\{\{modalidad\}\}/g, vacancy.modality)
+    if (vacancy?.location) out = out.replace(/\{\{ubicacion\}\}/g, vacancy.location)
+    if (vacancy?.client?.interviewAddress) out = out.replace(/\{\{direccion_entrevista\}\}/g, vacancy.client.interviewAddress)
+    if (vacancy?.client?.interviewArrivalDetails) out = out.replace(/\{\{instrucciones_llegada\}\}/g, vacancy.client.interviewArrivalDetails)
+    if (salario) out = out.replace(/\{\{salario\}\}/g, salario)
+    // Remove emoji lines with unfilled vars
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*\{\{[^}]+\}\}\n?/gmu, '')
+    // Remove emoji lines with empty values (e.g. link when presencial)
+    out = out.replace(/^[^\S\n]*[\u{1F4C5}\u{1F550}\u{1F4CD}\u{1F517}\u{1F4B0}\u{1F4CC}]\s*[^:\n]*:\s*$\n?/gmu, '')
+    out = out.replace(/\n{3,}/g, '\n\n').trim()
+    return out
+  }
 
   React.useEffect(() => {
     if (selectedTemplate) {
-      const filled = selectedTemplate.body.replace(/\{\{nombre_candidato\}\}/g, candidate.fullName)
-      setMessage(filled)
+      setMessage(fillVars(selectedTemplate.body))
     } else {
       setMessage(`Hola ${candidate.fullName}!\n\nMe comunico desde el equipo de Talento. ¿Tenés un momento para charlar?`)
     }
-  }, [selectedTemplate, candidate.fullName])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId, candidate.fullName, selectedVacancyId])
 
   function formatPhone(phone: string): string {
     let digits = phone.replace(/\D/g, '')
@@ -424,28 +674,17 @@ function WhatsAppModal({
   }
 
   const phone = candidate.phone ? formatPhone(candidate.phone) : null
-  // Open WhatsApp WITHOUT text in URL — emojis and formatting are preserved
-  // by copying to clipboard first, then pasting in WhatsApp.
-  const waUrl = phone ? `https://wa.me/${phone}` : null
 
-  async function handleCopyAndOpen() {
-    try {
-      await navigator.clipboard.writeText(message)
-      setCopied(true)
-      setTimeout(() => {
-        if (waUrl) window.open(waUrl, '_blank', 'noopener,noreferrer')
-      }, 400)
-      setTimeout(() => setCopied(false), 3000)
-    } catch {
-      // Fallback: just open WhatsApp
-      if (waUrl) window.open(waUrl, '_blank', 'noopener,noreferrer')
-    }
-  }
-
-  async function handleCopyOnly() {
-    await navigator.clipboard.writeText(message)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
+  function handleSend() {
+    if (!phone) return
+    const a = document.createElement('a')
+    a.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    a.rel = 'noopener noreferrer'
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    onClose()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -479,15 +718,20 @@ function WhatsAppModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'min(480px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <MessageCircle style={{ width: 15, height: 15, color: '#4ade80' }} />
@@ -518,17 +762,35 @@ function WhatsAppModal({
 
           {waTemplates.length > 0 && (
             <div>
-              <label style={labelStyle}>Template (opcional)</label>
+              <label style={labelStyle}>Template</label>
               <select
                 value={selectedTemplateId}
                 onChange={e => setSelectedTemplateId(e.target.value)}
                 style={{ ...inputStyle, appearance: 'none' as const }}
               >
-                <option value="">Sin template</option>
                 {waTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
           )}
+
+          <div>
+            <label style={labelStyle}>Vacante</label>
+            <select
+              value={selectedVacancyId}
+              onChange={e => setSelectedVacancyId(e.target.value)}
+              style={{ ...inputStyle, appearance: 'none' as const }}
+            >
+              <option value="">Sin vacante</option>
+              {vacancies.map(v => (
+                <option key={v.id} value={v.id}>{v.title}{v.client?.name ? ` · ${v.client.name}` : ''}</option>
+              ))}
+            </select>
+            {vacancy?.client?.name && (
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Cliente: <span style={{ color: '#4ade80', fontWeight: 500 }}>{vacancy.client.name}</span>
+              </p>
+            )}
+          </div>
 
           <div>
             <label style={labelStyle}>Mensaje</label>
@@ -540,31 +802,23 @@ function WhatsAppModal({
             />
           </div>
 
-          {/* Tip */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
-            <Copy style={{ width: 13, height: 13, color: '#4ade80', flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-              El botón principal copia el mensaje y abre WhatsApp. Solo pegá con <strong style={{ color: 'var(--text)' }}>Ctrl+V</strong> (o mantené presionado en móvil). Esto garantiza que los emojis y el formato lleguen correctamente.
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
           <button
-            onClick={handleCopyOnly}
-            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: copied ? '#4ade80' : 'var(--muted)', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}
+            onClick={onClose}
+            style={{ padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
           >
-            {copied ? <CheckCircle2 style={{ width: 13, height: 13 }} /> : <Copy style={{ width: 13, height: 13 }} />}
-            {copied ? 'Copiado' : 'Solo copiar'}
+            Cancelar
           </button>
-          {waUrl ? (
+          {phone ? (
             <button
-              onClick={handleCopyAndOpen}
-              style={{ padding: '8px 16px', borderRadius: 8, background: copied ? 'rgba(22,163,74,0.8)' : '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
+              onClick={handleSend}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <MessageCircle style={{ width: 13, height: 13 }} />
-              {copied ? 'Abriendo WhatsApp...' : 'Copiar y abrir WhatsApp'}
+              Enviar por WhatsApp
             </button>
           ) : (
             <button disabled style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'not-allowed', fontSize: 13 }}>
@@ -595,6 +849,7 @@ function ScheduleInterviewModal({
   applicationId?: string
   vacancyId?: string
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const { user } = useUser()
   const [form, setForm] = React.useState({
     scheduledAt: '',
@@ -671,15 +926,20 @@ function ScheduleInterviewModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 'min(480px, 95vw)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar style={{ width: 15, height: 15, color: '#a78bfa' }} />
@@ -857,6 +1117,7 @@ function NotesModal({
   onClose: () => void
   onSaved?: (notes: string) => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [notes, setNotes] = React.useState(candidate.notes ?? '')
   const [saving, setSaving] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
@@ -901,14 +1162,20 @@ function NotesModal({
           border: '1px solid var(--border)',
           borderRadius: 16,
           width: '100%',
-          maxWidth: 460,
+          maxWidth: 'min(460px, 95vw)',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText style={{ width: 15, height: 15, color: '#fbbf24' }} />
@@ -924,7 +1191,7 @@ function NotesModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <textarea
             value={notes}
             onChange={e => { setNotes(e.target.value); setSaved(false) }}
@@ -986,6 +1253,7 @@ type ActiveModal =
   | { type: 'whatsapp'; candidate: Candidate }
   | { type: 'schedule'; candidate: Candidate; applicationId: string; vacancyId: string }
   | { type: 'notes'; candidate: Candidate }
+  | { type: 'process'; candidate: Candidate; vacancyId: string; app: HydratedApplication }
   | null
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
@@ -993,13 +1261,17 @@ interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
   onAction: (modal: ActiveModal) => void
+  onDecide?: (appId: string, action: DecisionAction) => void
   interviewDate?: string  // ISO string of next scheduled interview
 }
 
-function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) {
+function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
   const [hovered, setHovered] = React.useState(false)
+  const pointerStart = React.useRef<{ x: number; y: number } | null>(null)
+  const pointerMoved = React.useRef(false)
+  const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
 
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
@@ -1020,6 +1292,24 @@ function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) 
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onPointerDown={(e) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY }
+        pointerMoved.current = false
+      }}
+      onPointerMove={(e) => {
+        if (pointerStart.current) {
+          const dx = e.clientX - pointerStart.current.x
+          const dy = e.clientY - pointerStart.current.y
+          if (dx * dx + dy * dy > 64) { // 8px threshold (8^2 = 64)
+            pointerMoved.current = true
+          }
+        }
+      }}
+      onClick={() => {
+        if (!pointerMoved.current && !isDragging) {
+          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })
+        }
+      }}
       className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
       style={{
         position: 'relative',
@@ -1138,6 +1428,42 @@ function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) 
               +{extraSkills}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Scorecard recommendation badge (only in Entrevistas stage) */}
+      {app.status === 'Entrevistas' && app.recommendation && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 99,
+              fontWeight: 600,
+              background: RECOMMENDATION_COLORS[app.recommendation].bg,
+              color: RECOMMENDATION_COLORS[app.recommendation].text,
+            }}
+          >
+            Scorecard: {app.recommendation}
+          </span>
+        </div>
+      )}
+
+      {/* Disposition badge */}
+      {app.disposition === 'a_considerar' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          <span
+            style={{
+              fontSize: 10,
+              padding: '2px 8px',
+              borderRadius: 99,
+              fontWeight: 600,
+              background: 'rgba(251,191,36,0.15)',
+              color: '#fbbf24',
+            }}
+          >
+            A considerar
+          </span>
         </div>
       )}
 
@@ -1266,12 +1592,283 @@ function CandidateCard({ app, isDragging, onAction, interviewDate }: CardProps) 
           </button>
         </div>
       </div>
+
+      {/* Decision buttons — only visible on hover for Entrevistas stage */}
+      {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice.current) && !isDragging && (
+        <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+          {(Object.entries(DECISION_CONFIG) as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
+            <button
+              key={action}
+              onClick={e => { e.stopPropagation(); onDecide(app.id, action) }}
+              style={{
+                flex: '1 1 calc(50% - 2px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                padding: '4px 0',
+                borderRadius: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                background: cfg.bg,
+                border: `1px solid ${cfg.border}`,
+                color: cfg.color,
+                cursor: 'pointer',
+              }}
+            >
+              {cfg.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Process Detail Modal ──────────────────────────────────────────────────────
+function ProcessDetailModal({
+  app,
+  vacancy,
+  interviewDate,
+  onClose,
+  onAction,
+  onDecide,
+}: {
+  app: HydratedApplication
+  vacancy?: Vacancy
+  interviewDate?: string
+  onClose: () => void
+  onAction: (modal: ActiveModal) => void
+  onDecide?: (appId: string, action: DecisionAction) => void
+}) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
+  const c = app.candidate
+  if (!c) return null
+
+  const stageColor = STAGE_COLORS[app.status]
+  const score = c.atsScore ?? 0
+  const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
+  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const currentStageIdx = STAGES.indexOf(app.status as VacancyStatus)
+  const skills = c.skills ?? []
+
+  const interviewFormatted = interviewDate
+    ? new Date(interviewDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) +
+      ' ' + new Date(interviewDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 'min(520px, 95vw)',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          ...dragStyle,
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{ padding: '20px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                background: avatarGradient(c.fullName),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: 700,
+                fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+                flexShrink: 0,
+              }}
+            >
+              {getInitials(c.fullName)}
+            </div>
+            <div>
+              <h2 style={{ fontWeight: 700, fontSize: 18, color: 'var(--text)', margin: 0 }}>{c.fullName}</h2>
+              <p style={{ fontSize: 13, color: 'var(--muted)', margin: '2px 0 0' }}>{c.email}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <span
+                  style={{
+                    background: `${scoreColor}22`,
+                    color: scoreColor,
+                    border: `1px solid ${scoreColor}44`,
+                    borderRadius: 6,
+                    padding: '1px 7px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  ATS {score}
+                </span>
+                {c.source && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '1px 7px' }}>
+                    {c.source}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: 'var(--muted)', borderRadius: 8 }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Stage progress */}
+        <div style={{ padding: '16px 20px 0' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Etapa del proceso</p>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {STAGES.map((stage, idx) => {
+              const color = STAGE_COLORS[stage]
+              const isActive = idx === currentStageIdx
+              const isPast = idx < currentStageIdx
+              return (
+                <div key={stage} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div
+                    style={{
+                      height: 4,
+                      width: '100%',
+                      borderRadius: 4,
+                      background: isActive || isPast ? color : 'var(--border)',
+                      opacity: isPast ? 0.5 : 1,
+                    }}
+                  />
+                  <span style={{ fontSize: 9, color: isActive ? color : 'var(--muted)', fontWeight: isActive ? 700 : 400, textAlign: 'center', lineHeight: 1.2 }}>
+                    {stage}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
+          {/* Current stage badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: `${stageColor}22`,
+                color: stageColor,
+                border: `1px solid ${stageColor}44`,
+                borderRadius: 8,
+                padding: '4px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
+              {app.status}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {daysSince === 0 ? 'Ingresó hoy' : `Hace ${daysSince} día${daysSince !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+
+          {/* Vacancy */}
+          {vacancy && (
+            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>Vacante</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', margin: 0 }}>{vacancy.title}</p>
+              {vacancy.client?.name && (
+                <p style={{ fontSize: 12, color: 'var(--muted)', margin: '2px 0 0' }}>{vacancy.client.name}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                {vacancy.modality && <span style={{ fontSize: 11, color: 'var(--muted)' }}>📍 {vacancy.modality}</span>}
+                {(vacancy.salaryMin || vacancy.salaryMax) && <span style={{ fontSize: 11, color: 'var(--muted)' }}>💰 {vacancy.salaryMin}{vacancy.salaryMax ? `–${vacancy.salaryMax}` : ''} {vacancy.currency ?? ''}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Interview */}
+          {interviewFormatted && (
+            <div style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#a78bfa', marginBottom: 3 }}>Próxima entrevista</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', margin: 0 }}>📅 {interviewFormatted}</p>
+            </div>
+          )}
+
+          {/* Skills */}
+          {skills.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Skills</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {skills.map((sk, i) => (
+                  <span key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--muted)' }}>
+                    {sk}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contact info */}
+          {(c.email || c.phone) && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Contacto</p>
+              {c.email && <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 2px' }}>{c.email}</p>}
+              {c.phone && <p style={{ fontSize: 13, color: 'var(--text)', margin: 0 }}>{c.phone}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <Mail size={13} /> Email
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <MessageCircle size={13} /> WhatsApp
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <Calendar size={13} /> Entrevista
+          </button>
+          <button
+            onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
+            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+          >
+            <FileText size={13} /> Notas
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
 // ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; interviewDate?: string }) {
+function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, action: DecisionAction) => void; interviewDate?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: app.id })
   const style = {
@@ -1280,7 +1877,7 @@ function SortableCard({ app, onAction, interviewDate }: { app: HydratedApplicati
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} interviewDate={interviewDate} />
+      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} onDecide={onDecide} interviewDate={interviewDate} />
     </div>
   )
 }
@@ -1290,14 +1887,17 @@ function Lane({
   stage,
   apps,
   onAction,
+  onDecide,
   interviewsByCandidate,
 }: {
   stage: VacancyStatus
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
+  onDecide: (appId: string, action: DecisionAction) => void
   interviewsByCandidate: Map<string, string>
 }) {
   const stageColor = STAGE_COLORS[stage]
+  const { setNodeRef, isOver } = useDroppable({ id: stage })
   return (
     <div
       className="flex flex-col rounded-xl min-w-[270px] w-[270px] flex-shrink-0"
@@ -1358,7 +1958,15 @@ function Lane({
       </div>
 
       <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1, minHeight: 120, overflowY: 'auto' }}>
+        <div
+          ref={setNodeRef}
+          style={{
+            display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1,
+            minHeight: 120, overflowY: 'auto',
+            background: isOver ? `${stageColor}11` : 'transparent',
+            transition: 'background 0.15s',
+          }}
+        >
           {apps.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1368,7 +1976,7 @@ function Lane({
             </div>
           )}
           {apps.map(app => (
-            <SortableCard key={app.id} app={app} onAction={onAction} interviewDate={interviewsByCandidate.get(app.candidateId)} />
+            <SortableCard key={app.id} app={app} onAction={onAction} onDecide={onDecide} interviewDate={interviewsByCandidate.get(app.candidateId)} />
           ))}
         </div>
       </SortableContext>
@@ -1425,6 +2033,7 @@ function HireDialog({
   onClose: () => void
   onVacancyClosed: (vacancyId: string) => void
 }) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [closing, setClosing] = React.useState(false)
   const candidateName = app.candidate?.fullName ?? 'el candidato'
   const vacancyTitle = app.vacancyTitle
@@ -1439,8 +2048,8 @@ function HireDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-        <div style={{ padding: '20px 20px 0' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(420px, 95vw)', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', ...dragStyle }}>
+        <div style={{ padding: '20px 20px 0', ...headerStyle }} onMouseDown={onMouseDown}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CheckCircle2 style={{ width: 18, height: 18, color: '#34d399' }} />
@@ -1479,15 +2088,25 @@ function HireDialog({
 export default function PipelinePage() {
   const [applications, setApplications] = React.useState<HydratedApplication[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [clients, setClients] = React.useState<Client[]>([])
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [loading, setLoading] = React.useState(true)
   const [activeApp, setActiveApp] = React.useState<HydratedApplication | null>(null)
-  const [filterVacancy, setFilterVacancy] = React.useState<string>('all')
+  const searchParams = useSearchParams()
+  const [filterVacancy, setFilterVacancy] = React.useState<string>(() => {
+    const param = searchParams.get('vacancy')
+    return param ?? 'all'
+  })
+  const [filterClient, setFilterClient] = React.useState<string>(() => {
+    const param = searchParams.get('client')
+    return param ?? 'all'
+  })
   const [filterScore, setFilterScore] = React.useState<string>('all')
   const [searchText, setSearchText] = React.useState('')
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
   const [activeModal, setActiveModal] = React.useState<ActiveModal>(null)
   const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
+  const [allInterviews, setAllInterviews] = React.useState<Interview[]>([])
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
 
   const { user } = useUser()
@@ -1499,12 +2118,13 @@ export default function PipelinePage() {
 
     const tenantId = user.tenantId
     setLoading(true)
-    const [appsResult, vacResult, candResult, intResult, tplResult] = await Promise.all([
+    const [appsResult, vacResult, candResult, intResult, tplResult, clientsResult] = await Promise.all([
       provider.getApplications(),
       provider.getVacancies(tenantId),
       provider.getCandidates(tenantId),
-      provider.getInterviews(),
+      provider.getInterviews(undefined, tenantId),
       provider.getTemplates(tenantId),
+      provider.getClients(tenantId),
     ])
     const vacs = vacResult.data ?? []
     const vacMap = new Map(vacs.map(v => [v.id, v.title]))
@@ -1528,6 +2148,7 @@ export default function PipelinePage() {
       }
     })
     setInterviewsByCandidate(intMap)
+    setAllInterviews(interviews)
 
     // Hydrate real applications
     const hydrated: HydratedApplication[] = realApps.map(a => {
@@ -1567,6 +2188,7 @@ export default function PipelinePage() {
 
     setApplications([...hydrated, ...virtualApps])
     setVacancies(vacs)
+    setClients(clientsResult.data ?? [])
     setTemplates(tplResult.data ?? [])
     setLoading(false)
   }, [provider, user])
@@ -1592,15 +2214,18 @@ export default function PipelinePage() {
     window.addEventListener('vacancy:created', handleChange)
     window.addEventListener('vacancy:updated', handleChange)
     window.addEventListener('application:stage-changed', handleChange)
+    window.addEventListener('client:deleted', handleChange)
     return () => {
       window.removeEventListener('vacancy:created', handleChange)
       window.removeEventListener('vacancy:updated', handleChange)
       window.removeEventListener('application:stage-changed', handleChange)
+      window.removeEventListener('client:deleted', handleChange)
     }
   }, [load])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   )
 
   const filtered = React.useMemo(() => {
@@ -1608,6 +2233,10 @@ export default function PipelinePage() {
       const c = a.candidate
       if (!c) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
+      if (filterClient !== 'all') {
+        const vac = vacancies.find(v => v.id === a.vacancyId)
+        if (!vac || vac.clientId !== filterClient) return false
+      }
       if (filterVacancy !== 'all' && a.vacancyId !== filterVacancy) return false
       if (filterScore === '80+' && (c.atsScore ?? 0) < 80) return false
       if (filterScore === '60-79' && ((c.atsScore ?? 0) < 60 || (c.atsScore ?? 0) >= 80)) return false
@@ -1615,7 +2244,7 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, activeStage, filterVacancy, filterScore, searchText])
+  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies])
 
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {
@@ -1624,12 +2253,13 @@ export default function PipelinePage() {
       'Entrevistas': 0,
       'Oferta Enviada': 0,
       'Contratado': 0,
+      'Descartado': 0,
     }
-    applications.forEach(a => {
+    filtered.forEach(a => {
       if (map[a.status] !== undefined) map[a.status]++
     })
     return map
-  }, [applications])
+  }, [filtered])
 
   const byStage = React.useMemo(() => {
     const map: Record<VacancyStatus, HydratedApplication[]> = {
@@ -1638,6 +2268,7 @@ export default function PipelinePage() {
       'Entrevistas': [],
       'Oferta Enviada': [],
       'Contratado': [],
+      'Descartado': [],
     }
     filtered.forEach(a => {
       if (map[a.status]) map[a.status].push(a)
@@ -1695,6 +2326,36 @@ export default function PipelinePage() {
     )
     // Reload all data to get updated interview dates
     load()
+  }
+
+  async function handleDecide(appId: string, action: DecisionAction) {
+    const isVirtual = appId.startsWith('virtual-')
+    if (action === 'avanzar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Oferta Enviada' as VacancyStatus, disposition: null } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationStatus(appId, 'Oferta Enviada')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'rechazar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: null } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationStatus(appId, 'Descartado')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'a_considerar') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, disposition: 'a_considerar' as CandidateDisposition } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationDisposition(appId, 'a_considerar')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'descartar_cv') {
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: 'descartar_cv' as CandidateDisposition } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationDisposition(appId, 'descartar_cv')
+        await provider.updateApplicationStatus(appId, 'Descartado')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    }
   }
 
   // When a vacancy is closed after hiring, remove it from the list
@@ -1771,12 +2432,25 @@ export default function PipelinePage() {
         </div>
         <div className="relative">
           <select
+            value={filterClient}
+            onChange={e => { setFilterClient(e.target.value); setFilterVacancy('all') }}
+            style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
+          >
+            <option value="all">Todos los clientes</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
+        </div>
+        <div className="relative">
+          <select
             value={filterVacancy}
             onChange={e => setFilterVacancy(e.target.value)}
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
             <option value="all">Todas las vacantes</option>
-            {vacancies.map(v => (
+            {(filterClient === 'all' ? vacancies : vacancies.filter(v => v.clientId === filterClient)).map(v => (
               <option key={v.id} value={v.id}>{v.title}</option>
             ))}
           </select>
@@ -1801,9 +2475,9 @@ export default function PipelinePage() {
             style={{ color: 'var(--muted)' }}
           />
         </div>
-        {(filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
+        {(filterClient !== 'all' || filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
-            onClick={() => { setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
+            onClick={() => { setFilterClient('all'); setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
             className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
             style={{ color: 'var(--muted)' }}
           >
@@ -1830,7 +2504,7 @@ export default function PipelinePage() {
         >
           <div className="flex gap-4" style={{ minHeight: '100%' }}>
             {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} interviewsByCandidate={interviewsByCandidate} />
+              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} onDecide={handleDecide} interviewsByCandidate={interviewsByCandidate} />
             ))}
           </div>
           <DragOverlay>
@@ -1840,20 +2514,40 @@ export default function PipelinePage() {
       </div>
 
       {/* Modals */}
-      {activeModal?.type === 'email' && (
-        <EmailModal
-          candidate={activeModal.candidate}
-          templates={templates}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
-      {activeModal?.type === 'whatsapp' && (
-        <WhatsAppModal
-          candidate={activeModal.candidate}
-          templates={templates}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
+      {activeModal?.type === 'email' && (() => {
+        const cid = activeModal.candidate.id
+        const vac = vacancies.find(v => applications.some(a => a.candidateId === cid && a.vacancyId === v.id))
+        const interview = allInterviews
+          .filter(i => i.candidateId === cid && i.status === 'Programada')
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        return (
+          <EmailModal
+            candidate={activeModal.candidate}
+            templates={templates}
+            vacancies={vacancies}
+            initialVacancy={vac}
+            interview={interview}
+            onClose={() => setActiveModal(null)}
+          />
+        )
+      })()}
+      {activeModal?.type === 'whatsapp' && (() => {
+        const cid = activeModal.candidate.id
+        const vac = vacancies.find(v => applications.some(a => a.candidateId === cid && a.vacancyId === v.id))
+        const interview = allInterviews
+          .filter(i => i.candidateId === cid && i.status === 'Programada')
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        return (
+          <WhatsAppModal
+            candidate={activeModal.candidate}
+            templates={templates}
+            vacancies={vacancies}
+            initialVacancy={vac}
+            interview={interview}
+            onClose={() => setActiveModal(null)}
+          />
+        )
+      })()}
       {activeModal?.type === 'schedule' && (
         <ScheduleInterviewModal
           candidate={activeModal.candidate}
@@ -1873,6 +2567,22 @@ export default function PipelinePage() {
           onSaved={(notes) => handleNotesSaved(activeModal.candidate.id, notes)}
         />
       )}
+      {activeModal?.type === 'process' && (() => {
+        const vac = vacancies.find(v => v.id === activeModal.vacancyId)
+        return (
+          <ProcessDetailModal
+            app={activeModal.app}
+            vacancy={vac}
+            interviewDate={interviewsByCandidate.get(activeModal.candidate.id)}
+            onClose={() => setActiveModal(null)}
+            onAction={(newModal) => {
+              setActiveModal(null)
+              setTimeout(() => setActiveModal(newModal), 50)
+            }}
+            onDecide={handleDecide}
+          />
+        )
+      })()}
       {hireDialog && (
         <HireDialog
           app={hireDialog.app}

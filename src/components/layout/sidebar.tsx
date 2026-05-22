@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -17,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
+  BookOpen,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -32,7 +35,8 @@ const mainNavItems = [
 ]
 
 const toolNavItems = [
-  { label: 'Templates', href: '/templates', icon: FileText },
+  { label: 'Perfiles de Puestos', href: '/job-profiles', icon: BookOpen },
+  { label: 'Plantillas', href: '/templates', icon: FileText },
   { label: 'Integraciones', href: '/integrations', icon: Plug },
   { label: 'Informes', href: '/reports', icon: BarChart3 },
 ]
@@ -152,18 +156,9 @@ export function Sidebar({
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <Link href="/pipeline" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
-            {/* Gradient logo square */}
-            <div
-              className="shrink-0 flex items-center justify-center rounded-[9px] text-white font-black text-xs"
-              style={{
-                width: 30,
-                height: 30,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                boxShadow: '0 0 12px var(--accent-glow)',
-                fontFamily: 'var(--font-nunito)',
-              }}
-            >
-              CT
+            {/* Logo */}
+            <div className="shrink-0 flex items-center justify-center" style={{ width: 36, height: 36 }}>
+              <Image src="/logo-transparent.png" alt="ConectAr Talento" width={36} height={36} style={{ objectFit: 'contain' }} priority />
             </div>
             {!isCollapsed && (
               <div className="min-w-0">
@@ -222,9 +217,17 @@ export function Sidebar({
           {/* Tools section */}
           <SectionLabel label="Herramientas" collapsed={isCollapsed} />
           <NavItem
+            href="/job-profiles"
+            icon={BookOpen}
+            label="Perfiles de Puestos"
+            isActive={isActive('/job-profiles')}
+            isCollapsed={isCollapsed}
+            onClick={onClose}
+          />
+          <NavItem
             href="/templates"
             icon={FileText}
-            label="Templates"
+            label="Plantillas"
             isActive={isActive('/templates')}
             isCollapsed={isCollapsed}
             onClick={onClose}
@@ -256,6 +259,21 @@ export function Sidebar({
             isCollapsed={isCollapsed}
             onClick={onClose}
           />
+
+          {/* Admin — only visible to owner */}
+          {user?.email === 'conectar.rrhh.ar@gmail.com' && (
+            <>
+              <SectionLabel label="Owner" collapsed={isCollapsed} />
+              <NavItem
+                href="/admin"
+                icon={ShieldCheck}
+                label="Admin"
+                isActive={isActive('/admin')}
+                isCollapsed={isCollapsed}
+                onClick={onClose}
+              />
+            </>
+          )}
         </nav>
 
         {/* Bottom user area */}

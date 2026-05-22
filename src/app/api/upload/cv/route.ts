@@ -8,6 +8,43 @@ export const runtime = 'nodejs'
 // Monthly CV-analysis limit (separate from total candidate limit)
 const MONTHLY_ANALYSIS_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
+function extractJpegFromPdf(buffer: Buffer): Buffer | null {
+  // Collect ALL JPEGs embedded in the PDF, then pick the largest one
+  // (logos/icons are small; a portrait photo is typically the biggest JPEG)
+  const candidates: Buffer[] = []
+  let searchFrom = 0
+  while (searchFrom < buffer.length - 2) {
+    // Find next JPEG SOI: FF D8 FF
+    let start = -1
+    for (let i = searchFrom; i < buffer.length - 2; i++) {
+      if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8 && buffer[i + 2] === 0xFF) {
+        start = i
+        break
+      }
+    }
+    if (start === -1) break
+    // Find the EOI marker: FF D9 that closes this JPEG
+    let end = -1
+    for (let i = buffer.length - 2; i > start; i--) {
+      if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+        end = i + 2
+        break
+      }
+    }
+    if (end === -1) break
+    const jpeg = buffer.slice(start, end)
+    // Keep JPEGs between 3 KB and 2 MB (portrait photos can be large or small)
+    if (jpeg.length >= 3072 && jpeg.length <= 2 * 1024 * 1024) {
+      candidates.push(jpeg)
+    }
+    searchFrom = end
+  }
+  if (candidates.length === 0) return null
+  // Return the largest JPEG — most likely the portrait photo, not an icon
+  candidates.sort((a, b) => b.length - a.length)
+  return candidates[0]
+}
+
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
   const reqSection = vacancyRequirements.length > 0
     ? `\n\nREQUISITOS DE LA VACANTE (usá estos para calcular el ATS score):\n${vacancyRequirements.map(r => `- ${r}`).join('\n')}`
@@ -164,8 +201,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.warn('[upload-cv] storage error (non-fatal):', e)
     }
 
+    // Extract profile photo from PDF (look for embedded JPEG)
+    let avatarUrl: string | undefined
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const jpegBuffer = extractJpegFromPdf(buffer)
+        if (jpegBuffer) {
+          const avatarPath = `avatars/${tenantId}/${Date.now()}-avatar.jpg`
+          const { error: avatarErr } = await supabase.storage
+            .from('cvs')
+            .upload(avatarPath, jpegBuffer, { contentType: 'image/jpeg', upsert: false })
+          if (!avatarErr) {
+            const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(avatarPath)
+            avatarUrl = publicUrl
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+
     // Analyze with Groq
-    const apiKey = process.env.GROQ_API_KEY
+    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada en el servidor.' }, { status: 500 })
     }
@@ -209,6 +264,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ok: true,
       cvUrl,
       cvFileName,
+      avatarUrl,
       analysis: {
         fullName: String(parsed.fullName ?? '').trim() || 'Nombre no identificado',
         email: String(parsed.email ?? '').trim(),
@@ -217,7 +273,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         skills: Array.isArray(parsed.skills)
           ? (parsed.skills as unknown[]).map(s => String(s)).filter(Boolean)
           : [],
-        experienceYears: typeof parsed.experienceYears === 'number' ? parsed.experienceYears : undefined,
+        experienceYears: typeof parsed.experienceYears === 'number' ? Math.round(parsed.experienceYears) : undefined,
         education: parsed.education ? String(parsed.education).trim() : undefined,
         strengths: Array.isArray(parsed.strengths)
           ? (parsed.strengths as unknown[]).map(s => String(s)).filter(Boolean)

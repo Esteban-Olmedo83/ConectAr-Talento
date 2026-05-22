@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
-import type { Candidate, Application, VacancyStatus } from '@/types'
+import type { Candidate, Application, VacancyStatus, Interview, Vacancy, Client } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name: string): string {
@@ -41,6 +41,7 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Entrevistas': '#a78bfa',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
+  'Descartado': '#6b7280',
 }
 
 // ─── Card wrapper ─────────────────────────────────────────────────────────────
@@ -208,47 +209,114 @@ function DonutChart({ slices }: { slices: DonutSlice[] }) {
 interface DashboardData {
   candidates: Candidate[]
   applications: Application[]
+  interviews: Interview[]
+  vacancies: Vacancy[]
+  clients: Client[]
 }
 
 export default function DashboardPage() {
   const { user } = useUser()
   const [data, setData] = React.useState<DashboardData | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [filterClient, setFilterClient] = React.useState<string>('all')
 
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
-  React.useEffect(() => {
+  const load = React.useCallback(async () => {
     // Wait for user to be resolved — if null, the user context hasn't loaded yet
     if (user === null) return
-
-    async function load() {
-      // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
-      const tenantId = user!.tenantId ?? user!.id
-      const [candResult, appResult] = await Promise.all([
-        provider.getCandidates(tenantId),
-        provider.getApplications(undefined, tenantId),
-      ])
-      setData({
-        candidates: candResult.data ?? [],
-        applications: appResult.data ?? [],
-      })
-      setLoading(false)
-    }
-    load()
+    // Prefer tenantId from profile; fall back to user.id (matches seed route behaviour)
+    const tenantId = user.tenantId ?? user.id
+    const [candResult, appResult, intResult, vacResult, clientResult] = await Promise.all([
+      provider.getCandidates(tenantId),
+      provider.getApplications(undefined, tenantId),
+      provider.getInterviews(undefined, tenantId),
+      provider.getVacancies(tenantId),
+      provider.getClients(tenantId),
+    ])
+    setData({
+      candidates: candResult.data ?? [],
+      applications: appResult.data ?? [],
+      interviews: intResult.data ?? [],
+      vacancies: vacResult.data ?? [],
+      clients: clientResult.data ?? [],
+    })
+    setLoading(false)
   }, [provider, user])
+
+  React.useEffect(() => {
+    load()
+  }, [load])
+
+  React.useEffect(() => {
+    function handleChange() { load() }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('client:deleted', handleChange)
+    window.addEventListener('application:stage-changed', handleChange)
+    window.addEventListener('vacancy:created', handleChange)
+    window.addEventListener('vacancy:updated', handleChange)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('client:deleted', handleChange)
+      window.removeEventListener('application:stage-changed', handleChange)
+      window.removeEventListener('vacancy:created', handleChange)
+      window.removeEventListener('vacancy:updated', handleChange)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [load])
 
   if (loading) {
     return <DashboardSkeleton />
   }
 
   const candidates = data?.candidates ?? []
-  const applications = data?.applications ?? []
+  const allApplications = data?.applications ?? []
+  const interviews = data?.interviews ?? []
+  const vacancies = data?.vacancies ?? []
+  const clients = data?.clients ?? []
+
+  // Build a vacancyMap for client lookups
+  const vacancyMap = new Map<string, Vacancy>()
+  vacancies.forEach(v => vacancyMap.set(v.id, v))
+
+  // Apply client filter
+  const applications = filterClient === 'all'
+    ? allApplications
+    : allApplications.filter(a => {
+        const vac = vacancyMap.get(a.vacancyId)
+        return vac?.clientId === filterClient
+      })
+
+  // Derive filtered candidates: those who appear in filtered applications (or all if no filter)
+  const filteredCandidateIds = filterClient === 'all'
+    ? null
+    : new Set(applications.map(a => a.candidateId))
+
+  const filteredCandidates = filterClient === 'all'
+    ? candidates
+    : candidates.filter(c =>
+        c.clientId === filterClient ||
+        filteredCandidateIds!.has(c.id)
+      )
+
+  // Derive filtered interviews: those whose vacancy belongs to the selected client
+  const filteredInterviews = filterClient === 'all'
+    ? interviews
+    : interviews.filter(i => {
+        const v = vacancyMap.get(i.vacancyId ?? '')
+        return v?.clientId === filterClient
+      })
+
+  // Build Set of candidateIds that have at least one interview
+  const candidateIdsWithInterview = new Set<string>(filteredInterviews.map(i => i.candidateId))
 
   // KPI computations
-  const totalCandidates = candidates.length
-  const aiAnalyzed = candidates.filter(c => (c.atsScore ?? 0) > 0).length
-  const avgScore = candidates.length > 0
-    ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / candidates.length)
+  const totalCandidates = filteredCandidates.length
+  const aiAnalyzed = filteredCandidates.filter(c => (c.atsScore ?? 0) > 0).length
+  const avgScore = filteredCandidates.length > 0
+    ? Math.round(filteredCandidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / filteredCandidates.length)
     : 0
 
   // Average days per stage
@@ -258,6 +326,7 @@ export default function DashboardPage() {
     'Entrevistas': 3,
     'Oferta Enviada': 4,
     'Contratado': 5,
+    'Descartado': 0,
   }
   const avgDaysPerStage = (() => {
     const valid = applications.filter(a => {
@@ -282,22 +351,29 @@ export default function DashboardPage() {
     return days >= 5
   }).length
 
-  // Funnel by stage
+  // Funnel by stage — apply same hydration as pipeline page:
+  // if a candidate has an interview and is in 'Nuevas Vacantes' or 'En Proceso', count as 'Entrevistas'
   const funnelCounts: Record<VacancyStatus, number> = {
     'Nuevas Vacantes': 0,
     'En Proceso': 0,
     'Entrevistas': 0,
     'Oferta Enviada': 0,
     'Contratado': 0,
+    'Descartado': 0,
   }
   applications.forEach(a => {
-    if (funnelCounts[a.status] !== undefined) funnelCounts[a.status]++
+    const effectiveStatus: VacancyStatus =
+      candidateIdsWithInterview.has(a.candidateId) &&
+      (a.status === 'Nuevas Vacantes' || a.status === 'En Proceso')
+        ? 'Entrevistas'
+        : a.status
+    if (funnelCounts[effectiveStatus] !== undefined) funnelCounts[effectiveStatus]++
   })
   const maxFunnel = Math.max(...Object.values(funnelCounts), 1)
 
   // Source counts
   const sourceCounts: Record<string, number> = {}
-  candidates.forEach(c => {
+  filteredCandidates.forEach(c => {
     sourceCounts[c.source] = (sourceCounts[c.source] ?? 0) + 1
   })
   const SOURCE_COLORS: Record<string, string> = {
@@ -320,7 +396,7 @@ export default function DashboardPage() {
     }))
 
   // Top candidates by atsScore
-  const topCandidates = [...candidates]
+  const topCandidates = [...filteredCandidates]
     .filter(c => (c.atsScore ?? 0) > 0)
     .sort((a, b) => (b.atsScore ?? 0) - (a.atsScore ?? 0))
     .slice(0, 5)
@@ -359,6 +435,41 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-5">
+
+      {/* Header row: title + client filter */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+        {clients.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label
+              htmlFor="client-filter"
+              style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}
+            >
+              Cliente
+            </label>
+            <select
+              id="client-filter"
+              value={filterClient}
+              onChange={e => setFilterClient(e.target.value)}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+                fontSize: 12,
+                fontWeight: 500,
+                padding: '5px 10px',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="all">Todos</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

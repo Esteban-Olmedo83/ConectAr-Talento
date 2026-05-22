@@ -1,19 +1,16 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 function LogoIcon({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      {/* 4 heads */}
-      <circle cx="24" cy="5.5" r="4" fill="#74ACDF" />
-      <circle cx="42.5" cy="24" r="4" fill="#4A90C8" />
-      <circle cx="24" cy="42.5" r="4" fill="#74ACDF" />
-      <circle cx="5.5" cy="24" r="4" fill="#4A90C8" />
-      {/* Connecting arcs */}
-      <path d="M27 7 Q41 9 41 21" stroke="#74ACDF" strokeWidth="3.2" fill="none" strokeLinecap="round" />
-      <path d="M41 27 Q41 39 27 41" stroke="#4A90C8" strokeWidth="3.2" fill="none" strokeLinecap="round" />
-      <path d="M21 41 Q7 39 7 27" stroke="#74ACDF" strokeWidth="3.2" fill="none" strokeLinecap="round" />
-      <path d="M7 21 Q7 9 21 7" stroke="#4A90C8" strokeWidth="3.2" fill="none" strokeLinecap="round" />
-    </svg>
+    <Image
+      src="/logo-transparent.png"
+      alt="ConectAr Talento"
+      width={size}
+      height={size}
+      style={{ objectFit: 'contain' }}
+      priority
+    />
   )
 }
 

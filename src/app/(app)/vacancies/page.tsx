@@ -10,11 +10,11 @@ import { cn, formatRelativeDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -41,12 +41,15 @@ function VacancyFormDialog({
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [clients, setClients] = React.useState<Client[]>([])
+  const [customProfiles, setCustomProfiles] = React.useState<CustomJobProfile[]>([])
+  const [customRubros, setCustomRubros] = React.useState<string[]>([])
+  const [manualPerfil, setManualPerfil] = React.useState(false)
   const [form, setForm] = React.useState({
     clientId: vacancy?.clientId ?? '',
     title: vacancy?.title ?? '',
     department: vacancy?.department ?? '',
-    rubro: '',
-    perfil: '',
+    rubro: vacancy?.rubro ?? '',
+    perfil: vacancy?.perfil ?? '',
     modality: (vacancy?.modality ?? 'Remoto') as VacancyModality,
     priority: (vacancy?.priority ?? 'Media') as VacancyPriority,
     location: vacancy?.location ?? '',
@@ -63,24 +66,60 @@ function VacancyFormDialog({
   React.useEffect(() => {
     if (open && user?.tenantId) {
       provider.getClients(user.tenantId).then(r => { if (r.data) setClients(r.data) })
+      provider.getJobProfiles(user.tenantId).then(r => {
+        if (r.data) {
+          setCustomProfiles(r.data)
+          // Extract unique rubros from custom profiles
+          const uniqueRubros = [...new Set(r.data.map(p => p.rubro).filter(Boolean))]
+          setCustomRubros(uniqueRubros)
+        }
+      })
+      provider.getJobRubros(user.tenantId).then(r => {
+        if (r.data) {
+          setCustomRubros(prev => [...new Set([...prev, ...r.data!.map(r => r.name)])])
+        }
+      })
     }
   }, [open, user?.tenantId])
 
+  React.useEffect(() => {
+    if (!open) return
+    setManualPerfil(false)
+    setForm({
+      clientId: vacancy?.clientId ?? '',
+      title: vacancy?.title ?? '',
+      department: vacancy?.department ?? '',
+      rubro: vacancy?.rubro ?? '',
+      perfil: vacancy?.perfil ?? '',
+      modality: (vacancy?.modality ?? 'Remoto') as VacancyModality,
+      priority: (vacancy?.priority ?? 'Media') as VacancyPriority,
+      location: vacancy?.location ?? '',
+      salaryMin: vacancy?.salaryMin?.toString() ?? '',
+      salaryMax: vacancy?.salaryMax?.toString() ?? '',
+      currency: vacancy?.currency ?? 'ARS',
+      requirements: vacancy?.requirements?.join(', ') ?? '',
+      description: vacancy?.description ?? '',
+      closingDate: vacancy?.closingDate?.slice(0, 10) ?? '',
+    })
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const profileOptions = React.useMemo(() => {
     if (!form.rubro) return []
-    return getProfilesByRubro(form.rubro)
-  }, [form.rubro])
+    const builtin = getProfilesByRubro(form.rubro).map(p => ({ id: p.id, label: `${p.perfil} · ${p.nivel}`, perfil: p.perfil, skills: [...p.skills.tecnicas, ...p.skills.blandas] }))
+    const custom = customProfiles.filter(p => p.rubro === form.rubro).map(p => ({ id: p.id, label: `${p.perfil} · ${p.nivel} ★`, perfil: p.perfil, skills: [...p.skills.tecnicas, ...p.skills.blandas] }))
+    return [...builtin, ...custom]
+  }, [form.rubro, customProfiles])
 
-  function handleProfileSelect(perfil: string) {
-    const profiles = getProfilesByRubro(form.rubro)
-    const p = profiles.find(p => p.perfil === perfil)
-    if (!p) return
-    const allSkills = [...p.skills.tecnicas, ...p.skills.blandas]
+  function handleProfileSelect(value: string) {
+    if (value === '__manual__') { setManualPerfil(true); setForm(f => ({...f, perfil: ''})); return }
+    setManualPerfil(false)
+    const opt = profileOptions.find(o => o.perfil === value)
+    if (!opt) return
     setForm(f => ({
       ...f,
-      perfil,
-      title: f.title || p.perfil,
-      requirements: allSkills.join(', '),
+      perfil: opt.perfil,
+      title: f.title || opt.perfil,
+      requirements: opt.skills.join(', '),
     }))
   }
 
@@ -88,9 +127,18 @@ function VacancyFormDialog({
     if (!form.title) return
     setGenerating(true)
     try {
+      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
+        }
+      } catch { /* noop */ }
+
       const res = await fetch('/api/ai/generate-jd', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: aiHeaders,
         body: JSON.stringify({
           title: form.title,
           department: form.department,
@@ -114,7 +162,7 @@ function VacancyFormDialog({
       clientId: form.clientId || undefined,
       title: form.title,
       department: form.department,
-      status: 'Nuevas Vacantes' as const,
+      status: vacancy ? vacancy.status : 'Nuevas Vacantes' as const,
       modality: form.modality,
       priority: form.priority,
       location: form.location || undefined,
@@ -124,6 +172,8 @@ function VacancyFormDialog({
       requirements: form.requirements.split(',').map(s => s.trim()).filter(Boolean),
       description: form.description || undefined,
       closingDate: form.closingDate || undefined,
+      rubro: form.rubro,
+      perfil: form.perfil,
     }
     const result = vacancy
       ? await provider.updateVacancy(vacancy.id, input)
@@ -142,11 +192,7 @@ function VacancyFormDialog({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{vacancy ? 'Editar vacante' : 'Nueva vacante'}</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title={vacancy ? 'Editar vacante' : 'Nueva vacante'} maxWidth="42rem">
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* Rubro + Perfil selector */}
           <div
@@ -158,17 +204,33 @@ function VacancyFormDialog({
               <select value={form.rubro} onChange={e => setForm(f => ({...f, rubro: e.target.value, perfil: ''}))}
                 className={inputCls}>
                 <option value="">Seleccioná un rubro</option>
-                {rubros.map(r => <option key={r} value={r}>{r}</option>)}
+                {[...new Set([...rubros, ...customRubros])].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div>
               <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Perfil (auto-completa skills)</label>
-              <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
-                disabled={!form.rubro}
-                className={cn(inputCls, 'disabled:opacity-50')}>
-                <option value="">Seleccioná un perfil</option>
-                {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.perfil} · {p.nivel}</option>)}
-              </select>
+              {manualPerfil ? (
+                <div className="flex gap-1">
+                  <input
+                    value={form.perfil}
+                    onChange={e => setForm(f => ({...f, perfil: e.target.value}))}
+                    placeholder="Escribí el nombre del perfil"
+                    className={cn(inputCls, 'flex-1')}
+                  />
+                  <button type="button" onClick={() => { setManualPerfil(false); setForm(f => ({...f, perfil: ''})) }}
+                    className="px-2 rounded-md border border-input text-muted-foreground hover:bg-muted">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <select value={form.perfil} onChange={e => handleProfileSelect(e.target.value)}
+                  disabled={!form.rubro}
+                  className={cn(inputCls, 'disabled:opacity-50')}>
+                  <option value="">Seleccioná un perfil</option>
+                  {profileOptions.map(p => <option key={p.id} value={p.perfil}>{p.label}</option>)}
+                  <option value="__manual__">✏️ Ingresar manualmente...</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -267,8 +329,7 @@ function VacancyFormDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -286,7 +347,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
     : 'A convenir'
 
   return (
-    <Card className="hover:shadow-md transition-shadow group relative">
+    <Card className="hover:shadow-md transition-shadow group relative cursor-pointer" onClick={onEdit}>
       <CardContent className="p-4">
         {/* Priority badge */}
         <div className="flex items-start justify-between mb-2">
@@ -300,16 +361,16 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
             {vacancy.priority}
           </span>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+            <button onClick={e => { e.stopPropagation(); onEdit() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button onClick={onArchive} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+            <button onClick={e => { e.stopPropagation(); onArchive() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
               <Archive className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        <h3 className="font-bold text-base leading-tight mb-1 cursor-pointer transition-colors hover:opacity-80" style={{ color: 'var(--text)' }} onClick={onEdit}>
+        <h3 className="font-bold text-base leading-tight mb-1 transition-colors hover:opacity-80" style={{ color: 'var(--text)' }}>
           {vacancy.title}
         </h3>
 
@@ -361,16 +422,16 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
           </span>
           <span className="flex items-center gap-1">
             <Users className="h-3 w-3" />
-            {vacancy.applications.length} candidatos
+            {vacancy.applications.length} candidato{vacancy.applications.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => window.location.href = '/pipeline'}>
+          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
             Ver pipeline
           </Button>
-          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={onAssign}>
+          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
             <UserPlus className="h-3 w-3" /> Asignar
           </Button>
         </div>
@@ -591,6 +652,8 @@ export default function VacanciesPage() {
   const [search, setSearch] = React.useState('')
   const [filterStatus, setFilterStatus] = React.useState('all')
   const [filterPriority, setFilterPriority] = React.useState('all')
+  const [clients, setClients] = React.useState<Client[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
 
   const { user } = useUser()
@@ -598,27 +661,58 @@ export default function VacanciesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const res = await provider.getVacancies(tid)
-    setVacancies(res.data ?? [])
+    const [vRes, aRes, clRes] = await Promise.all([
+      provider.getVacancies(tid),
+      provider.getApplications(undefined, tid),
+      provider.getClients(tid),
+    ])
+    const apps = aRes.data ?? []
+    const hydrated = (vRes.data ?? []).map(v => ({
+      ...v,
+      applications: apps.filter(a => a.vacancyId === v.id),
+    }))
+    setVacancies(hydrated)
+    setClients(clRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 
+  React.useEffect(() => {
+    const handle = () => load()
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('application:stage-changed', handle)
+    window.addEventListener('vacancy:created', handle)
+    window.addEventListener('vacancy:updated', handle)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('application:stage-changed', handle)
+      window.removeEventListener('vacancy:created', handle)
+      window.removeEventListener('vacancy:updated', handle)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [load])
+
   const filtered = React.useMemo(() => vacancies.filter(v => {
+    if (filterClient !== 'all' && v.clientId !== filterClient) return false
     if (search && !v.title.toLowerCase().includes(search.toLowerCase()) && !v.department.toLowerCase().includes(search.toLowerCase())) return false
     if (filterPriority !== 'all' && v.priority !== filterPriority) return false
     return true
-  }), [vacancies, search, filterPriority])
+  }), [vacancies, search, filterPriority, filterClient])
 
   const kpis = React.useMemo(() => ({
     total: vacancies.length,
     open: vacancies.filter(v => v.status !== 'Contratado').length,
-    totalCandidates: vacancies.reduce((s, v) => s + v.applications.length, 0),
+    totalCandidates: new Set(
+      (filtered.length === vacancies.length ? vacancies : filtered)
+        .flatMap(v => v.applications.map(a => a.candidateId))
+    ).size,
     avgDays: vacancies.length > 0
       ? Math.round(vacancies.reduce((s, v) => s + Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000), 0) / vacancies.length)
       : 0,
-  }), [vacancies])
+  }), [vacancies, filtered])
 
   const planLimits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
 
@@ -716,6 +810,15 @@ export default function VacanciesPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar vacante..." className="pl-8 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring w-full" />
         </div>
+        {clients.length > 0 && (
+          <div className="relative">
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
+              <option value="all">Todos los clientes</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        )}
         <div className="relative">
           <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
             <option value="all">Todas las prioridades</option>

@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ToastProvider } from '@/components/ui/toast'
@@ -19,6 +20,8 @@ const TITLE_MAP: Record<string, string> = {
   '/integrations': 'Integraciones',
   '/reports': 'Informes',
   '/settings': 'Configuración',
+  '/job-profiles': 'Perfiles de Puestos',
+  '/admin': 'Administración',
 }
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
@@ -83,7 +86,16 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
           googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
           googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
           createdAt: profile.created_at,
+          groqApiKey: profile.groq_api_key ?? undefined,
+          aiProvider: profile.ai_provider ?? 'groq',
         })
+
+        if (profile.groq_api_key) {
+          localStorage.setItem('ct_ai_config', JSON.stringify({
+            provider: profile.ai_provider ?? 'groq',
+            apiKey: profile.groq_api_key,
+          }))
+        }
       } catch {
         router.replace('/login')
       } finally {
@@ -109,14 +121,8 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
         style={{ background: 'var(--bg)' }}
       >
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg animate-pulse"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-              fontFamily: 'var(--font-nunito)',
-            }}
-          >
-            CT
+          <div className="h-10 w-10 flex items-center justify-center animate-pulse">
+            <Image src="/logo-transparent.png" alt="ConectAr Talento" width={40} height={40} style={{ objectFit: 'contain' }} priority />
           </div>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>Cargando...</p>
         </div>

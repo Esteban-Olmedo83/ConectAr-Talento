@@ -5,16 +5,18 @@ import {
   Search, Plus, Upload, Users, Brain, TrendingUp, Clock,
   Grid3X3, List, ChevronDown, Trash2, Calendar, Eye,
   X, Loader2, CheckCircle2, Mail, Phone, FileText, AlertTriangle,
-  ExternalLink, Award, Briefcase, BookOpen
+  ExternalLink, Award, Briefcase, BookOpen, ArrowRight,
+  Video, CheckCheck, XCircle, Star
 } from 'lucide-react'
 import { cn, formatRelativeDate, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform } from '@/types'
+import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
@@ -65,32 +67,206 @@ const SOURCE_TEXT: Record<string, string> = {
 }
 
 // ─── View Profile Dialog ──────────────────────────────────────────────────────
-function ViewProfileDialog({ candidate, open, onClose }: {
+function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, vacancies, clients }: {
   candidate: Candidate | null
   open: boolean
   onClose: () => void
+  onUpdate?: (c: Candidate) => void
+  vacancies?: Vacancy[]
+  clients?: import('@/types').Client[]
 }) {
+  const [candidate, setCandidate] = React.useState<Candidate | null>(null)
+  const [editMode, setEditMode] = React.useState(false)
+  const [editName, setEditName] = React.useState('')
+  const [editEmail, setEditEmail] = React.useState('')
+  const [editPhone, setEditPhone] = React.useState('')
+  const [editExperience, setEditExperience] = React.useState('')
+  const [editEducation, setEditEducation] = React.useState('')
+  const [editSkills, setEditSkills] = React.useState('')
+  const [editClientId, setEditClientId] = React.useState('')
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [saveError, setSaveError] = React.useState('')
+  const cvInputRef = React.useRef<HTMLInputElement>(null)
+  const [uploadingCv, setUploadingCv] = React.useState(false)
+  const avatarInputRef = React.useRef<HTMLInputElement>(null)
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+
+  // Process info state
+  const [applications, setApplications] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loadingProcess, setLoadingProcess] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open && candidateProp) {
+      setCandidate(candidateProp)
+      setEditName(candidateProp.fullName)
+      setEditEmail(candidateProp.email)
+      setEditPhone(candidateProp.phone ?? '')
+      setEditExperience(candidateProp.experienceYears != null ? String(candidateProp.experienceYears) : '')
+      setEditEducation(candidateProp.education ?? '')
+      setEditSkills(candidateProp.skills.join(', '))
+      setEditClientId(candidateProp.clientId ?? '')
+      setEditMode(false)
+      setSaveError('')
+      // Load process info
+      setLoadingProcess(true)
+      Promise.all([
+        provider.getApplicationsByCandidateId(candidateProp.id),
+        provider.getInterviews(candidateProp.id),
+      ]).then(([appRes, intRes]) => {
+        setApplications(appRes.data ?? [])
+        setInterviews(intRes.data ?? [])
+        setLoadingProcess(false)
+      })
+    }
+  }, [open, candidateProp, provider])
+
+  async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !candidate) return
+    setUploadingCv(true)
+    try {
+      const supabase = createClient()
+      const path = `cvs/${candidate.id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('cvs')
+        .upload(path, file, { upsert: true })
+      if (uploadError) { console.error(uploadError); return }
+      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+      const result = await provider.updateCandidate(candidate.id, {
+        cvUrl: publicUrl,
+        cvFileName: file.name,
+      })
+      if (result.data) {
+        setCandidate(result.data)
+        onUpdate?.(result.data)
+      }
+    } catch (err) { console.error(err) }
+    finally { setUploadingCv(false) }
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !candidate) return
+    setUploadingAvatar(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `avatars/${candidate.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('cvs')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadError) { console.error(uploadError); return }
+      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+      const result = await provider.updateCandidate(candidate.id, { avatarUrl: publicUrl })
+      if (result.data) {
+        setCandidate(result.data)
+        onUpdate?.(result.data)
+      }
+    } catch (err) { console.error(err) }
+    finally { setUploadingAvatar(false); e.target.value = '' }
+  }
+
   if (!candidate) return null
+
   const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background'
+  const inputEditCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
   const labelCls = 'text-xs font-medium mb-1 block'
+
+  async function handleSave() {
+    if (!candidate) return
+    setIsSaving(true)
+    setSaveError('')
+    const result = await provider.updateCandidate(candidate.id, {
+      fullName: editName,
+      email: editEmail,
+      phone: editPhone || undefined,
+      experienceYears: Number(editExperience) || undefined,
+      education: editEducation || undefined,
+      skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
+      clientId: editClientId || undefined,
+    })
+    setIsSaving(false)
+    if (result.error) {
+      setSaveError(result.error)
+    } else if (result.data) {
+      onUpdate?.(result.data)
+      setEditMode(false)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Perfil del candidato</DialogTitle>
-        </DialogHeader>
+    <DraggableModal
+      open={open}
+      onClose={onClose}
+      title={
+        <div className="flex items-center justify-between w-full">
+          <span>Perfil del candidato</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => { setEditMode(e => !e); setSaveError('') }}
+            className="ml-4"
+          >
+            {editMode ? 'Cancelar' : 'Editar'}
+          </Button>
+        </div>
+      }
+      maxWidth="32rem"
+    >
         <div className="mt-2 space-y-4">
           {/* Avatar + name */}
           <div className="flex items-center gap-3">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
-            >
-              {getInitials(candidate.fullName)}
+            <div className="relative shrink-0 group">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              {candidate.avatarUrl ? (
+                <img
+                  src={candidate.avatarUrl}
+                  alt={candidate.fullName}
+                  className="w-14 h-14 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
+                >
+                  {getInitials(editMode ? editName : candidate.fullName)}
+                </div>
+              )}
+              {editMode && (
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  title="Cambiar foto"
+                >
+                  {uploadingAvatar
+                    ? <span className="text-white text-xs">...</span>
+                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  }
+                </button>
+              )}
             </div>
             <div>
-              <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
-              {candidate.education && (
+              {editMode ? (
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className={cn(inputEditCls, 'text-base font-bold')}
+                  placeholder="Nombre completo"
+                />
+              ) : (
+                <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
+              )}
+              {!editMode && candidate.education && (
                 <p className="text-xs" style={{ color: 'var(--muted)' }}>{candidate.education}</p>
               )}
               <div className="mt-1"><ScoreBadge score={candidate.atsScore} /></div>
@@ -103,13 +279,33 @@ function ViewProfileDialog({ candidate, open, onClose }: {
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Mail className="inline h-3 w-3 mr-1" />Email
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.email}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="email@ejemplo.com"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.email}</p>
+              )}
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Phone className="inline h-3 w-3 mr-1" />Teléfono
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.phone || '—'}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="+54 11 1234-5678"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.phone || '—'}</p>
+              )}
             </div>
           </div>
 
@@ -119,9 +315,21 @@ function ViewProfileDialog({ candidate, open, onClose }: {
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Briefcase className="inline h-3 w-3 mr-1" />Experiencia
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>
-                {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
-              </p>
+              {editMode ? (
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={editExperience}
+                  onChange={e => setEditExperience(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="Años"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>
+                  {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
@@ -131,26 +339,71 @@ function ViewProfileDialog({ candidate, open, onClose }: {
             </div>
           </div>
 
+          {/* Client */}
+          <div>
+            <label className={labelCls} style={{ color: 'var(--muted)' }}>
+              <Briefcase className="inline h-3 w-3 mr-1" />Cliente
+            </label>
+            {editMode && clients && clients.length > 0 ? (
+              <select
+                value={editClientId}
+                onChange={e => setEditClientId(e.target.value)}
+                className={inputEditCls}
+              >
+                <option value="">Sin cliente asignado</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p className={inputCls} style={{ color: candidate.client ? 'var(--text)' : 'var(--muted)' }}>
+                {candidate.client?.name ?? (editClientId ? clients?.find(c => c.id === editClientId)?.name : '—') ?? '—'}
+              </p>
+            )}
+          </div>
+
           {/* Education */}
-          {candidate.education && (
+          {(editMode || candidate.education) && (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <BookOpen className="inline h-3 w-3 mr-1" />Educación
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={editEducation}
+                  onChange={e => setEditEducation(e.target.value)}
+                  className={inputEditCls}
+                  placeholder="Lic. en Ciencias de la Computación"
+                />
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
+              )}
             </div>
           )}
 
           {/* Skills */}
-          {candidate.skills.length > 0 && (
+          {editMode ? (
             <div>
-              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
-              <div className="flex gap-1.5 flex-wrap mt-1">
-                {candidate.skills.map(s => (
-                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
-                ))}
-              </div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills (separadas por coma)</label>
+              <textarea
+                value={editSkills}
+                onChange={e => setEditSkills(e.target.value)}
+                className={cn(inputEditCls, 'resize-none h-16')}
+                placeholder="React, TypeScript, Node.js"
+              />
             </div>
+          ) : (
+            candidate.skills.length > 0 && (
+              <div>
+                <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
+                <div className="flex gap-1.5 flex-wrap mt-1">
+                  {candidate.skills.map(s => (
+                    <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )
           )}
 
           {/* Notes */}
@@ -162,7 +415,35 @@ function ViewProfileDialog({ candidate, open, onClose }: {
           )}
 
           {/* CV */}
-          {candidate.cvUrl && (
+          {editMode ? (
+            <div>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>CV adjunto</label>
+              {candidate.cvUrl && (
+                <div className="flex items-center gap-2 mb-2">
+                  <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
+                    {candidate.cvFileName ?? 'Ver CV actual'}
+                  </a>
+                </div>
+              )}
+              <input
+                ref={cvInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleCvUpload}
+              />
+              <button
+                type="button"
+                onClick={() => cvInputRef.current?.click()}
+                disabled={uploadingCv}
+                className="w-full px-3 py-2 text-sm rounded-md border border-dashed text-center transition-colors"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
+              >
+                {uploadingCv ? 'Subiendo...' : candidate.cvUrl ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)'}
+              </button>
+            </div>
+          ) : candidate.cvUrl ? (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <FileText className="inline h-3 w-3 mr-1" />CV adjunto
@@ -179,6 +460,97 @@ function ViewProfileDialog({ candidate, open, onClose }: {
                 <ExternalLink className="h-3 w-3 ml-auto" />
               </a>
             </div>
+          ) : null}
+
+          {/* Process info cards */}
+          {(loadingProcess || applications.length > 0 || interviews.length > 0) && (
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Estado del proceso
+              </p>
+              {loadingProcess ? (
+                <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <Loader2 className="h-3 w-3 animate-spin" /> Cargando...
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {applications.map(app => {
+                    const vacancy = vacancies?.find(v => v.id === app.vacancyId)
+                    const appInterviews = interviews.filter(i => i.vacancyId === app.vacancyId)
+                    const completed = appInterviews.filter(i => i.status === 'Completada')
+                    const pending = appInterviews.filter(i => i.status === 'Programada')
+                    const STATUS_STYLE: Record<string, { bg: string; color: string; icon: React.ElementType; label: string }> = {
+                      'Nuevas Vacantes': { bg: 'rgba(96,165,250,0.1)',  color: '#60a5fa', icon: Clock,       label: 'Nuevo' },
+                      'En Proceso':      { bg: 'rgba(167,114,250,0.1)', color: '#a78bfa', icon: TrendingUp,  label: 'En proceso' },
+                      'Entrevistas':     { bg: 'rgba(251,146,60,0.1)',  color: '#fb923c', icon: Video,       label: 'Entrevistas' },
+                      'Oferta Enviada':  { bg: 'rgba(52,211,153,0.1)',  color: '#34d399', icon: CheckCheck,  label: 'Oferta enviada' },
+                      'Contratado':      { bg: 'rgba(16,185,129,0.1)',  color: '#10b981', icon: CheckCircle2, label: 'Contratado' },
+                      'Descartado':      { bg: 'rgba(248,113,113,0.1)', color: '#f87171', icon: XCircle,     label: 'Descartado' },
+                    }
+                    const style = STATUS_STYLE[app.status] ?? STATUS_STYLE['En Proceso']
+                    const StatusIcon = style.icon
+                    const avgScore = completed.length > 0
+                      ? Math.round(completed.reduce((s, i) => {
+                          const sc = i.scorecard
+                          if (!sc) return s
+                          return s + ((sc.technicalSkills + sc.communication + sc.culturalFit) / 3)
+                        }, 0) / completed.filter(i => i.scorecard).length || 0)
+                      : null
+                    return (
+                      <a
+                        key={app.id}
+                        href="/pipeline"
+                        className="flex items-center gap-3 rounded-xl border p-3 transition-all hover:opacity-90 cursor-pointer no-underline"
+                        style={{ background: style.bg, borderColor: `${style.color}33` }}
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0" style={{ background: `${style.color}20` }}>
+                          <StatusIcon className="h-4 w-4" style={{ color: style.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                            {vacancy?.title ?? 'Vacante'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-xs font-medium" style={{ color: style.color }}>{style.label}</span>
+                            {appInterviews.length > 0 && (
+                              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                                · {completed.length}/{appInterviews.length} entrevista{appInterviews.length !== 1 ? 's' : ''}
+                                {pending.length > 0 && ` (${pending.length} pendiente${pending.length !== 1 ? 's' : ''})`}
+                              </span>
+                            )}
+                            {avgScore != null && avgScore > 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-xs" style={{ color: '#fbbf24' }}>
+                                <Star className="h-2.5 w-2.5 fill-current" />
+                                {avgScore}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted)' }} />
+                      </a>
+                    )
+                  })}
+                  {applications.length === 0 && interviews.length > 0 && (
+                    <a
+                      href="/interviews"
+                      className="flex items-center gap-3 rounded-xl border p-3 transition-all hover:opacity-90 cursor-pointer no-underline"
+                      style={{ background: 'rgba(251,146,60,0.1)', borderColor: 'rgba(251,146,60,0.2)' }}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'rgba(251,146,60,0.2)' }}>
+                        <Video className="h-4 w-4" style={{ color: '#fb923c' }} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Entrevistas</p>
+                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                          {interviews.filter(i => i.status === 'Completada').length} completada{interviews.filter(i => i.status === 'Completada').length !== 1 ? 's' : ''} · {interviews.filter(i => i.status === 'Programada').length} programada{interviews.filter(i => i.status === 'Programada').length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--muted)' }} />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Dates */}
@@ -186,12 +558,29 @@ function ViewProfileDialog({ candidate, open, onClose }: {
             Agregado {formatRelativeDate(candidate.createdAt)}
           </p>
 
-          <div className="flex justify-end pt-1">
-            <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          </div>
+          {/* Save error */}
+          {saveError && (
+            <p className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+              {saveError}
+            </p>
+          )}
+
+          {editMode ? (
+            <Button
+              className="w-full"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar cambios
+            </Button>
+          ) : (
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" onClick={onClose}>Cerrar</Button>
+            </div>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -267,11 +656,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agendar entrevista</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title="Agendar entrevista" maxWidth="28rem">
         <p className="text-sm text-muted-foreground -mt-1">
           Candidato: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
         </p>
@@ -389,8 +774,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             </div>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -404,18 +788,29 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
 }) {
   if (!candidate) return null
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />
-            Eliminar candidato
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm" style={{ color: 'var(--text)' }}>
-          ¿Estás seguro de que querés eliminar a <strong>{candidate.fullName}</strong>?
-          Esta acción no se puede deshacer.
-        </p>
+    <DraggableModal
+      open={open}
+      onClose={onClose}
+      title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />Eliminar candidato</span>}
+      maxWidth="24rem"
+    >
+        <div className="space-y-3">
+          <p className="text-sm" style={{ color: 'var(--text)' }}>
+            Estás a punto de eliminar definitivamente a <strong>{candidate.fullName}</strong> del sistema.
+          </p>
+          <div className="px-3 py-2.5 rounded-lg text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <ul className="ml-3 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
+              <li>El perfil completo del candidato</li>
+              <li>Todas las entrevistas y scorecards asociadas</li>
+              <li>El historial de postulaciones y etapas del proceso</li>
+              <li>Archivos adjuntos (CV, foto de perfil)</li>
+            </ul>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Solo los administradores pueden realizar esta acción.
+          </p>
+        </div>
         <div className="flex justify-end gap-2 mt-2">
           <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
           <Button
@@ -427,8 +822,7 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
             Eliminar
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
@@ -483,12 +877,14 @@ function AddCandidateDialog({
   open,
   onClose,
   vacancies,
+  clients,
   prefill,
   onSave,
 }: {
   open: boolean
   onClose: () => void
   vacancies: Vacancy[]
+  clients?: import('@/types').Client[]
   prefill?: Partial<Candidate>
   onSave: (c: Candidate) => void
 }) {
@@ -499,6 +895,7 @@ function AddCandidateDialog({
     email: prefill?.email ?? '',
     phone: prefill?.phone ?? '',
     vacancyId: '',
+    clientId: prefill?.clientId ?? '',
     source: 'LinkedIn' as CandidateSource,
     notes: '',
     skills: prefill?.skills?.join(', ') ?? '',
@@ -507,6 +904,7 @@ function AddCandidateDialog({
     atsScore: prefill?.atsScore ?? '',
     cvUrl: prefill?.cvUrl ?? '',
     cvFileName: prefill?.cvFileName ?? '',
+    avatarUrl: prefill?.avatarUrl ?? '',
   })
   const [saving, setSaving] = React.useState(false)
 
@@ -523,6 +921,7 @@ function AddCandidateDialog({
         atsScore: prefill.atsScore ?? f.atsScore,
         cvUrl: prefill.cvUrl ?? f.cvUrl,
         cvFileName: prefill.cvFileName ?? f.cvFileName,
+        avatarUrl: prefill.avatarUrl ?? f.avatarUrl,
       }))
     }
   }, [prefill])
@@ -533,6 +932,7 @@ function AddCandidateDialog({
     const tenantId = user?.tenantId ?? ''
     const result = await provider.createCandidate({
       tenantId,
+      clientId: form.clientId || undefined,
       fullName: form.fullName,
       email: form.email,
       phone: form.phone || undefined,
@@ -545,6 +945,7 @@ function AddCandidateDialog({
       appliedAt: new Date().toISOString(),
       cvUrl: form.cvUrl || undefined,
       cvFileName: form.cvFileName || undefined,
+      avatarUrl: form.avatarUrl || undefined,
     })
     setSaving(false)
     if (result.data) {
@@ -565,11 +966,7 @@ function AddCandidateDialog({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agregar candidato</DialogTitle>
-        </DialogHeader>
+    <DraggableModal open={open} onClose={onClose} title="Agregar candidato" maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -595,12 +992,34 @@ function AddCandidateDialog({
               </select>
             </div>
           </div>
-          <div>
-            <label className={labelCls}>Vacante</label>
-            <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
-              <option value="">Sin vacante asignada</option>
-              {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Cliente</label>
+              <select value={form.clientId} onChange={e => {
+                const newClientId = e.target.value
+                setForm(f => ({
+                  ...f,
+                  clientId: newClientId,
+                  // Clear vacancy if it doesn't belong to the new client
+                  vacancyId: (!newClientId || vacancies.find(v => v.id === f.vacancyId)?.clientId === newClientId)
+                    ? f.vacancyId
+                    : '',
+                }))
+              }} className={inputCls}>
+                <option value="">Sin cliente asignado</option>
+                {(clients ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Vacante</label>
+              <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
+                <option value="">Sin vacante asignada</option>
+                {(form.clientId
+                  ? vacancies.filter(v => v.clientId === form.clientId)
+                  : vacancies
+                ).map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <label className={labelCls}>Skills (separadas por coma)</label>
@@ -609,7 +1028,7 @@ function AddCandidateDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Años de experiencia</label>
-              <input type="number" min="0" max="50" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: e.target.value}))} className={inputCls} placeholder="3" />
+              <input type="number" min="0" max="50" step="1" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: String(Math.round(Number(e.target.value)))}))} className={inputCls} placeholder="3" />
             </div>
             <div>
               <label className={labelCls}>Score ATS (0-100)</label>
@@ -639,13 +1058,12 @@ function AddCandidateDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </DraggableModal>
   )
 }
 
 // ─── CV Analyzer Drop Zone ────────────────────────────────────────────────────
-function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
+function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; clients: import('@/types').Client[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -662,7 +1080,16 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
       formData.append('file', file)
       formData.append('vacancyRequirements', JSON.stringify([]))
 
-      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData })
+      const aiHeaders: Record<string, string> = {}
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
+          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
+        }
+      } catch { /* noop */ }
+
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData, headers: aiHeaders })
       const data = await res.json()
 
       if (!res.ok || !data.ok) {
@@ -672,7 +1099,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         return
       }
 
-      const { analysis, cvUrl, cvFileName } = data
+      const { analysis, cvUrl, cvFileName, avatarUrl } = data
       setPrefill({
         fullName: analysis.fullName ?? '',
         email: analysis.email ?? '',
@@ -683,6 +1110,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         atsScore: analysis.atsScore,
         cvUrl,
         cvFileName,
+        avatarUrl,
       })
       setStatus('done')
       setShowAdd(true)
@@ -750,6 +1178,7 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
         open={showAdd}
         onClose={() => { setShowAdd(false); setStatus('idle') }}
         vacancies={vacancies}
+        clients={clients}
         prefill={prefill ?? undefined}
         onSave={c => { onCandidateAdded(c); setPrefill(null) }}
       />
@@ -761,6 +1190,9 @@ function CvDropZone({ vacancies, onCandidateAdded, onLimitReached }: { vacancies
 export default function CandidatesPage() {
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
+  const [clients, setClients] = React.useState<import('@/types').Client[]>([])
+  const [applications, setApplications] = React.useState<import('@/types').Application[]>([])
+  const [filterClient, setFilterClient] = React.useState('all')
   const [loading, setLoading] = React.useState(true)
   const [view, setView] = React.useState<'table' | 'grid'>('table')
   const [search, setSearch] = React.useState('')
@@ -782,19 +1214,41 @@ export default function CandidatesPage() {
 
   const load = React.useCallback(async () => {
     const tid = user?.tenantId ?? ''
-    const [cRes, vRes] = await Promise.all([
+    const [cRes, vRes, clRes, appRes] = await Promise.all([
       provider.getCandidates(tid),
       provider.getVacancies(tid),
+      provider.getClients(tid),
+      provider.getApplications(undefined, tid),
     ])
     setCandidates(cRes.data ?? [])
     setVacancies(vRes.data ?? [])
+    setClients(clRes.data ?? [])
+    setApplications(appRes.data ?? [])
     setLoading(false)
   }, [provider, user])
 
   React.useEffect(() => { load() }, [load])
 
+  React.useEffect(() => {
+    function handleClientDeleted() { load() }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('client:deleted', handleClientDeleted)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('client:deleted', handleClientDeleted)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [load])
+
   const filtered = React.useMemo(() => {
     return candidates.filter(c => {
+      if (filterClient !== 'all') {
+        const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
+        const appliedToClient = applications.some(a => a.candidateId === c.id && clientVacancyIds.has(a.vacancyId))
+        if (c.clientId !== filterClient && !appliedToClient) return false
+      }
       if (search && !c.fullName.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false
       if (filterScore === '80+' && (c.atsScore ?? 0) < 80) return false
       if (filterScore === '60-79' && ((c.atsScore ?? 0) < 60 || (c.atsScore ?? 0) >= 80)) return false
@@ -803,18 +1257,18 @@ export default function CandidatesPage() {
       if (filterSource !== 'all' && c.source !== filterSource) return false
       return true
     })
-  }, [candidates, search, filterScore, filterSource])
+  }, [candidates, vacancies, applications, filterClient, search, filterScore, filterSource])
 
   const kpis = React.useMemo(() => {
-    const total = candidates.length
-    const withScore = candidates.filter(c => c.atsScore !== undefined).length
+    const total = filtered.length
+    const withScore = filtered.filter(c => c.atsScore !== undefined).length
     const avgScore = withScore > 0
-      ? Math.round(candidates.reduce((s, c) => s + (c.atsScore ?? 0), 0) / withScore)
+      ? Math.round(filtered.reduce((s, c) => s + (c.atsScore ?? 0), 0) / withScore)
       : 0
     const weekAgo = new Date(new Date(metricsNowIso).getTime() - 7 * 86400000).toISOString()
-    const newThisWeek = candidates.filter(c => c.createdAt >= weekAgo).length
+    const newThisWeek = filtered.filter(c => c.createdAt >= weekAgo).length
     return { total, withScore, avgScore, newThisWeek }
-  }, [candidates, metricsNowIso])
+  }, [filtered, metricsNowIso])
 
   function checkCandidateLimit(): boolean {
     if (candidates.length >= planLimits.candidates) {
@@ -860,7 +1314,11 @@ export default function CandidatesPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Candidatos</h1>
-          <p className="text-sm text-muted-foreground">{kpis.total} candidatos en la base de datos</p>
+          <p className="text-sm text-muted-foreground">
+            {filterClient !== 'all' || filterScore !== 'all' || filterSource !== 'all' || search
+              ? `${kpis.total} candidatos encontrados`
+              : `${kpis.total} candidatos en la base de datos`}
+          </p>
         </div>
         <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
           <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Agregar candidato</span><span className="sm:hidden">Agregar</span>
@@ -876,7 +1334,7 @@ export default function CandidatesPage() {
       </div>
 
       {/* CV Drop Zone */}
-      <CvDropZone vacancies={vacancies} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} onLimitReached={checkCandidateLimit} />
+      <CvDropZone vacancies={vacancies} clients={clients} onCandidateAdded={c => setCandidates(prev => [c, ...prev])} onLimitReached={checkCandidateLimit} />
 
       {/* Filters + View Toggle */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -910,6 +1368,15 @@ export default function CandidatesPage() {
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         </div>
+        {clients.length > 0 && (
+          <div className="relative">
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
+              <option value="all">Todos los clientes</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        )}
         <div className="flex rounded-md border border-input overflow-hidden ml-auto">
           <button onClick={() => setView('table')} className={cn('px-2.5 py-2', view === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted')}>
             <List className="h-4 w-4" />
@@ -951,7 +1418,7 @@ export default function CandidatesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map(c => (
-                <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
+                <tr key={c.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setViewCandidate(c)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div
@@ -989,13 +1456,13 @@ export default function CandidatesPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{formatRelativeDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setViewCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
+                      <button onClick={e => { e.stopPropagation(); setViewCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setScheduleCandidate(c)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
+                      <button onClick={e => { e.stopPropagation(); setScheduleCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
                         <Calendar className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setDeleteCandidate(c)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
+                      <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1011,7 +1478,7 @@ export default function CandidatesPage() {
       {view === 'grid' && filtered.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map(c => (
-            <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer group">
+            <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setViewCandidate(c)}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -1026,7 +1493,7 @@ export default function CandidatesPage() {
                       <p className="text-xs text-muted-foreground truncate max-w-[120px]">{c.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => setDeleteCandidate(c)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                  <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1059,6 +1526,7 @@ export default function CandidatesPage() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         vacancies={vacancies}
+        clients={clients}
         onSave={c => setCandidates(prev => [c, ...prev])}
       />
 
@@ -1067,6 +1535,9 @@ export default function CandidatesPage() {
         candidate={viewCandidate}
         open={viewCandidate !== null}
         onClose={() => setViewCandidate(null)}
+        onUpdate={c => setCandidates(prev => prev.map(x => x.id === c.id ? c : x))}
+        vacancies={vacancies}
+        clients={clients}
       />
 
       {/* Schedule interview dialog */}
