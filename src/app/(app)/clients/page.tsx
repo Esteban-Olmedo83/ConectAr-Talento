@@ -400,15 +400,15 @@ function ClientFormDialog({
           </div>
 
           {saveError && (
-            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
+            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
               {saveError}
             </p>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
-            <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
               Cancelar
-            </button>
+            </Button>
             <button
               type="submit"
               disabled={saving || !form.name.trim()}
