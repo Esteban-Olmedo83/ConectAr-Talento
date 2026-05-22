@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Columns3,
   BookOpen,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -258,6 +259,21 @@ export function Sidebar({
             isCollapsed={isCollapsed}
             onClick={onClose}
           />
+
+          {/* Admin — only visible to owner */}
+          {user?.email === 'conectar.rrhh.ar@gmail.com' && (
+            <>
+              <SectionLabel label="Owner" collapsed={isCollapsed} />
+              <NavItem
+                href="/admin"
+                icon={ShieldCheck}
+                label="Admin"
+                isActive={isActive('/admin')}
+                isCollapsed={isCollapsed}
+                onClick={onClose}
+              />
+            </>
+          )}
         </nav>
 
         {/* Bottom user area */}

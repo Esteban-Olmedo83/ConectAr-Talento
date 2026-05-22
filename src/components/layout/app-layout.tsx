@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Menu, Search, LogOut, Settings, User } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { NotificationBell } from '@/components/notifications/notification-bell'
+import { UpdatesNotificationBanner } from '@/app/(app)/components/updates-banner'
 import { cn } from '@/lib/utils'
 import type { User as UserType } from '@/types'
 
@@ -218,6 +219,7 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
           id="main-content"
           tabIndex={-1}
         >
+          <UpdatesNotificationBanner />
           {children}
         </main>
       </div>
