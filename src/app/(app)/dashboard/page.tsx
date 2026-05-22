@@ -254,15 +254,21 @@ export default function DashboardPage() {
       if (document.visibilityState === 'visible') load()
     }
     window.addEventListener('client:deleted', handleChange)
+    window.addEventListener('client:created', handleChange)
     window.addEventListener('application:stage-changed', handleChange)
     window.addEventListener('vacancy:created', handleChange)
     window.addEventListener('vacancy:updated', handleChange)
+    window.addEventListener('interview:scheduled', handleChange)
+    window.addEventListener('candidate:created', handleChange)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('client:deleted', handleChange)
+      window.removeEventListener('client:created', handleChange)
       window.removeEventListener('application:stage-changed', handleChange)
       window.removeEventListener('vacancy:created', handleChange)
       window.removeEventListener('vacancy:updated', handleChange)
+      window.removeEventListener('interview:scheduled', handleChange)
+      window.removeEventListener('candidate:created', handleChange)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
@@ -401,17 +407,22 @@ export default function DashboardPage() {
     .sort((a, b) => (b.atsScore ?? 0) - (a.atsScore ?? 0))
     .slice(0, 5)
 
-  // Stage for each top candidate: look up from applications
+  // Stage for each top candidate: use the most recently updated application per candidate
+  // Applications are ordered by applied_at DESC, but we need the latest by updated_at
   const candidateStageMap = new Map<string, VacancyStatus>()
+  const candidateStageUpdatedAt = new Map<string, string>()
   applications.forEach(a => {
-    if (!candidateStageMap.has(a.candidateId)) {
+    const existing = candidateStageUpdatedAt.get(a.candidateId)
+    if (!existing || a.updatedAt > existing) {
       candidateStageMap.set(a.candidateId, a.status)
+      candidateStageUpdatedAt.set(a.candidateId, a.updatedAt)
     }
   })
 
-  // Recent activity: last 5 applications (with candidate data)
+  // Recent activity: last 5 applications ordered by most recently updated
+  // (updatedAt reflects stage changes, not just initial application date)
   const recentApps = [...applications]
-    .sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5)
 
   const scoreColor = (s: number) =>
@@ -723,7 +734,7 @@ export default function DashboardPage() {
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <span style={stageBadgeStyle(a.status)}>{a.status}</span>
-                      <span style={{ fontSize: 10, color: 'var(--muted)' }}>{relDays(a.appliedAt)}</span>
+                      <span style={{ fontSize: 10, color: 'var(--muted)' }}>{relDays(a.updatedAt)}</span>
                     </div>
                   </div>
                 </div>
