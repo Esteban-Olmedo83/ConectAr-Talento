@@ -382,7 +382,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
 
-  async function load() {
+  const load = React.useCallback(async () => {
     if (!user?.tenantId) return
     setLoading(true)
     const [cr, vr, ar, candResult] = await Promise.all([
@@ -405,9 +405,24 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const directCands = (candResult.data ?? []).filter(c => c.clientId === id)
     setDirectCandidates(directCands)
     setLoading(false)
-  }
+  }, [provider, user?.tenantId, id])
 
-  React.useEffect(() => { load() }, [user?.tenantId, id])
+  React.useEffect(() => { load() }, [load])
+
+  React.useEffect(() => {
+    function handleChange() { load() }
+    function handleVisibility() { if (document.visibilityState === 'visible') load() }
+    window.addEventListener('application:stage-changed', handleChange)
+    window.addEventListener('interview:scheduled', handleChange)
+    window.addEventListener('candidate:created', handleChange)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('application:stage-changed', handleChange)
+      window.removeEventListener('interview:scheduled', handleChange)
+      window.removeEventListener('candidate:created', handleChange)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [load])
 
   async function handleDelete() {
     if (!client) return

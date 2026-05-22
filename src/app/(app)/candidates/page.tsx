@@ -122,6 +122,29 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
     }
   }, [open, candidateProp, provider])
 
+  // Reload process info when stage changes in another tab/page
+  React.useEffect(() => {
+    if (!open || !candidateProp) return
+    function reloadProcess() {
+      if (!candidateProp) return
+      setLoadingProcess(true)
+      Promise.all([
+        provider.getApplicationsByCandidateId(candidateProp.id),
+        provider.getInterviews(candidateProp.id),
+      ]).then(([appRes, intRes]) => {
+        setApplications(appRes.data ?? [])
+        setInterviews(intRes.data ?? [])
+        setLoadingProcess(false)
+      })
+    }
+    window.addEventListener('application:stage-changed', reloadProcess)
+    window.addEventListener('interview:scheduled', reloadProcess)
+    return () => {
+      window.removeEventListener('application:stage-changed', reloadProcess)
+      window.removeEventListener('interview:scheduled', reloadProcess)
+    }
+  }, [open, candidateProp, provider])
+
   async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !candidate) return
@@ -647,6 +670,13 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
     if (result.error) {
       setError(result.error)
     } else {
+      // Promote application status to Entrevistas in DB
+      const vacancyId = form.vacancyId || (vacancies[0]?.id ?? '')
+      if (vacancyId) {
+        const appRes = await provider.getApplicationsByCandidateId(candidate.id)
+        const app = appRes.data?.find(a => a.vacancyId === vacancyId && a.status === 'Nuevas Vacantes')
+        if (app) await provider.updateApplicationStatus(app.id, 'Entrevistas')
+      }
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       setTimeout(onClose, 1200)

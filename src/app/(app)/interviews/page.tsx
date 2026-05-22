@@ -123,6 +123,13 @@ function SchedulerModal({
     })
     setSaving(false)
     if (result.data) {
+      // Promote application status to Entrevistas in DB
+      const vacancyId = form.vacancyId || (vacancies[0]?.id ?? '')
+      if (form.candidateId && vacancyId) {
+        const appRes = await provider.getApplicationsByCandidateId(form.candidateId)
+        const app = appRes.data?.find(a => a.vacancyId === vacancyId && a.status === 'Nuevas Vacantes')
+        if (app) await provider.updateApplicationStatus(app.id, 'Entrevistas')
+      }
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       onSaved(result.data)
       onClose()

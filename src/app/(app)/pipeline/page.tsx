@@ -2305,6 +2305,7 @@ export default function PipelinePage() {
     const isVirtual = draggedApp.id.startsWith('virtual-')
     if (!isVirtual) {
       await provider.updateApplicationStatus(draggedApp.id, newStage)
+      window.dispatchEvent(new CustomEvent('application:stage-changed'))
       // If hired and has a real vacancy, offer to close the vacancy
       if (newStage === 'Contratado' && draggedApp.vacancyId) {
         setHireDialog({ app: draggedApp })
