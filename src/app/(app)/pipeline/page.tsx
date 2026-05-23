@@ -27,6 +27,7 @@ import {
   Filter,
   Calendar,
   ChevronDown,
+  ChevronRight,
   Mail,
   MessageCircle,
   X,
@@ -59,12 +60,13 @@ import type {
   Recommendation,
 } from '@/types'
 
-type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
+type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv' | 'avanzar_etapa'
 const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color: string; border: string }> = {
-  avanzar:      { label: 'Avanzar',      bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
-  rechazar:     { label: 'Rechazar',     bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
-  a_considerar: { label: 'A considerar', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
-  descartar_cv: { label: 'Descartar CV', bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  avanzar:       { label: 'Avanzar',         bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  rechazar:      { label: 'Rechazar',         bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  a_considerar:  { label: 'A considerar',     bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  descartar_cv:  { label: 'Descartar CV',     bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  avanzar_etapa: { label: 'Avanzar etapa',    bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1597,7 +1599,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       {/* Decision buttons — only visible on hover for Entrevistas stage */}
       {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice.current) && !isDragging && (
         <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
-          {(Object.entries(DECISION_CONFIG) as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
+          {(Object.entries(DECISION_CONFIG).filter(([a]) => a !== 'avanzar_etapa') as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
             <button
               key={action}
               onClick={e => { e.stopPropagation(); onDecide(app.id, action) }}
@@ -1620,6 +1622,35 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
               {cfg.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Avanzar / Rechazar — always visible on all cards */}
+      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && !isDragging && (
+        <div
+          style={{ display: 'flex', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }}
+            style={{
+              flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 6px', borderRadius: 6,
+              background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', color: '#34d399',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}
+          >
+            <ChevronRight size={11} /> Avanzar
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }}
+            style={{
+              flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 6px', borderRadius: 6,
+              background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.28)', color: '#f87171',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}
+          >
+            <X size={11} /> Rechazar
+          </button>
         </div>
       )}
     </div>
@@ -1875,6 +1906,7 @@ function SortableCard({ app, onAction, onDecide, interviewDate }: { app: Hydrate
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    touchAction: 'none' as const,
   }
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
@@ -2355,6 +2387,18 @@ export default function PipelinePage() {
       if (!isVirtual) {
         await provider.updateApplicationDisposition(appId, 'descartar_cv')
         await provider.updateApplicationStatus(appId, 'Descartado')
+        window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+    } else if (action === 'avanzar_etapa') {
+      const STAGE_ORDER: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+      const app = applications.find(a => a.id === appId)
+      if (!app) return
+      const idx = STAGE_ORDER.indexOf(app.status)
+      const nextStage = idx >= 0 && idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : null
+      if (!nextStage) return
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a))
+      if (!isVirtual) {
+        await provider.updateApplicationStatus(appId, nextStage)
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     }

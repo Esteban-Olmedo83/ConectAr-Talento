@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Building2, Briefcase, Mail, Phone, Globe,
   Pencil, Trash2, ExternalLink, Users, ChevronRight,
-  AlertCircle,
+  AlertCircle, Clock, TrendingUp, History,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
@@ -377,7 +377,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [directCandidates, setDirectCandidates] = React.useState<Candidate[]>([])
   const [loading, setLoading] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)
-  const [tab, setTab] = React.useState<'vacantes' | 'candidatos'>('vacantes')
+  const [tab, setTab] = React.useState<'vacantes' | 'candidatos' | 'historial'>('vacantes')
   const [editOpen, setEditOpen] = React.useState(false)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
@@ -471,6 +471,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     })
     return result
   }, [applications, vacancies, directCandidates])
+
+  const historialEntries = React.useMemo(() => {
+    // All applications sorted by updatedAt DESC — one entry per application (not deduplicated)
+    return [...applications]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(a => ({
+        application: a,
+        candidate: a.candidate ?? null,
+        vacancy: vacancies.find(v => v.id === a.vacancyId) ?? null,
+      }))
+  }, [applications, vacancies])
 
   if (loading) return <Skeleton />
 
@@ -619,6 +630,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {([
           { key: 'vacantes', label: `Vacantes (${vacancies.length})` },
           { key: 'candidatos', label: `Candidatos (${totalCandidates})` },
+          { key: 'historial', label: `Historial (${historialEntries.length})` },
         ] as const).map(t => (
           <button
             key={t.key}
@@ -683,6 +695,98 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 vacancyTitle={vacancyTitle}
               />
             ))
+          )}
+        </div>
+      )}
+
+      {/* Tab: Historial */}
+      {tab === 'historial' && (
+        <div className="space-y-2">
+          {historialEntries.length === 0 ? (
+            <div className="flex flex-col items-center py-16 text-center">
+              <History className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
+              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin historial</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+                Aquí aparecerá el registro de todos los candidatos que participaron en procesos para este cliente.
+              </p>
+            </div>
+          ) : (
+            historialEntries.map(({ application: app, candidate: c, vacancy: v }) => {
+              const STAGE_COLORS_LOCAL: Record<string, { bg: string; text: string }> = {
+                'Nuevas Vacantes': { bg: 'rgba(99,102,241,0.12)',  text: '#818cf8' },
+                'En Proceso':      { bg: 'rgba(59,130,246,0.12)',  text: '#60a5fa' },
+                'Entrevistas':     { bg: 'rgba(245,158,11,0.12)',  text: '#fbbf24' },
+                'Oferta Enviada':  { bg: 'rgba(16,185,129,0.12)',  text: '#34d399' },
+                'Contratado':      { bg: 'rgba(34,197,94,0.12)',   text: '#4ade80' },
+                'Descartado':      { bg: 'rgba(107,114,128,0.12)', text: '#9ca3af' },
+              }
+              const stagePill = STAGE_COLORS_LOCAL[app.status] ?? STAGE_COLORS_LOCAL['En Proceso']
+              const updatedDays = Math.floor((Date.now() - new Date(app.updatedAt).getTime()) / 86400000)
+              const addedDays = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+              const candidateName = c?.fullName ?? '—'
+              const initials = candidateName.split(/\s+/).filter(Boolean).map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
+              return (
+                <div
+                  key={app.id}
+                  className="rounded-xl p-4"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}
+                >
+                  {/* Avatar */}
+                  <div
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: 13, fontWeight: 700,
+                    }}
+                  >
+                    {initials}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{candidateName}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>{v?.title ?? 'Sin vacante'}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99,
+                          background: stagePill.bg, color: stagePill.text,
+                        }}
+                      >
+                        {app.status}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <Clock style={{ width: 10, height: 10 }} />
+                        {updatedDays === 0 ? 'Hoy' : `Hace ${updatedDays}d`}
+                      </span>
+                      {addedDays !== updatedDays && (
+                        <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+                          · Ingresó hace {addedDays}d
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ATS score */}
+                  {c?.atsScore != null && c.atsScore > 0 && (
+                    <div
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        padding: '6px 10px', borderRadius: 8, flexShrink: 0,
+                        background: c.atsScore >= 80 ? 'rgba(52,211,153,0.1)' : c.atsScore >= 60 ? 'rgba(251,191,36,0.1)' : 'rgba(248,113,113,0.1)',
+                        border: `1px solid ${c.atsScore >= 80 ? 'rgba(52,211,153,0.3)' : c.atsScore >= 60 ? 'rgba(251,191,36,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 900, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', color: c.atsScore >= 80 ? '#34d399' : c.atsScore >= 60 ? '#fbbf24' : '#f87171' }}>
+                        {c.atsScore}
+                      </span>
+                      <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>ATS</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
       )}
