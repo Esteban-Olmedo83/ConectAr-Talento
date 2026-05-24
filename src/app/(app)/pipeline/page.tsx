@@ -1625,8 +1625,8 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
         </div>
       )}
 
-      {/* Avanzar / Rechazar — always visible on all cards */}
-      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && !isDragging && (
+      {/* Avanzar / Rechazar — always visible on all cards except Entrevistas (which has its own 4-button panel) */}
+      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && app.status !== 'Entrevistas' && !isDragging && (
         <div
           style={{ display: 'flex', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}
           onClick={e => e.stopPropagation()}
