@@ -183,7 +183,7 @@ export default function SignupPage() {
                 <input
                   id="company"
                   type="text"
-                  placeholder="Acme S.A."
+                  placeholder="Grupo Clarín S.A."
                   autoComplete="organization"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
