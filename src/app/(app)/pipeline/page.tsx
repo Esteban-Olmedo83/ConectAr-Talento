@@ -4,24 +4,6 @@ import * as React from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  TouchSensor,
-  useDroppable,
-  useSensor,
-  useSensors,
-  closestCorners,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import {
   Plus,
   Search,
   Filter,
@@ -1899,120 +1881,198 @@ function ProcessDetailModal({
   )
 }
 
-// ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, action: DecisionAction) => void; interviewDate?: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: app.id })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    touchAction: 'none' as const,
+// ─── Candidate row (list view) ────────────────────────────────────────────────
+function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
+  const c = app.candidate
+  if (!c) return null
+  const [hovered, setHovered] = React.useState(false)
+
+  const stageColor = STAGE_COLORS[app.status]
+  const score = c.atsScore ?? 0
+  const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
+  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const skills = (c.skills ?? []).slice(0, 2)
+
+  const iconBtn: React.CSSProperties = {
+    width: 26, height: 26, borderRadius: 7, background: 'var(--surface)',
+    border: '1px solid var(--border)', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', cursor: 'pointer', color: 'var(--muted2)',
   }
+  const decisionBtn = (bg: string, border: string, color: string): React.CSSProperties => ({
+    fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+    background: bg, border: `1px solid ${border}`, color, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  })
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} onDecide={onDecide} interviewDate={interviewDate} />
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+        borderBottom: '1px solid var(--border)', cursor: 'pointer',
+        background: hovered ? 'var(--surface2)' : 'transparent',
+        transition: 'background 0.12s',
+      }}
+    >
+      {/* Avatar */}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: avatarGradient(c.fullName), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-nunito, Nunito, sans-serif)' }}>
+          {getInitials(c.fullName)}
+        </div>
+        {score > 0 && (
+          <div style={{ position: 'absolute', bottom: -3, right: -4, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 5, padding: '0 3px', fontSize: 9, fontWeight: 900, color: scoreColor, lineHeight: 1.4 }}>
+            {score}
+          </div>
+        )}
+      </div>
+
+      {/* Name + vacancy */}
+      <div style={{ flex: '0 0 190px', minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{c.fullName}</p>
+        {app.vacancyTitle && (
+          <p style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{app.vacancyTitle}</p>
+        )}
+      </div>
+
+      {/* Skills */}
+      <div style={{ flex: 1, display: 'flex', gap: 4, minWidth: 0, overflow: 'hidden' }}>
+        {skills.map(sk => (
+          <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid rgba(108,99,255,0.18)', fontWeight: 500, whiteSpace: 'nowrap' }}>{sk}</span>
+        ))}
+      </div>
+
+      {/* Stage pill */}
+      <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: `${stageColor}18`, color: stageColor, border: `1px solid ${stageColor}30`, whiteSpace: 'nowrap' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
+        {app.status}
+      </span>
+
+      {/* Interview date */}
+      {interviewDate && (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Calendar style={{ width: 11, height: 11, color: '#a78bfa' }} />
+          <span style={{ fontSize: 11, color: '#a78bfa', whiteSpace: 'nowrap' }}>
+            {new Date(interviewDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+          </span>
+        </div>
+      )}
+
+      {/* Source + days */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+        {c.source && (
+          <span style={{ fontSize: 9, padding: '1.5px 6px', borderRadius: 99, fontWeight: 600, background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)', color: SOURCE_TEXT[c.source] ?? '#9ca3af', whiteSpace: 'nowrap' }}>
+            {c.source}
+          </span>
+        )}
+        <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+          {daysSince === 0 ? 'Hoy' : `${daysSince}d`}
+        </span>
+      </div>
+
+      {/* Communication buttons — visible on hover */}
+      <div style={{ flexShrink: 0, display: 'flex', gap: 3, opacity: hovered ? 1 : 0, transition: 'opacity 0.15s' }} onClick={e => e.stopPropagation()}>
+        <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
+        <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
+        <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
+      </div>
+
+      {/* Decision buttons — always visible for actionable stages */}
+      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && (
+        <div style={{ flexShrink: 0, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+          {app.status === 'Entrevistas' ? (
+            <>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}>Contratar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'a_considerar') }} style={decisionBtn('rgba(251,191,36,0.12)', 'rgba(251,191,36,0.3)', '#fbbf24')}>Considerar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+            </>
+          ) : (
+            <>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}><ChevronRight size={10} style={{ display: 'inline', marginRight: 2 }} />Avanzar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Lane ─────────────────────────────────────────────────────────────────────
-function Lane({
-  stage,
+// ─── Client section ───────────────────────────────────────────────────────────
+function ClientSection({
+  clientName,
   apps,
   onAction,
   onDecide,
   interviewsByCandidate,
 }: {
-  stage: VacancyStatus
+  clientId: string
+  clientName: string
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
   onDecide: (appId: string, action: DecisionAction) => void
   interviewsByCandidate: Map<string, string>
 }) {
-  const stageColor = STAGE_COLORS[stage]
-  const { setNodeRef, isOver } = useDroppable({ id: stage })
+  const [collapsed, setCollapsed] = React.useState(false)
+
+  const counts = React.useMemo(() => {
+    const c: Partial<Record<VacancyStatus, number>> = {}
+    apps.forEach(a => { c[a.status] = (c[a.status] ?? 0) + 1 })
+    return c
+  }, [apps])
+
+  const STAGE_SHORT: Record<VacancyStatus, string> = {
+    'Nuevas Vacantes': 'Nuevas',
+    'En Proceso': 'En Proceso',
+    'Entrevistas': 'Entrevistas',
+    'Oferta Enviada': 'Oferta',
+    'Contratado': 'Contratado',
+    'Descartado': 'Descartado',
+  }
+
   return (
-    <div
-      className="flex flex-col rounded-xl min-w-[270px] w-[270px] flex-shrink-0"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        '--lane-color': stageColor,
-        overflow: 'hidden',
-        height: '100%',
-      } as React.CSSProperties}
-    >
-      {/* Lane header — 3px top bar + title row */}
+    <div style={{ marginBottom: 10, border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: 'var(--surface)' }}>
+      {/* Header */}
       <div
+        role="button"
+        onClick={() => setCollapsed(c => !c)}
         style={{
-          position: 'relative',
-          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+          background: 'var(--surface2)', cursor: 'pointer', userSelect: 'none' as const,
+          borderBottom: collapsed ? 'none' : '1px solid var(--border)',
         }}
       >
-        {/* 3px top color bar */}
-        <div style={{ height: 3, background: stageColor }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px' }}>
-          {/* Stage dot */}
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{stage}</span>
-          {/* Count badge */}
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 900,
-              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
-              padding: '1px 8px',
-              borderRadius: 99,
-              background: `${stageColor}22`,
-              color: stageColor,
-            }}
-          >
-            {apps.length}
-          </span>
-          {/* Add button */}
-          <button
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 6,
-              background: 'var(--surface2)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-              flexShrink: 0,
-            }}
-          >
-            <Plus style={{ width: 11, height: 11 }} />
-          </button>
+        {/* Client initials */}
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-soft)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-2)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)' }}>{clientName.slice(0, 2).toUpperCase()}</span>
         </div>
-      </div>
-
-      <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div
-          ref={setNodeRef}
-          style={{
-            display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1,
-            minHeight: 120, overflowY: 'auto',
-            background: isOver ? `${stageColor}11` : 'transparent',
-            transition: 'background 0.15s',
-          }}
-        >
-          {apps.length === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Plus style={{ width: 14, height: 14, color: 'var(--muted)' }} />
-              </div>
-              <p style={{ fontSize: 11, color: 'var(--muted)' }}>Sin candidatos</p>
-            </div>
-          )}
-          {apps.map(app => (
-            <SortableCard key={app.id} app={app} onAction={onAction} onDecide={onDecide} interviewDate={interviewsByCandidate.get(app.candidateId)} />
+        {/* Name */}
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{clientName}</span>
+        {/* Stage pills */}
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {STAGES.filter(s => counts[s]).map(stage => (
+            <span key={stage} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${STAGE_COLORS[stage]}18`, color: STAGE_COLORS[stage], border: `1px solid ${STAGE_COLORS[stage]}30`, whiteSpace: 'nowrap' as const }}>
+              {STAGE_SHORT[stage]} · {counts[stage]}
+            </span>
           ))}
         </div>
-      </SortableContext>
+        {/* Count */}
+        <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>{apps.length} candidato{apps.length !== 1 ? 's' : ''}</span>
+        {collapsed
+          ? <ChevronRight style={{ width: 15, height: 15, color: 'var(--muted)', flexShrink: 0 }} />
+          : <ChevronDown style={{ width: 15, height: 15, color: 'var(--muted)', flexShrink: 0 }} />
+        }
+      </div>
+      {/* Rows */}
+      {!collapsed && apps.map(app => (
+        <CandidateRow
+          key={app.id}
+          app={app}
+          onAction={onAction}
+          onDecide={onDecide}
+          interviewDate={interviewsByCandidate.get(app.candidateId)}
+        />
+      ))}
     </div>
   )
 }
@@ -2027,27 +2087,13 @@ function getInitials(name: string): string {
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function Skeleton() {
   return (
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16 }}>
-      {STAGES.map(s => (
-        <div
-          key={s}
-          style={{
-            minWidth: 270,
-            width: 270,
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            overflow: 'hidden',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }}
-        >
-          <div style={{ height: 3, background: `${STAGE_COLORS[s]}55` }} />
-          <div style={{ height: 40, background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }} />
-          <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{ height: 90, borderRadius: 10, background: 'var(--surface2)' }} />
-            ))}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[0, 1, 2].map(g => (
+        <div key={g} style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', animation: 'pulse 1.5s ease-in-out infinite' }}>
+          <div style={{ height: 50, background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }} />
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', opacity: 1 - i * 0.2 }} />
+          ))}
         </div>
       ))}
     </div>
@@ -2124,7 +2170,6 @@ export default function PipelinePage() {
   const [clients, setClients] = React.useState<Client[]>([])
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [activeApp, setActiveApp] = React.useState<HydratedApplication | null>(null)
   const searchParams = useSearchParams()
   const [filterVacancy, setFilterVacancy] = React.useState<string>(() => {
     const param = searchParams.get('vacancy')
@@ -2256,11 +2301,6 @@ export default function PipelinePage() {
     }
   }, [load])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
-  )
-
   const filtered = React.useMemo(() => {
     return applications.filter(a => {
       const c = a.candidate
@@ -2294,56 +2334,21 @@ export default function PipelinePage() {
     return map
   }, [filtered])
 
-  const byStage = React.useMemo(() => {
-    const map: Record<VacancyStatus, HydratedApplication[]> = {
-      'Nuevas Vacantes': [],
-      'En Proceso': [],
-      'Entrevistas': [],
-      'Oferta Enviada': [],
-      'Contratado': [],
-      'Descartado': [],
-    }
-    filtered.forEach(a => {
-      if (map[a.status]) map[a.status].push(a)
+  const clientGroups = React.useMemo(() => {
+    const groups = new Map<string, { clientId: string; clientName: string; apps: HydratedApplication[] }>()
+    filtered.forEach(app => {
+      const vac = vacancies.find(v => v.id === app.vacancyId)
+      const clientId = vac?.clientId ?? '__no_client'
+      const clientName = vac?.client?.name ?? clients.find(c => c.id === clientId)?.name ?? 'Sin cliente'
+      if (!groups.has(clientId)) groups.set(clientId, { clientId, clientName, apps: [] })
+      groups.get(clientId)!.apps.push(app)
     })
-    return map
-  }, [filtered])
-
-  function handleDragStart(event: DragStartEvent) {
-    const app = applications.find(a => a.id === event.active.id)
-    setActiveApp(app ?? null)
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveApp(null)
-    if (!over) return
-    const draggedApp = applications.find(a => a.id === active.id)
-    if (!draggedApp) return
-
-    let newStage: VacancyStatus | null = null
-    for (const stage of STAGES) {
-      if (over.id === stage || byStage[stage].some(a => a.id === over.id)) {
-        newStage = stage
-        break
-      }
-    }
-    if (!newStage || newStage === draggedApp.status) return
-
-    setApplications(prev =>
-      prev.map(a => a.id === draggedApp.id ? { ...a, status: newStage! } : a)
-    )
-
-    const isVirtual = draggedApp.id.startsWith('virtual-')
-    if (!isVirtual) {
-      await provider.updateApplicationStatus(draggedApp.id, newStage)
-      window.dispatchEvent(new CustomEvent('application:stage-changed'))
-      // If hired and has a real vacancy, offer to close the vacancy
-      if (newStage === 'Contratado' && draggedApp.vacancyId) {
-        setHireDialog({ app: draggedApp })
-      }
-    }
-  }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.clientId === '__no_client') return 1
+      if (b.clientId === '__no_client') return -1
+      return a.clientName.localeCompare(b.clientName)
+    })
+  }, [filtered, vacancies, clients])
 
   // When an interview is scheduled, promote the candidate's status to Entrevistas and reload data
   function handleInterviewScheduled(candidateId: string) {
@@ -2424,7 +2429,11 @@ export default function PipelinePage() {
 
   if (loading) return (
     <div style={{ padding: 24 }}>
-      <div style={{ height: 36, width: 280, borderRadius: 8, background: 'var(--surface2)', marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[180, 120, 100, 90, 90, 80].map((w, i) => (
+          <div key={i} style={{ height: 32, width: w, borderRadius: 99, background: 'var(--surface2)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        ))}
+      </div>
       <Skeleton />
     </div>
   )
@@ -2441,14 +2450,8 @@ export default function PipelinePage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stage pills bar */}
-      <div
-        style={{
-          padding: '10px 24px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: 0,
-        }}
-      >
+      {/* Stage tabs */}
+      <div style={{ padding: '10px 24px', borderBottom: '1px solid var(--border)' }}>
         <StagePillsBar
           stages={STAGES}
           counts={stageCounts}
@@ -2463,10 +2466,7 @@ export default function PipelinePage() {
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <div className="relative">
-          <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
-            style={{ color: 'var(--muted)' }}
-          />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--muted)' }} />
           <input
             type="text"
             placeholder="Buscar candidato..."
@@ -2483,9 +2483,7 @@ export default function PipelinePage() {
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
             <option value="all">Todos los clientes</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
@@ -2500,10 +2498,7 @@ export default function PipelinePage() {
               <option key={v.id} value={v.id}>{v.title}</option>
             ))}
           </select>
-          <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-            style={{ color: 'var(--muted)' }}
-          />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
         <div className="relative">
           <select
@@ -2516,10 +2511,7 @@ export default function PipelinePage() {
             <option value="60-79">Bueno (60-79)</option>
             <option value="<60">Regular (&lt;60)</option>
           </select>
-          <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-            style={{ color: 'var(--muted)' }}
-          />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
         {(filterClient !== 'all' || filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
@@ -2540,23 +2532,46 @@ export default function PipelinePage() {
         </div>
       </div>
 
-      {/* Kanban board */}
-      <div className="flex-1 overflow-auto p-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4" style={{ minHeight: '100%' }}>
-            {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} onDecide={handleDecide} interviewsByCandidate={interviewsByCandidate} />
-            ))}
+      {/* KPI strip */}
+      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
+        {([
+          { label: 'Total', value: filtered.length, color: 'var(--text)' },
+          { label: 'Nuevas', value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
+          { label: 'En Proceso', value: stageCounts['En Proceso'], color: STAGE_COLORS['En Proceso'] },
+          { label: 'Entrevistas', value: stageCounts['Entrevistas'], color: STAGE_COLORS['Entrevistas'] },
+          { label: 'Oferta', value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
+          { label: 'Contratados', value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
+        ] as const).map(kpi => (
+          <div key={kpi.label} style={{ flex: '1 1 80px', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: kpi.color, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1 }}>{kpi.value}</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>{kpi.label}</div>
           </div>
-          <DragOverlay>
-            {activeApp && <CandidateCard app={activeApp} isDragging onAction={() => {}} />}
-          </DragOverlay>
-        </DndContext>
+        ))}
+      </div>
+
+      {/* Client-grouped list */}
+      <div className="flex-1 overflow-auto" style={{ padding: '16px 24px' }}>
+        {clientGroups.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '64px 0', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Search style={{ width: 22, height: 22, color: 'var(--muted)' }} />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Sin candidatos</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Probá ajustando los filtros o creando una nueva vacante</p>
+          </div>
+        ) : (
+          clientGroups.map(group => (
+            <ClientSection
+              key={group.clientId}
+              clientId={group.clientId}
+              clientName={group.clientName}
+              apps={group.apps}
+              onAction={setActiveModal}
+              onDecide={handleDecide}
+              interviewsByCandidate={interviewsByCandidate}
+            />
+          ))
+        )}
       </div>
 
       {/* Modals */}
