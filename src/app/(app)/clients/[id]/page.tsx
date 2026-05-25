@@ -412,14 +412,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   React.useEffect(() => {
     function handleChange() { load() }
     function handleVisibility() { if (document.visibilityState === 'visible') load() }
-    window.addEventListener('application:stage-changed', handleChange)
-    window.addEventListener('interview:scheduled', handleChange)
-    window.addEventListener('candidate:created', handleChange)
+    const events = ['application:stage-changed', 'interview:scheduled', 'candidate:created', 'candidate:updated', 'vacancy:created', 'vacancy:updated']
+    events.forEach(e => window.addEventListener(e, handleChange))
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
-      window.removeEventListener('application:stage-changed', handleChange)
-      window.removeEventListener('interview:scheduled', handleChange)
-      window.removeEventListener('candidate:created', handleChange)
+      events.forEach(e => window.removeEventListener(e, handleChange))
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])

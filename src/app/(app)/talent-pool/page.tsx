@@ -1,7 +1,7 @@
 'use client'
 import * as React from 'react'
 import Link from 'next/link'
-import { Users2, Search, X, ChevronRight, ExternalLink, Star, Filter } from 'lucide-react'
+import { Users2, Search, X, ChevronRight, ExternalLink, Star, Filter, Pencil, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
@@ -79,7 +79,7 @@ function buildTalentEntries(
     const lastVacancy = lastApp ? vacancyMap.get(lastApp.vacancyId) : undefined
     const lastVacancyTitle = lastVacancy?.title ?? '—'
     const lastClient = lastVacancy?.clientId ? clientMap.get(lastVacancy.clientId) : undefined
-    const lastClientName = lastClient?.name ?? '—'
+    const lastClientName = lastClient?.name ?? clientMap.get(candidate.clientId ?? '')?.name ?? '—'
 
     // Classification
     const hasActive = apps.some(
@@ -175,27 +175,75 @@ function StageBadge({ stage }: { stage: VacancyStatus }) {
 function ProfileDrawer({
   entry,
   vacancies,
+  clients,
   onClose,
   onIncorporar,
+  onUpdate,
 }: {
   entry: TalentEntry | null
   vacancies: Vacancy[]
+  clients: Client[]
   onClose: () => void
   onIncorporar: (entry: TalentEntry) => void
+  onUpdate?: (updated: Candidate) => void
 }) {
-  // Trap body scroll when open
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [editMode, setEditMode] = React.useState(false)
+  const [editName, setEditName] = React.useState('')
+  const [editPhone, setEditPhone] = React.useState('')
+  const [editExperience, setEditExperience] = React.useState('')
+  const [editEducation, setEditEducation] = React.useState('')
+  const [editSkills, setEditSkills] = React.useState('')
+  const [editClientId, setEditClientId] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+  const [saveError, setSaveError] = React.useState('')
+
   React.useEffect(() => {
     if (entry) {
       document.body.style.overflow = 'hidden'
+      const c = entry.candidate
+      setEditName(c.fullName)
+      setEditPhone(c.phone ?? '')
+      setEditExperience(c.experienceYears != null ? String(c.experienceYears) : '')
+      setEditEducation(c.education ?? '')
+      setEditSkills(c.skills.join(', '))
+      setEditClientId(c.clientId ?? '')
+      setEditMode(false)
+      setSaveError('')
     } else {
       document.body.style.overflow = ''
     }
     return () => { document.body.style.overflow = '' }
   }, [entry])
 
+  async function handleSave() {
+    if (!entry) return
+    setSaving(true)
+    setSaveError('')
+    const result = await provider.updateCandidate(entry.candidate.id, {
+      fullName: editName,
+      phone: editPhone || undefined,
+      experienceYears: editExperience ? Number(editExperience) : undefined,
+      education: editEducation || undefined,
+      skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
+      clientId: editClientId || undefined,
+    })
+    setSaving(false)
+    if (result.error) {
+      setSaveError(result.error)
+    } else if (result.data) {
+      onUpdate?.(result.data)
+      window.dispatchEvent(new CustomEvent('candidate:updated'))
+      setEditMode(false)
+    }
+  }
+
   if (!entry) return null
 
   const { candidate, applications, bestStage, lastVacancyTitle, lastClientName, lastUpdated } = entry
+
+  const inputCls = 'w-full px-2.5 py-1.5 text-sm rounded-md border text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent)]'
+  const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }
 
   return (
     <>
@@ -208,26 +256,28 @@ function ProfileDrawer({
       {/* Drawer */}
       <div
         className="fixed right-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden shadow-2xl"
-        style={{
-          width: '400px',
-          maxWidth: '100vw',
-          background: 'var(--surface)',
-          borderLeft: '1px solid var(--border)',
-        }}
+        style={{ width: '400px', maxWidth: '100vw', background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}
       >
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 shrink-0"
-          style={{ borderBottom: '1px solid var(--border)' }}
-        >
+        <div className="flex items-center justify-between px-5 py-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
           <span className="font-semibold text-base" style={{ color: 'var(--text)' }}>Perfil del candidato</span>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md transition-colors"
-            style={{ color: 'var(--muted)' }}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setEditMode(e => !e); setSaveError('') }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{
+                background: editMode ? 'var(--surface2)' : 'rgba(var(--accent-rgb,108,99,255),0.1)',
+                color: editMode ? 'var(--muted)' : 'var(--accent-2)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <Pencil className="h-3 w-3" />
+              {editMode ? 'Cancelar' : 'Editar'}
+            </button>
+            <button onClick={onClose} className="p-1 rounded-md" style={{ color: 'var(--muted)' }}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable body */}
@@ -238,122 +288,170 @@ function ProfileDrawer({
               className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
             >
-              {getInitials(candidate.fullName)}
+              {getInitials(editMode ? editName : candidate.fullName)}
             </div>
-            <div className="min-w-0">
-              <p className="font-bold text-base truncate" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
-              <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>{candidate.email}</p>
-              {candidate.phone && <p className="text-xs" style={{ color: 'var(--muted)' }}>{candidate.phone}</p>}
+            <div className="min-w-0 flex-1">
+              {editMode ? (
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className={inputCls}
+                  style={inputStyle}
+                  placeholder="Nombre completo"
+                />
+              ) : (
+                <>
+                  <p className="font-bold text-base truncate" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
+                  <p className="text-sm truncate" style={{ color: 'var(--muted)' }}>{candidate.email}</p>
+                  {candidate.phone && <p className="text-xs" style={{ color: 'var(--muted)' }}>{candidate.phone}</p>}
+                </>
+              )}
             </div>
           </div>
 
           {/* Badges row */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <AtsBadge score={candidate.atsScore} />
-            <ClassBadge cls={entry.classification} />
-            <StageBadge stage={bestStage} />
-          </div>
-
-          {/* Info grid */}
-          <div
-            className="rounded-xl p-4 space-y-3 text-sm"
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
-          >
-            {candidate.education && (
-              <div className="flex justify-between gap-2">
-                <span style={{ color: 'var(--muted)' }}>Educación</span>
-                <span className="text-right font-medium" style={{ color: 'var(--text)' }}>{candidate.education}</span>
-              </div>
-            )}
-            {candidate.experienceYears !== undefined && (
-              <div className="flex justify-between gap-2">
-                <span style={{ color: 'var(--muted)' }}>Experiencia</span>
-                <span className="font-medium" style={{ color: 'var(--text)' }}>{candidate.experienceYears} año{candidate.experienceYears !== 1 ? 's' : ''}</span>
-              </div>
-            )}
-            <div className="flex justify-between gap-2">
-              <span style={{ color: 'var(--muted)' }}>Fuente</span>
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{candidate.source}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span style={{ color: 'var(--muted)' }}>Última actualización</span>
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{formatRelativeDate(lastUpdated)}</span>
-            </div>
-          </div>
-
-          {/* Skills */}
-          {candidate.skills.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted)' }}>Skills</p>
-              <div className="flex flex-wrap gap-1.5">
-                {candidate.skills.map(s => (
-                  <span
-                    key={s}
-                    className="text-xs px-2 py-0.5 rounded-full"
-                    style={{ background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)' }}
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
+          {!editMode && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <AtsBadge score={candidate.atsScore} />
+              <ClassBadge cls={entry.classification} />
+              <StageBadge stage={bestStage} />
             </div>
           )}
 
-          {/* CV link */}
-          {candidate.cvUrl && (
-            <a
-              href={candidate.cvUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-opacity hover:opacity-80"
-              style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'rgba(var(--accent-rgb),0.06)' }}
-            >
-              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              {candidate.cvFileName ?? 'Ver CV adjunto'}
-            </a>
-          )}
-
-          {/* Process history */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Historial de procesos</p>
-            {applications.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted2)' }}>Sin postulaciones registradas.</p>
-            ) : (
-              <div className="space-y-2">
-                {applications.map(app => {
-                  const stageColor = STAGE_COLORS[app.status]
-                  return (
-                    <div
-                      key={app.id}
-                      className="flex items-center gap-3 rounded-lg p-3"
-                      style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
-                    >
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: stageColor }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                          {lastVacancyTitle !== '—' && app.vacancyId ? lastVacancyTitle : 'Vacante'}
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                          <span style={{ color: stageColor }}>{app.status}</span>
-                          {' · '}{formatRelativeDate(app.updatedAt)}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
+          {/* Edit form */}
+          {editMode ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--muted)' }}>Teléfono</label>
+                <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className={inputCls} style={inputStyle} placeholder="+54 11 ..." />
               </div>
-            )}
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--muted)' }}>Experiencia (años)</label>
+                  <input type="number" min={0} value={editExperience} onChange={e => setEditExperience(e.target.value)} className={inputCls} style={inputStyle} placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--muted)' }}>Cliente</label>
+                  <select value={editClientId} onChange={e => setEditClientId(e.target.value)} className={inputCls} style={{ ...inputStyle, appearance: 'none' as const }}>
+                    <option value="">Sin cliente</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--muted)' }}>Educación</label>
+                <input value={editEducation} onChange={e => setEditEducation(e.target.value)} className={inputCls} style={inputStyle} placeholder="Título o estudios" />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--muted)' }}>Skills (separadas por coma)</label>
+                <textarea value={editSkills} onChange={e => setEditSkills(e.target.value)} rows={2} className={inputCls} style={{ ...inputStyle, resize: 'none' as const, fontFamily: 'inherit' }} placeholder="React, Python, ..." />
+              </div>
+              {saveError && (
+                <p className="text-xs px-3 py-2 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>{saveError}</p>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-opacity"
+                style={{ background: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Info grid */}
+              <div className="rounded-xl p-4 space-y-3 text-sm" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                {candidate.education && (
+                  <div className="flex justify-between gap-2">
+                    <span style={{ color: 'var(--muted)' }}>Educación</span>
+                    <span className="text-right font-medium" style={{ color: 'var(--text)' }}>{candidate.education}</span>
+                  </div>
+                )}
+                {candidate.experienceYears !== undefined && (
+                  <div className="flex justify-between gap-2">
+                    <span style={{ color: 'var(--muted)' }}>Experiencia</span>
+                    <span className="font-medium" style={{ color: 'var(--text)' }}>{candidate.experienceYears} año{candidate.experienceYears !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <span style={{ color: 'var(--muted)' }}>Fuente</span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{candidate.source}</span>
+                </div>
+                {lastClientName !== '—' && (
+                  <div className="flex justify-between gap-2">
+                    <span style={{ color: 'var(--muted)' }}>Cliente</span>
+                    <span className="font-medium" style={{ color: 'var(--text)' }}>{lastClientName}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <span style={{ color: 'var(--muted)' }}>Última actualización</span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{formatRelativeDate(lastUpdated)}</span>
+                </div>
+              </div>
+
+              {/* Skills */}
+              {candidate.skills.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted)' }}>Skills</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {candidate.skills.map(s => (
+                      <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CV link */}
+              {candidate.cvUrl && (
+                <a
+                  href={candidate.cvUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-opacity hover:opacity-80"
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'rgba(var(--accent-rgb),0.06)' }}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  {candidate.cvFileName ?? 'Ver CV adjunto'}
+                </a>
+              )}
+
+              {/* Process history */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Historial de procesos</p>
+                {applications.length === 0 ? (
+                  <p className="text-sm" style={{ color: 'var(--muted2)' }}>Sin postulaciones registradas.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {applications.map(app => {
+                      const stageColor = STAGE_COLORS[app.status]
+                      return (
+                        <div key={app.id} className="flex items-center gap-3 rounded-lg p-3" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: stageColor }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                              {lastVacancyTitle !== '—' && app.vacancyId ? lastVacancyTitle : 'Vacante'}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                              <span style={{ color: stageColor }}>{app.status}</span>
+                              {' · '}{formatRelativeDate(app.updatedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer actions */}
-        <div
-          className="shrink-0 px-5 py-4 flex flex-col gap-2"
-          style={{ borderTop: '1px solid var(--border)' }}
-        >
+        <div className="shrink-0 px-5 py-4 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
           <Button className="w-full gap-2" onClick={() => onIncorporar(entry)}>
             <ChevronRight className="h-4 w-4" />
             Incorporar a vacante
@@ -665,12 +763,17 @@ export default function TalentPoolPage() {
   React.useEffect(() => { load() }, [load])
 
   React.useEffect(() => {
-    window.addEventListener('application:stage-changed', load)
-    window.addEventListener('candidate:created', load)
-    return () => {
-      window.removeEventListener('application:stage-changed', load)
-      window.removeEventListener('candidate:created', load)
+    const events = ['application:stage-changed', 'candidate:created', 'candidate:updated', 'interview:scheduled', 'vacancy:created', 'vacancy:updated']
+    events.forEach(e => window.addEventListener(e, load))
+    return () => events.forEach(e => window.removeEventListener(e, load))
+  }, [load])
+
+  React.useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load()
     }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [load])
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -724,6 +827,10 @@ export default function TalentPoolPage() {
   const handleIncorporar = React.useCallback((entry: TalentEntry) => {
     setProfileEntry(null)
     setIncorporarEntry(entry)
+  }, [])
+
+  const handleCandidateUpdate = React.useCallback((updated: import('@/types').Candidate) => {
+    setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c))
   }, [])
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -891,8 +998,10 @@ export default function TalentPoolPage() {
       <ProfileDrawer
         entry={profileEntry}
         vacancies={vacancies}
+        clients={clients}
         onClose={() => setProfileEntry(null)}
         onIncorporar={handleIncorporar}
+        onUpdate={handleCandidateUpdate}
       />
 
       {/* ── Incorporar Modal ── */}

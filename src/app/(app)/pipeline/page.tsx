@@ -2289,16 +2289,9 @@ export default function PipelinePage() {
 
   React.useEffect(() => {
     function handleChange() { load() }
-    window.addEventListener('vacancy:created', handleChange)
-    window.addEventListener('vacancy:updated', handleChange)
-    window.addEventListener('application:stage-changed', handleChange)
-    window.addEventListener('client:deleted', handleChange)
-    return () => {
-      window.removeEventListener('vacancy:created', handleChange)
-      window.removeEventListener('vacancy:updated', handleChange)
-      window.removeEventListener('application:stage-changed', handleChange)
-      window.removeEventListener('client:deleted', handleChange)
-    }
+    const events = ['vacancy:created', 'vacancy:updated', 'application:stage-changed', 'client:deleted', 'candidate:updated', 'interview:scheduled', 'candidate:created']
+    events.forEach(e => window.addEventListener(e, handleChange))
+    return () => events.forEach(e => window.removeEventListener(e, handleChange))
   }, [load])
 
   const filtered = React.useMemo(() => {
