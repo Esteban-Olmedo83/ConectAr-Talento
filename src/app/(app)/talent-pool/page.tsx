@@ -1,13 +1,13 @@
 'use client'
 import * as React from 'react'
 import Link from 'next/link'
-import { Users2, Search, X, ChevronRight, ExternalLink, Star, Filter, Pencil, CheckCircle2, Loader2 } from 'lucide-react'
+import { Users2, Search, X, ChevronRight, ExternalLink, Star, Filter, Pencil, CheckCircle2, Loader2, Calendar, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getInitials, formatRelativeDate } from '@/lib/utils'
-import type { Candidate, Application, Vacancy, Client, VacancyStatus } from '@/types'
+import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,6 +123,215 @@ function buildTalentEntries(
   })
 }
 
+// ─── Process History Modal ────────────────────────────────────────────────────
+
+function ProcessHistoryModal({
+  candidate,
+  provider,
+  vacancies,
+  onClose,
+}: {
+  candidate: Candidate
+  provider: SupabaseProvider
+  vacancies: Vacancy[]
+  onClose: () => void
+}) {
+  const [apps, setApps] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function fetchData() {
+      const [appsRes, intsRes] = await Promise.all([
+        provider.getApplicationsByCandidateId(candidate.id),
+        provider.getInterviews(candidate.id),
+      ])
+      if (!cancelled) {
+        setApps(appsRes.data ?? [])
+        setInterviews(intsRes.data ?? [])
+        setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
+  }, [candidate.id, provider])
+
+  function handleDownloadPDF() {
+    const interviewsHtml = interviews.length === 0
+      ? '<p style="color:#9ca3af;font-size:13px">Sin entrevistas registradas.</p>'
+      : `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f3f4f6;">
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Tipo</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Plataforma</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Fecha</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Entrevistador</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Notas</th>
+          </tr></thead>
+          <tbody>${interviews.map(i => `<tr>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.type}</td>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.meetingPlatform}</td>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.interviewerName}</td>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.notes ?? '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>`
+
+    const appsHtml = apps.length === 0
+      ? '<p style="color:#9ca3af;font-size:13px">Sin postulaciones registradas.</p>'
+      : `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f3f4f6;">
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Vacante</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Etapa</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Ingreso</th>
+            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Última actualización</th>
+          </tr></thead>
+          <tbody>${apps.map(a => {
+            const vac = vacancies.find(v => v.id === a.vacancyId)
+            return `<tr>
+              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${vac?.title ?? '—'}${vac?.client?.name ? ` · ${vac.client.name}` : ''}</td>
+              <td style="padding:6px 10px;border:1px solid #e5e7eb;color:${STAGE_COLORS[a.status] ?? '#6b7280'}">${a.status}</td>
+              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(a.appliedAt).toLocaleDateString('es-AR')}</td>
+              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(a.updatedAt).toLocaleDateString('es-AR')}</td>
+            </tr>`
+          }).join('')}</tbody>
+        </table>`
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/>
+      <title>Historial de proceso — ${candidate.fullName}</title>
+      <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; } h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; } h2 { font-size: 15px; font-weight: 700; margin: 24px 0 10px; color: #374151; } .meta { font-size: 13px; color: #6b7280; margin-bottom: 6px; } @media print { body { padding: 20px; } }</style>
+      </head><body>
+      <h1>${candidate.fullName}</h1>
+      <p class="meta">${candidate.email}${candidate.phone ? ' · ' + candidate.phone : ''}</p>
+      <h2>Historial de postulaciones</h2>${appsHtml}
+      <h2>Entrevistas</h2>${interviewsHtml}
+      <script>window.onload = function(){ window.print(); }</script>
+      </body></html>`
+    const win = window.open('', '_blank')
+    if (win) { win.document.write(html); win.document.close() }
+  }
+
+  const sortedApps = [...apps].sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 'min(600px, 95vw)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle2 style={{ width: 15, height: 15, color: '#34d399' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Proceso completo</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+              <Loader2 style={{ width: 24, height: 24, color: 'var(--muted)' }} className="animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Historial de postulaciones</p>
+                {sortedApps.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sin postulaciones registradas.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {sortedApps.map(app => {
+                      const vac = vacancies.find(v => v.id === app.vacancyId)
+                      const stageColor = STAGE_COLORS[app.status] ?? '#6b7280'
+                      const appInterviews = interviews.filter(i => i.candidateId === candidate.id)
+                      return (
+                        <div
+                          key={app.id}
+                          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {vac?.title ?? '—'}
+                                {vac?.client?.name ? <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400, marginLeft: 6 }}>· {vac.client.name}</span> : null}
+                              </p>
+                              <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0, marginTop: 2 }}>
+                                Ingreso: {new Date(app.appliedAt).toLocaleDateString('es-AR')} · Actualizado: {new Date(app.updatedAt).toLocaleDateString('es-AR')}
+                              </p>
+                            </div>
+                            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: `${stageColor}22`, color: stageColor, border: `1px solid ${stageColor}44` }}>
+                              {app.status}
+                            </span>
+                          </div>
+                          {appInterviews.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                              {appInterviews.map(i => (
+                                <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
+                                  <Calendar style={{ width: 11, height: 11, color: '#a78bfa', flexShrink: 0 }} />
+                                  <span style={{ color: '#a78bfa', fontWeight: 500 }}>{i.type}</span>
+                                  <span>·</span>
+                                  <span>{i.meetingPlatform}</span>
+                                  <span>·</span>
+                                  <span>{new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                  {i.interviewerName && <><span>·</span><span>{i.interviewerName}</span></>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Cerrar
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}
+          >
+            <FileText style={{ width: 13, height: 13 }} />
+            Descargar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function AtsBadge({ score }: { score?: number }) {
@@ -179,6 +388,7 @@ function ProfileDrawer({
   onClose,
   onIncorporar,
   onUpdate,
+  onVerProceso,
 }: {
   entry: TalentEntry | null
   vacancies: Vacancy[]
@@ -186,6 +396,7 @@ function ProfileDrawer({
   onClose: () => void
   onIncorporar: (entry: TalentEntry) => void
   onUpdate?: (updated: Candidate) => void
+  onVerProceso?: (entry: TalentEntry) => void
 }) {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [editMode, setEditMode] = React.useState(false)
@@ -456,6 +667,17 @@ function ProfileDrawer({
             <ChevronRight className="h-4 w-4" />
             Incorporar a vacante
           </Button>
+          {onVerProceso && (
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.08)' }}
+              onClick={() => { onClose(); onVerProceso(entry) }}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Ver proceso completo
+            </Button>
+          )}
         </div>
       </div>
     </>
@@ -615,10 +837,12 @@ function CandidateCard({
   entry,
   onVerPerfil,
   onIncorporar,
+  onVerProceso,
 }: {
   entry: TalentEntry
   onVerPerfil: (e: TalentEntry) => void
   onIncorporar: (e: TalentEntry) => void
+  onVerProceso: (e: TalentEntry) => void
 }) {
   const { candidate, bestStage, lastVacancyTitle, lastClientName, lastUpdated, classification } = entry
   const visibleSkills = candidate.skills.slice(0, 4)
@@ -689,13 +913,38 @@ function CandidateCard({
         >
           Ver perfil
         </Button>
-        <Button
-          size="sm"
-          className="flex-1 text-xs gap-1"
-          onClick={() => onIncorporar(entry)}
-        >
-          Incorporar <ChevronRight className="h-3 w-3" />
-        </Button>
+        {entry.classification === 'activo' && entry.bestStage === 'Contratado' ? (
+          <Button
+            size="sm"
+            className="flex-1 text-xs gap-1"
+            style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+            variant="outline"
+            onClick={() => onVerProceso(entry)}
+          >
+            <CheckCircle2 className="h-3 w-3" /> Ver proceso
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              className="flex-1 text-xs gap-1"
+              onClick={() => onIncorporar(entry)}
+            >
+              Incorporar <ChevronRight className="h-3 w-3" />
+            </Button>
+            {(entry.classification === 'reserva' || entry.classification === 'descartado') && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs gap-1"
+                style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.08)' }}
+                onClick={() => onVerProceso(entry)}
+              >
+                <CheckCircle2 className="h-3 w-3" />
+              </Button>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
@@ -742,6 +991,7 @@ export default function TalentPoolPage() {
   // UI state
   const [profileEntry, setProfileEntry] = React.useState<TalentEntry | null>(null)
   const [incorporarEntry, setIncorporarEntry] = React.useState<TalentEntry | null>(null)
+  const [processHistoryEntry, setProcessHistoryEntry] = React.useState<TalentEntry | null>(null)
 
   // ── Load ───────────────────────────────────────────────────────────────────
 
@@ -989,6 +1239,7 @@ export default function TalentPoolPage() {
               entry={entry}
               onVerPerfil={setProfileEntry}
               onIncorporar={handleIncorporar}
+              onVerProceso={setProcessHistoryEntry}
             />
           ))}
         </div>
@@ -1002,6 +1253,7 @@ export default function TalentPoolPage() {
         onClose={() => setProfileEntry(null)}
         onIncorporar={handleIncorporar}
         onUpdate={handleCandidateUpdate}
+        onVerProceso={setProcessHistoryEntry}
       />
 
       {/* ── Incorporar Modal ── */}
@@ -1011,6 +1263,16 @@ export default function TalentPoolPage() {
         provider={provider}
         onClose={() => setIncorporarEntry(null)}
       />
+
+      {/* ── Process History Modal ── */}
+      {processHistoryEntry && (
+        <ProcessHistoryModal
+          candidate={processHistoryEntry.candidate}
+          provider={provider}
+          vacancies={vacancies}
+          onClose={() => setProcessHistoryEntry(null)}
+        />
+      )}
     </div>
   )
 }

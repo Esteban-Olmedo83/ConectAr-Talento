@@ -566,15 +566,17 @@ function EmailModal({
           >
             Cancelar
           </button>
-          <a
-            href={gmailHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+          <button
+            onClick={() => {
+              window.open(gmailHref, '_blank', 'noopener,noreferrer')
+              onClose()
+              onStagePrompt?.()
+            }}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Mail style={{ width: 13, height: 13 }} />
             Abrir en Gmail
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -589,6 +591,7 @@ function WhatsAppModal({
   initialVacancy,
   interview,
   onClose,
+  onStagePrompt,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
@@ -596,6 +599,7 @@ function WhatsAppModal({
   initialVacancy?: Vacancy
   interview?: Interview
   onClose: () => void
+  onStagePrompt?: () => void
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
@@ -671,6 +675,7 @@ function WhatsAppModal({
     a.click()
     document.body.removeChild(a)
     onClose()
+    onStagePrompt?.()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -1821,78 +1826,105 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
             transition: 'opacity 0.15s',
           }}
         >
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Enviar email"
-          >
-            <Mail style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Agendar entrevista"
-          >
-            <Calendar style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="WhatsApp"
-          >
-            <MessageCircle style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'notes', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Notas"
-          >
-            <FileText style={{ width: 11, height: 11 }} />
-          </button>
+          {app.status === 'Contratado' ? (
+            <button
+              onClick={e => { e.stopPropagation(); onAction({ type: 'history', candidate: c }) }}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: 'rgba(52,211,153,0.15)',
+                border: '1px solid rgba(52,211,153,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                cursor: 'pointer',
+                color: '#34d399',
+                fontSize: 10,
+                fontWeight: 600,
+                whiteSpace: 'nowrap' as const,
+              }}
+              title="Ver proceso completo"
+            >
+              <CheckCircle2 style={{ width: 11, height: 11 }} />
+              Ver proceso
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Enviar email"
+              >
+                <Mail style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Agendar entrevista"
+              >
+                <Calendar style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="WhatsApp"
+              >
+                <MessageCircle style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'notes', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Notas"
+              >
+                <FileText style={{ width: 11, height: 11 }} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -2169,30 +2201,41 @@ function ProcessDetailModal({
 
         {/* Footer actions */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <Mail size={13} /> Email
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <MessageCircle size={13} /> WhatsApp
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <Calendar size={13} /> Entrevista
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <FileText size={13} /> Notas
-          </button>
+          {app.status === 'Contratado' ? (
+            <button
+              onClick={() => { onClose(); onAction({ type: 'history', candidate: c }) }}
+              style={{ flex: 1, minWidth: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, color: '#34d399', cursor: 'pointer', fontWeight: 600 }}
+            >
+              <CheckCircle2 size={14} /> Ver proceso completo
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Mail size={13} /> Email
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <MessageCircle size={13} /> WhatsApp
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Calendar size={13} /> Entrevista
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <FileText size={13} /> Notas
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -2290,9 +2333,22 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
 
       {/* Communication buttons — visible on hover */}
       <div style={{ flexShrink: 0, display: 'flex', gap: 3, opacity: hovered ? 1 : 0, transition: 'opacity 0.15s' }} onClick={e => e.stopPropagation()}>
-        <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
-        <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
-        <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
+        {app.status === 'Contratado' ? (
+          <button
+            onClick={e => { e.stopPropagation(); onAction({ type: 'history', candidate: c }) }}
+            style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#34d399', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' as const }}
+            title="Ver proceso completo"
+          >
+            <CheckCircle2 style={{ width: 12, height: 12 }} />
+            Ver proceso
+          </button>
+        ) : (
+          <>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
+          </>
+        )}
       </div>
 
       {/* Decision buttons — always visible for actionable stages */}
@@ -2504,6 +2560,7 @@ export default function PipelinePage() {
   const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
   const [allInterviews, setAllInterviews] = React.useState<Interview[]>([])
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
+  const [stagePrompt, setStagePrompt] = React.useState<{ candidateName: string; currentStage: VacancyStatus; appId: string } | null>(null)
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -2892,6 +2949,7 @@ export default function PipelinePage() {
         const interview = allInterviews
           .filter(i => i.candidateId === cid && i.status === 'Programada')
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        const activeApp = applications.find(a => a.candidateId === cid && a.status !== 'Contratado' && a.status !== 'Descartado')
         return (
           <EmailModal
             candidate={activeModal.candidate}
@@ -2900,6 +2958,10 @@ export default function PipelinePage() {
             initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
+            onStagePrompt={activeApp ? () => {
+              setActiveModal(null)
+              setStagePrompt({ candidateName: activeModal.candidate.fullName, currentStage: activeApp.status, appId: activeApp.id })
+            } : undefined}
           />
         )
       })()}
@@ -2909,6 +2971,7 @@ export default function PipelinePage() {
         const interview = allInterviews
           .filter(i => i.candidateId === cid && i.status === 'Programada')
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        const activeApp = applications.find(a => a.candidateId === cid && a.status !== 'Contratado' && a.status !== 'Descartado')
         return (
           <WhatsAppModal
             candidate={activeModal.candidate}
@@ -2917,6 +2980,10 @@ export default function PipelinePage() {
             initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
+            onStagePrompt={activeApp ? () => {
+              setActiveModal(null)
+              setStagePrompt({ candidateName: activeModal.candidate.fullName, currentStage: activeApp.status, appId: activeApp.id })
+            } : undefined}
           />
         )
       })()}
@@ -2955,12 +3022,29 @@ export default function PipelinePage() {
           />
         )
       })()}
+      {activeModal?.type === 'history' && (
+        <ProcessHistoryModal
+          candidate={activeModal.candidate}
+          provider={provider}
+          vacancies={vacancies}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
       {hireDialog && (
         <HireDialog
           app={hireDialog.app}
           provider={provider}
           onClose={() => setHireDialog(null)}
           onVacancyClosed={handleVacancyClosed}
+        />
+      )}
+      {stagePrompt && (
+        <StagePromptDialog
+          candidateName={stagePrompt.candidateName}
+          currentStage={stagePrompt.currentStage}
+          appId={stagePrompt.appId}
+          onDecide={handleDecide}
+          onClose={() => setStagePrompt(null)}
         />
       )}
     </div>
