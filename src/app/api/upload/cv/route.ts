@@ -207,7 +207,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       try {
         const jpegBuffer = extractJpegFromPdf(buffer)
         if (jpegBuffer) {
-          const avatarPath = `avatars/${tenantId}/${Date.now()}-avatar.jpg`
+          const avatarPath = `${tenantId}/avatars/${Date.now()}-avatar.jpg`
           const { error: avatarErr } = await supabase.storage
             .from('cvs')
             .upload(avatarPath, jpegBuffer, { contentType: 'image/jpeg', upsert: false })
