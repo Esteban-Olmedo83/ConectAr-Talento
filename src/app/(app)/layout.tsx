@@ -8,30 +8,33 @@ import { ToastProvider } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useSessionTimeout } from '@/lib/hooks/useSessionTimeout'
 import { UserContext } from '@/lib/context/user-context'
+import { LanguageProvider, useLanguage } from '@/lib/context/language-context'
 import type { User } from '@/types'
 
-const TITLE_MAP: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/pipeline': 'Procesos de reclutamiento',
-  '/vacancies': 'Gestión de Vacantes',
-  '/candidates': 'Candidatos',
-  '/interviews': 'Entrevistas',
-  '/templates': 'Plantillas',
-  '/integrations': 'Integraciones',
-  '/reports': 'Informes',
-  '/settings': 'Configuración',
-  '/job-profiles': 'Perfiles de Puestos',
-  '/admin': 'Administración',
-  '/talent-pool': 'Banco de Talentos',
-}
-
-export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
+function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
+  const { t } = useLanguage()
 
   useSessionTimeout()
+
+  const TITLE_MAP: Record<string, string> = {
+    '/dashboard': t.pageTitles.dashboard,
+    '/pipeline': t.pageTitles.pipeline,
+    '/vacancies': t.pageTitles.vacancies,
+    '/candidates': t.pageTitles.candidates,
+    '/interviews': t.pageTitles.interviews,
+    '/templates': t.pageTitles.templates,
+    '/integrations': t.pageTitles.integrations,
+    '/reports': t.pageTitles.reports,
+    '/settings': t.pageTitles.settings,
+    '/job-profiles': t.pageTitles.jobProfiles,
+    '/admin': t.pageTitles.admin,
+    '/talent-pool': t.pageTitles.talentPool,
+    '/clients': t.pageTitles.clients,
+  }
 
   const pageTitle = TITLE_MAP[pathname] ?? ''
 
@@ -139,5 +142,13 @@ export default function AppRouteLayout({ children }: { children: React.ReactNode
         </AppLayout>
       </UserContext.Provider>
     </ToastProvider>
+  )
+}
+
+export default function AppRouteLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <LanguageProvider>
+      <AppRouteLayoutInner>{children}</AppRouteLayoutInner>
+    </LanguageProvider>
   )
 }
