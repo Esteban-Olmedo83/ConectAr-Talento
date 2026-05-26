@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
-import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
@@ -150,17 +149,28 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
     if (!file || !candidate) return
     setUploadingCv(true)
     try {
-      const supabase = createClient()
-      const path = `cvs/${candidate.id}/${Date.now()}_${file.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('cvs')
-        .upload(path, file, { upsert: true })
-      if (uploadError) { console.error(uploadError); return }
-      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
-      const result = await provider.updateCandidate(candidate.id, {
-        cvUrl: publicUrl,
-        cvFileName: file.name,
-      })
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('vacancyRequirements', JSON.stringify([]))
+      const aiHeaders: Record<string, string> = {}
+      try {
+        const raw = localStorage.getItem('ct_ai_config')
+        if (raw) {
+          const cfg = JSON.parse(raw) as { apiKey?: string }
+          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
+        }
+      } catch { /* noop */ }
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData, headers: aiHeaders })
+      const data = await res.json() as { ok?: boolean; cvUrl?: string; cvFileName?: string; avatarUrl?: string; error?: string }
+      if (!res.ok || !data.ok) { console.error(data.error); return }
+      const patch: { cvUrl?: string; cvFileName?: string; avatarUrl?: string } = {
+        cvUrl: data.cvUrl,
+        cvFileName: data.cvFileName,
+      }
+      if (data.avatarUrl && !candidate.avatarUrl) {
+        patch.avatarUrl = data.avatarUrl
+      }
+      const result = await provider.updateCandidate(candidate.id, patch)
       if (result.data) {
         setCandidate(result.data)
         onUpdate?.(result.data)
@@ -174,18 +184,18 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
     if (!file || !candidate) return
     setUploadingAvatar(true)
     try {
-      const supabase = createClient()
-      const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `avatars/${candidate.id}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('cvs')
-        .upload(path, file, { upsert: true, contentType: file.type })
-      if (uploadError) { console.error(uploadError); return }
-      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
-      const result = await provider.updateCandidate(candidate.id, { avatarUrl: publicUrl })
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'avatar')
+      formData.append('id', candidate.id)
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (!data.ok || !data.url) { console.error(data.error); return }
+      const result = await provider.updateCandidate(candidate.id, { avatarUrl: data.url })
       if (result.data) {
         setCandidate(result.data)
         onUpdate?.(result.data)
+        window.dispatchEvent(new CustomEvent('candidate:updated'))
       }
     } catch (err) { console.error(err) }
     finally { setUploadingAvatar(false); e.target.value = '' }
@@ -921,6 +931,9 @@ function AddCandidateDialog({
 }) {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const avatarInputRef = React.useRef<HTMLInputElement>(null)
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+  const [avatarError, setAvatarError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState({
     fullName: prefill?.fullName ?? '',
     email: prefill?.email ?? '',
@@ -956,6 +969,31 @@ function AddCandidateDialog({
       }))
     }
   }, [prefill])
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    setAvatarError(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'avatar')
+      formData.append('id', `new-${Date.now()}`)
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (data.ok && data.url) {
+        setForm(f => ({ ...f, avatarUrl: data.url! }))
+      } else {
+        setAvatarError(data.error ?? 'Error al subir la foto')
+      }
+    } catch {
+      setAvatarError('Error de red al subir la foto.')
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -1000,6 +1038,49 @@ function AddCandidateDialog({
   return (
     <DraggableModal open={open} onClose={onClose} title="Agregar candidato" maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+          {/* Avatar upload */}
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0 group">
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarUpload} />
+              {form.avatarUrl ? (
+                <img src={form.avatarUrl} alt="foto" className="w-14 h-14 rounded-full object-cover" />
+              ) : (
+                <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2, #a78bfa))' }}>
+                  {form.fullName ? getInitials(form.fullName) : '?'}
+                </div>
+              )}
+              <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                title="Subir foto">
+                {uploadingAvatar
+                  ? <Loader2 className="h-4 w-4 text-white animate-spin" />
+                  : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                }
+              </button>
+            </div>
+            <div className="flex-1">
+              {form.avatarUrl ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium" style={{ color: '#34d399' }}>✓ Foto cargada</span>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, avatarUrl: '' }))}
+                    className="text-xs" style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => avatarInputRef.current?.click()}
+                  className="text-xs font-medium" style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  + Agregar foto
+                </button>
+              )}
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                {form.avatarUrl && prefill?.avatarUrl === form.avatarUrl ? '✨ Extraída del CV por IA' : form.avatarUrl ? 'Foto adjunta al perfil' : 'Opcional · JPG, PNG o WebP'}
+              </p>
+              {avatarError && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{avatarError}</p>}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Nombre completo *</label>

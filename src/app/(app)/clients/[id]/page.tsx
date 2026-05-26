@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Building2, Briefcase, Mail, Phone, Globe,
   Pencil, Trash2, ExternalLink, Users, ChevronRight,
-  AlertCircle, Clock, TrendingUp, History,
+  AlertCircle, Clock, TrendingUp, History, Camera, Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
@@ -49,6 +49,10 @@ function EditClientDialog({ client, onClose, onSave }: {
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
+  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(client.logoUrl)
+  const [uploadingLogo, setUploadingLogo] = React.useState(false)
+  const [logoError, setLogoError] = React.useState<string | null>(null)
+  const logoInputRef = React.useRef<HTMLInputElement>(null)
   const [form, setForm] = React.useState({
     name: client.name,
     industry: client.industry ?? '',
@@ -61,6 +65,31 @@ function EditClientDialog({ client, onClose, onSave }: {
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    setLogoError(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+      formData.append('id', client.id)
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (data.ok && data.url) {
+        setLogoUrl(data.url)
+      } else {
+        setLogoError(data.error ?? 'Error al subir el logo')
+      }
+    } catch {
+      setLogoError('Error de red al subir el logo.')
+    } finally {
+      setUploadingLogo(false)
+      e.target.value = ''
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,6 +105,7 @@ function EditClientDialog({ client, onClose, onSave }: {
       contactPhone: form.contactPhone || undefined,
       website: form.website || undefined,
       notes: form.notes || undefined,
+      logoUrl: logoUrl,
     })
     setSaving(false)
     if (result.data) {
@@ -89,6 +119,56 @@ function EditClientDialog({ client, onClose, onSave }: {
   return (
     <DraggableModal open onClose={onClose} title="Editar cliente" maxWidth="32rem">
       <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        {/* Logo upload */}
+        <div className="flex items-center gap-4">
+          <div
+            onClick={() => logoInputRef.current?.click()}
+            style={{
+              width: 64, height: 64, borderRadius: 10, flexShrink: 0,
+              background: 'var(--surface2)', border: '2px dashed var(--border)',
+              cursor: 'pointer', overflow: 'hidden', position: 'relative',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {logoUrl
+              ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <Building2 style={{ width: 24, height: 24, color: 'var(--muted)' }} />
+            }
+            <div style={{
+              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: 0, transition: 'opacity 0.15s',
+            }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+            >
+              {uploadingLogo
+                ? <Loader2 style={{ width: 16, height: 16, color: '#fff' }} className="animate-spin" />
+                : <Camera style={{ width: 16, height: 16, color: '#fff' }} />
+              }
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text)' }}>Logo del cliente</p>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>PNG, JPG o WebP · máx. 5 MB</p>
+            <button type="button" onClick={() => logoInputRef.current?.click()}
+              className="text-xs font-semibold mt-1"
+              style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              {logoUrl ? 'Cambiar logo' : 'Subir logo'}
+            </button>
+            {logoUrl && (
+              <button type="button" onClick={() => setLogoUrl(undefined)}
+                className="text-xs ml-3"
+                style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Quitar
+              </button>
+            )}
+          </div>
+          <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleLogoUpload} />
+        </div>
+        {logoError && (
+          <p className="text-xs" style={{ color: '#ef4444' }}>{logoError}</p>
+        )}
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
             Empresa *
