@@ -699,9 +699,13 @@ export default function DashboardPage() {
                       fontSize: 12,
                       fontWeight: 700,
                       flexShrink: 0,
+                      overflow: 'hidden',
                     }}
                   >
-                    {getInitials(c.fullName)}
+                    {c.avatarUrl
+                      ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : getInitials(c.fullName)
+                    }
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>

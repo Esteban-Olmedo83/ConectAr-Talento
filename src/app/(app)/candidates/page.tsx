@@ -1546,10 +1546,13 @@ export default function CandidatesPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
                         style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
                       >
-                        {getInitials(c.fullName)}
+                        {c.avatarUrl
+                          ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          : getInitials(c.fullName)
+                        }
                       </div>
                       <div>
                         <p className="font-medium text-foreground">{c.fullName}</p>
@@ -1607,10 +1610,13 @@ export default function CandidatesPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden"
                       style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
                     >
-                      {getInitials(c.fullName)}
+                      {c.avatarUrl
+                        ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        : getInitials(c.fullName)
+                      }
                     </div>
                     <div>
                       <p className="font-semibold text-sm text-foreground leading-tight">{c.fullName}</p>

@@ -544,10 +544,13 @@ function ProfileDrawer({
           {/* Identity */}
           <div className="flex items-center gap-3">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
+              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0 overflow-hidden"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
             >
-              {getInitials(editMode ? editName : candidate.fullName)}
+              {candidate.avatarUrl
+                ? <img src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
+                : getInitials(editMode ? editName : candidate.fullName)
+              }
             </div>
             <div className="min-w-0 flex-1">
               {editMode ? (
@@ -917,10 +920,13 @@ function CandidateCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
           >
-            {getInitials(candidate.fullName)}
+            {candidate.avatarUrl
+              ? <img src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
+              : getInitials(candidate.fullName)
+            }
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
