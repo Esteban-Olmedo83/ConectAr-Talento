@@ -62,6 +62,7 @@ export interface DataProvider {
   updateApplicationStatus(id: string, status: VacancyStatus): Promise<DataResult<Application>>
   updateApplicationDisposition(id: string, disposition: CandidateDisposition | null): Promise<DataResult<Application>>
   updateApplicationRejection(id: string, reason: RejectionReason, note?: string): Promise<DataResult<Application>>
+  snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void>
 
   // Interviews
   getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>>
@@ -400,6 +401,12 @@ export class LocalStorageProvider implements DataProvider {
     } catch (e) {
       return err(`updateApplicationRejection failed: ${String(e)}`)
     }
+  }
+
+  async snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void> {
+    const apps = readCollection<Application>(KEYS.applications)
+    const updated = apps.map(a => a.vacancyId === vacancyId ? { ...a, vacancyTitle, clientName } : a)
+    writeCollection(KEYS.applications, updated)
   }
 
   // ── Interviews ─────────────────────────────────────────────────────────────

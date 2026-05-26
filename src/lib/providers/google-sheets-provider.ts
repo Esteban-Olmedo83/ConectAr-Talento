@@ -251,7 +251,7 @@ function rowToApplication(row: RawRow): Application {
 function applicationToRow(a: Application): RawRow {
   return [
     a.id,
-    a.vacancyId,
+    a.vacancyId ?? '',
     a.candidateId,
     a.status,
     String(a.positionInStage),
@@ -759,6 +759,9 @@ export class GoogleSheetsProvider implements DataProvider {
       return err(`updateApplicationRejection failed: ${String(e)}`)
     }
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async snapshotApplicationsForVacancy(_vacancyId: string, _vacancyTitle: string, _clientName: string): Promise<void> {}
 
   // ─── Interviews ────────────────────────────────────────────────────────────
 

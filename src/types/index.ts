@@ -146,7 +146,7 @@ export interface Candidate {
 
 export interface Application {
   id: string
-  vacancyId: string
+  vacancyId: string | null
   candidateId: string
   candidate?: Candidate
   status: VacancyStatus
@@ -156,6 +156,9 @@ export interface Application {
   disposition?: CandidateDisposition | null
   rejectionReason?: RejectionReason | null
   rejectionNote?: string | null
+  // Preserved when the vacancy/client is deleted
+  vacancyTitle?: string | null
+  clientName?: string | null
 }
 
 export interface Client {

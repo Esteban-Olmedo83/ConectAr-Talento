@@ -1640,7 +1640,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       }}
       onClick={() => {
         if (!pointerMoved.current && !isDragging) {
-          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })
+          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId ?? '', app })
         }
       }}
       className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
@@ -1895,7 +1895,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
                 <Mail style={{ width: 11, height: 11 }} />
               </button>
               <button
-                onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+                onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }}
                 style={{
                   width: 22,
                   height: 22,
@@ -2248,7 +2248,7 @@ function ProcessDetailModal({
                 <MessageCircle size={13} /> WhatsApp
               </button>
               <button
-                onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
+                onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }}
                 style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
               >
                 <Calendar size={13} /> Entrevista
@@ -2293,7 +2293,7 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={() => onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })}
+      onClick={() => onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId ?? '', app })}
       style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
         borderBottom: '1px solid var(--border)', cursor: 'pointer',
@@ -2370,7 +2370,7 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
         ) : (
           <>
             <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
-            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
             <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
           </>
         )}
@@ -2696,12 +2696,12 @@ function HireDialog({
 
   async function handleCloseVacancy() {
     setClosing(true)
-    await provider.closeVacancy(app.vacancyId)
+    await provider.closeVacancy(app.vacancyId ?? '')
     setClosing(false)
     if (remainingApps.length > 0) {
       setShowRemaining(true)
     } else {
-      onVacancyClosed(app.vacancyId)
+      onVacancyClosed(app.vacancyId ?? '')
       onClose()
     }
   }
@@ -2709,12 +2709,12 @@ function HireDialog({
   if (showRemaining) {
     return (
       <CloseVacancyRemainingDialog
-        vacancyId={app.vacancyId}
+        vacancyId={app.vacancyId ?? ''}
         vacancyTitle={vacancyTitle ?? ''}
         remainingApps={remainingApps}
         provider={provider}
-        onClose={() => { onVacancyClosed(app.vacancyId); onClose() }}
-        onDone={() => { onVacancyClosed(app.vacancyId); onClose() }}
+        onClose={() => { onVacancyClosed(app.vacancyId ?? ''); onClose() }}
+        onDone={() => { onVacancyClosed(app.vacancyId ?? ''); onClose() }}
       />
     )
   }
@@ -2838,7 +2838,7 @@ export default function PipelinePage() {
       return {
         ...a,
         status: effectiveStatus,
-        vacancyTitle: vacMap.get(a.vacancyId) ?? '',
+        vacancyTitle: (a.vacancyId ? vacMap.get(a.vacancyId) : undefined) ?? a.vacancyTitle ?? '',
       }
     })
 
@@ -2901,7 +2901,7 @@ export default function PipelinePage() {
       const c = a.candidate
       if (!c) return false
       // Hide applications whose vacancy was deleted (e.g. when client was deleted)
-      if (!validVacancyIds.has(a.vacancyId)) return false
+      if (!a.vacancyId || !validVacancyIds.has(a.vacancyId)) return false
       const vac = vacancies.find(v => v.id === a.vacancyId)
       // Hide applications for vacancies belonging to a deleted client
       if (vac?.clientId && !validClientIds.has(vac.clientId)) return false

@@ -401,7 +401,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const clientVacancies = (vr.data ?? []).filter(v => v.clientId === id)
     setVacancies(clientVacancies)
     const vacancyIds = new Set(clientVacancies.map(v => v.id))
-    setApplications((ar.data ?? []).filter(a => vacancyIds.has(a.vacancyId)))
+    setApplications((ar.data ?? []).filter(a => a.vacancyId !== null && vacancyIds.has(a.vacancyId)))
     const directCands = (candResult.data ?? []).filter(c => c.clientId === id)
     setDirectCandidates(directCands)
     setLoading(false)
@@ -440,6 +440,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const appsByVacancy = React.useMemo(() => {
     const map = new Map<string, Application[]>()
     applications.forEach(a => {
+      if (!a.vacancyId) return
       if (!map.has(a.vacancyId)) map.set(a.vacancyId, [])
       map.get(a.vacancyId)!.push(a)
     })

@@ -1279,9 +1279,12 @@ export default function CandidatesPage() {
     return candidates.filter(c => {
       // Hide candidates whose assigned client was deleted
       if (c.clientId && !validClientIds.has(c.clientId)) return false
+      // Hide orphaned candidates: they have applications but ALL point to deleted vacancies (vacancyId = null)
+      const candidateApps = applications.filter(a => a.candidateId === c.id)
+      if (candidateApps.length > 0 && candidateApps.every(a => a.vacancyId === null)) return false
       if (filterClient !== 'all') {
         const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
-        const appliedToClient = applications.some(a => a.candidateId === c.id && clientVacancyIds.has(a.vacancyId))
+        const appliedToClient = applications.some(a => a.candidateId === c.id && a.vacancyId !== null && clientVacancyIds.has(a.vacancyId))
         if (c.clientId !== filterClient && !appliedToClient) return false
       }
       if (search && !c.fullName.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false

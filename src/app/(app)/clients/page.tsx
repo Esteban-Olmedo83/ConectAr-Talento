@@ -777,8 +777,10 @@ export default function ClientsPage() {
   }
 
   async function handleDelete(client: Client) {
-    // Delete all vacancies for this client first (applications cascade via FK or are orphaned)
     const clientVacs = vacancies.filter(v => v.clientId === client.id)
+    // Snapshot vacancy/client info into applications before deleting vacancies
+    // This preserves history in Banco de Talento (vacancy_id → SET NULL in DB)
+    await Promise.all(clientVacs.map(v => provider.snapshotApplicationsForVacancy(v.id, v.title, client.name)))
     await Promise.all(clientVacs.map(v => provider.deleteVacancy(v.id)))
     await provider.deleteClient(client.id)
     setClients(prev => prev.filter(c => c.id !== client.id))

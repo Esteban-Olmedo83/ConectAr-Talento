@@ -291,7 +291,7 @@ export default function DashboardPage() {
   const applications = filterClient === 'all'
     ? allApplications
     : allApplications.filter(a => {
-        const vac = vacancyMap.get(a.vacancyId)
+        const vac = a.vacancyId ? vacancyMap.get(a.vacancyId) : undefined
         return vac?.clientId === filterClient
       })
 

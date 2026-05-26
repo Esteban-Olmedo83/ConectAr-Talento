@@ -147,7 +147,7 @@ function mapInterview(row: Record<string, unknown>): Interview {
 function mapApplication(row: Record<string, unknown>): Application {
   return {
     id: row.id as string,
-    vacancyId: row.vacancy_id as string,
+    vacancyId: (row.vacancy_id as string | null) ?? null,
     candidateId: row.candidate_id as string,
     status: row.status as VacancyStatus,
     positionInStage: row.position_in_stage as number,
@@ -157,6 +157,8 @@ function mapApplication(row: Record<string, unknown>): Application {
     disposition: (row.disposition as CandidateDisposition | null) ?? null,
     rejectionReason: (row.rejection_reason as RejectionReason | null) ?? null,
     rejectionNote: (row.rejection_note as string | null) ?? undefined,
+    vacancyTitle: (row.vacancy_title as string | null) ?? null,
+    clientName: (row.client_name as string | null) ?? null,
   }
 }
 
@@ -560,6 +562,13 @@ export class SupabaseProvider implements DataProvider {
       .single()
     if (error) return err(error.message)
     return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  async snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void> {
+    await this.sb
+      .from('applications')
+      .update({ vacancy_title: vacancyTitle, client_name: clientName })
+      .eq('vacancy_id', vacancyId)
   }
 
   // Stage mapping used by the pipeline drag-and-drop.

@@ -87,10 +87,10 @@ function buildTalentEntries(
     // Most recent app for vacancy / client title
     const sortedApps = [...apps].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const lastApp = sortedApps[0]
-    const lastVacancy = lastApp ? vacancyMap.get(lastApp.vacancyId) : undefined
-    const lastVacancyTitle = lastVacancy?.title ?? '—'
+    const lastVacancy = lastApp?.vacancyId ? vacancyMap.get(lastApp.vacancyId) : undefined
+    const lastVacancyTitle = lastVacancy?.title ?? lastApp?.vacancyTitle ?? '—'
     const lastClient = lastVacancy?.clientId ? clientMap.get(lastVacancy.clientId) : undefined
-    const lastClientName = lastClient?.name ?? clientMap.get(candidate.clientId ?? '')?.name ?? '—'
+    const lastClientName = lastClient?.name ?? lastApp?.clientName ?? clientMap.get(candidate.clientId ?? '')?.name ?? '—'
 
     // Classification
     const hasActive = apps.some(
@@ -176,14 +176,16 @@ function ProcessHistoryModal({
       ? '<p style="color:#9ca3af;font-size:13px;">Sin postulaciones registradas.</p>'
       : sortedApps.map(a => {
           const vac = vacancies.find(v => v.id === a.vacancyId)
+          const vacTitle = vac?.title ?? a.vacancyTitle ?? '—'
+          const vacClientName = vac?.client?.name ?? a.clientName
           const stageColor = STAGE_COLORS[a.status] ?? '#6b7280'
           const appInterviews = interviews.filter(i => i.candidateId === candidate.id && i.vacancyId === a.vacancyId)
           return `
             <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
                 <div>
-                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${vac?.title ?? '—'}</p>
-                  ${vac?.client?.name ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${vac.client.name}</p>` : ''}
+                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${vacTitle}</p>
+                  ${vacClientName ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${vacClientName}</p>` : ''}
                 </div>
                 <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:${stageColor}22;color:${stageColor};white-space:nowrap;flex-shrink:0;border:1px solid ${stageColor}44;">${a.status}</span>
               </div>
@@ -686,15 +688,17 @@ function ProfileDrawer({
                     {[...applications].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map(app => {
                       const stageColor = STAGE_COLORS[app.status]
                       const appVacancy = vacancies.find(v => v.id === app.vacancyId)
+                      const displayTitle = appVacancy?.title ?? app.vacancyTitle ?? '—'
+                      const displayClient = appVacancy?.client?.name ?? app.clientName
                       return (
                         <div key={app.id} className="flex items-center gap-3 rounded-lg p-3" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: stageColor }} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                              {appVacancy?.title ?? '—'}
+                              {displayTitle}
                             </p>
-                            {appVacancy?.client?.name && (
-                              <p className="text-xs truncate" style={{ color: 'var(--muted2)' }}>{appVacancy.client.name}</p>
+                            {displayClient && (
+                              <p className="text-xs truncate" style={{ color: 'var(--muted2)' }}>{displayClient}</p>
                             )}
                             <p className="text-xs" style={{ color: 'var(--muted)' }}>
                               <span style={{ color: stageColor }}>{app.status}</span>
