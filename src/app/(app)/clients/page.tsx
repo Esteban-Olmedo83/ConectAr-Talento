@@ -34,12 +34,11 @@ function ClientFormDialog({
 }) {
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const supabase = React.useMemo(() => { const { createClient: sc } = require('@/lib/supabase/client') as typeof import('@/lib/supabase/client'); return sc() }, [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
   const [logoUrl, setLogoUrl] = React.useState<string | undefined>(client?.logoUrl)
   const [uploadingLogo, setUploadingLogo] = React.useState(false)
+  const [logoError, setLogoError] = React.useState<string | null>(null)
   const logoInputRef = React.useRef<HTMLInputElement>(null)
   const [form, setForm] = React.useState({
     name: client?.name ?? '',
@@ -57,6 +56,7 @@ function ClientFormDialog({
   React.useEffect(() => {
     if (open) {
       setLogoUrl(client?.logoUrl)
+      setLogoError(null)
       setForm({
         name: client?.name ?? '',
         industry: client?.industry ?? '',
@@ -76,14 +76,21 @@ function ClientFormDialog({
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingLogo(true)
+    setLogoError(null)
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-      const path = `logos/${client?.id ?? 'new'}/${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from('cvs').upload(path, file, { upsert: true })
-      if (!error) {
-        const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
-        setLogoUrl(publicUrl)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+      formData.append('id', client?.id ?? `new-${Date.now()}`)
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (data.ok && data.url) {
+        setLogoUrl(data.url)
+      } else {
+        setLogoError(data.error ?? 'Error al subir el logo')
       }
+    } catch {
+      setLogoError('Error de red al subir el logo. Verificá tu conexión.')
     } finally {
       setUploadingLogo(false)
       e.target.value = ''
@@ -209,8 +216,11 @@ function ClientFormDialog({
                 </button>
               )}
             </div>
-            <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+            <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
           </div>
+          {logoError && (
+            <p style={{ fontSize: 11, color: '#ef4444', marginTop: -8 }}>{logoError}</p>
+          )}
           {/* Name */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
