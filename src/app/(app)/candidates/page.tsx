@@ -627,7 +627,8 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
 }) {
   const { user } = useUser()
   const [form, setForm] = React.useState({
-    scheduledAt: '',
+    date: '',
+    time: '',
     type: 'RRHH' as InterviewType,
     vacancyId: '',
     interviewerName: '',
@@ -643,7 +644,8 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   React.useEffect(() => {
     if (open) {
       setForm({
-        scheduledAt: '',
+        date: '',
+        time: '',
         type: 'RRHH',
         vacancyId: '',
         interviewerName: user?.fullName ?? '',
@@ -667,7 +669,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
     const result = await provider.createInterview({
       candidateId: candidate.id,
       vacancyId: form.vacancyId || (vacancies[0]?.id ?? ''),
-      scheduledAt: new Date(form.scheduledAt).toISOString(),
+      scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
       type: form.type,
       interviewerName: form.interviewerName,
       interviewerEmail: form.interviewerEmail || undefined,
@@ -708,15 +710,28 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3 mt-2">
-            <div>
-              <label className={labelCls}>Fecha y hora *</label>
-              <input
-                required
-                type="datetime-local"
-                value={form.scheduledAt}
-                onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
-                className={inputCls}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Fecha *</label>
+                <input
+                  required
+                  type="date"
+                  value={form.date}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Hora *</label>
+                <input
+                  required
+                  type="time"
+                  value={form.time}
+                  onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

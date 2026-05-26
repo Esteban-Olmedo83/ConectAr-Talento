@@ -370,7 +370,7 @@ function EmailModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -711,7 +711,7 @@ function WhatsAppModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -853,7 +853,8 @@ function ScheduleInterviewModal({
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const { user } = useUser()
   const [form, setForm] = React.useState({
-    scheduledAt: '',
+    date: '',
+    time: '',
     type: 'RRHH' as InterviewType,
     vacancyId: preselectedVacancyId ?? '',
     interviewerName: user?.fullName ?? '',
@@ -873,7 +874,7 @@ function ScheduleInterviewModal({
     const result = await provider.createInterview({
       candidateId: candidate.id,
       vacancyId: form.vacancyId || (vacancies[0]?.id ?? ''),
-      scheduledAt: new Date(form.scheduledAt).toISOString(),
+      scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
       type: form.type,
       interviewerName: form.interviewerName,
       interviewerEmail: form.interviewerEmail || undefined,
@@ -920,7 +921,7 @@ function ScheduleInterviewModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -965,15 +966,28 @@ function ScheduleInterviewModal({
             </div>
           ) : (
             <form id="schedule-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={labelStyle}>Fecha y hora *</label>
-                <input
-                  required
-                  type="datetime-local"
-                  value={form.scheduledAt}
-                  onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
-                  style={inputStyle}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Fecha *</label>
+                  <input
+                    required
+                    type="date"
+                    value={form.date}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Hora *</label>
+                  <input
+                    required
+                    type="time"
+                    value={form.time}
+                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -1156,7 +1170,7 @@ function NotesModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -1391,7 +1405,7 @@ function ProcessHistoryModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -2050,7 +2064,7 @@ function ProcessDetailModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div
         style={{
@@ -2549,7 +2563,7 @@ function RejectReasonDialog({
   }
 
   return (
-    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) handleSkip() }}>
+    <div style={overlay}>
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>

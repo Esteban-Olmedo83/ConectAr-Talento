@@ -484,7 +484,7 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(680px, 95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
         {/* Header */}

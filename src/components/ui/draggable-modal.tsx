@@ -37,7 +37,6 @@ export function DraggableModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
         style={{ ...dragStyle, width: '90vw', maxWidth, maxHeight: '90vh', background: 'var(--surface)', borderColor: 'var(--border)' }}
