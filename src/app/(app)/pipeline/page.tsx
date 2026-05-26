@@ -4,29 +4,12 @@ import * as React from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  TouchSensor,
-  useDroppable,
-  useSensor,
-  useSensors,
-  closestCorners,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import {
   Plus,
   Search,
   Filter,
   Calendar,
   ChevronDown,
+  ChevronRight,
   Mail,
   MessageCircle,
   X,
@@ -57,15 +40,26 @@ import type {
   InterviewType,
   MeetingPlatform,
   Recommendation,
+  RejectionReason,
 } from '@/types'
 
-type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv'
+type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv' | 'avanzar_etapa'
 const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color: string; border: string }> = {
-  avanzar:      { label: 'Avanzar',      bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
-  rechazar:     { label: 'Rechazar',     bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
-  a_considerar: { label: 'A considerar', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
-  descartar_cv: { label: 'Descartar CV', bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  avanzar:       { label: 'Avanzar',         bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  rechazar:      { label: 'Rechazar',         bg: 'rgba(248,113,113,0.15)', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  a_considerar:  { label: 'A considerar',     bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  descartar_cv:  { label: 'Descartar CV',     bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  avanzar_etapa: { label: 'Avanzar etapa',    bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
 }
+
+export const REJECTION_REASONS: { value: RejectionReason; label: string; desc: string }[] = [
+  { value: 'no_apto_perfil',        label: 'No cumple el perfil',        desc: 'El candidato no cumple los requisitos de la vacante' },
+  { value: 'mejor_candidato',       label: 'Mejor candidato seleccionado', desc: 'Se eligió un candidato con perfil más adecuado para el puesto' },
+  { value: 'candidato_declino',     label: 'Candidato declinó',           desc: 'El candidato rechazó la oferta o se retiró del proceso' },
+  { value: 'fuera_rango_salarial',  label: 'Fuera de rango salarial',     desc: 'Las expectativas salariales no coincidieron' },
+  { value: 'decision_empresa',      label: 'Decisión empresarial',        desc: 'La empresa decidió no continuar sin causa específica' },
+  { value: 'otro',                  label: 'Otro motivo',                 desc: 'Otro motivo (completar en la nota)' },
+]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -242,6 +236,7 @@ function EmailModal({
   initialVacancy,
   interview,
   onClose,
+  onStagePrompt,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
@@ -249,6 +244,7 @@ function EmailModal({
   initialVacancy?: Vacancy
   interview?: Interview
   onClose: () => void
+  onStagePrompt?: () => void
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const emailTemplates = templates.filter(t => t.channel === 'email')
@@ -580,15 +576,17 @@ function EmailModal({
           >
             Cancelar
           </button>
-          <a
-            href={gmailHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+          <button
+            onClick={() => {
+              window.open(gmailHref, '_blank', 'noopener,noreferrer')
+              onClose()
+              onStagePrompt?.()
+            }}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Mail style={{ width: 13, height: 13 }} />
             Abrir en Gmail
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -603,6 +601,7 @@ function WhatsAppModal({
   initialVacancy,
   interview,
   onClose,
+  onStagePrompt,
 }: {
   candidate: Candidate
   templates: MessageTemplate[]
@@ -610,6 +609,7 @@ function WhatsAppModal({
   initialVacancy?: Vacancy
   interview?: Interview
   onClose: () => void
+  onStagePrompt?: () => void
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const waTemplates = templates.filter(t => t.channel === 'whatsapp')
@@ -685,6 +685,7 @@ function WhatsAppModal({
     a.click()
     document.body.removeChild(a)
     onClose()
+    onStagePrompt?.()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -1255,7 +1256,338 @@ type ActiveModal =
   | { type: 'schedule'; candidate: Candidate; applicationId: string; vacancyId: string }
   | { type: 'notes'; candidate: Candidate }
   | { type: 'process'; candidate: Candidate; vacancyId: string; app: HydratedApplication }
+  | { type: 'history'; candidate: Candidate }
   | null
+
+// ─── Process History Modal ────────────────────────────────────────────────────
+function ProcessHistoryModal({
+  candidate,
+  provider,
+  vacancies,
+  onClose,
+}: {
+  candidate: Candidate
+  provider: SupabaseProvider
+  vacancies: Vacancy[]
+  onClose: () => void
+}) {
+  const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
+  const [apps, setApps] = React.useState<Application[]>([])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function fetchData() {
+      const [appsRes, intsRes] = await Promise.all([
+        provider.getApplicationsByCandidateId(candidate.id),
+        provider.getInterviews(candidate.id),
+      ])
+      if (!cancelled) {
+        setApps(appsRes.data ?? [])
+        setInterviews(intsRes.data ?? [])
+        setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
+  }, [candidate.id, provider])
+
+  function handleDownloadPDF() {
+    const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const scoreColor = (s: number) => s >= 85 ? '#16a34a' : s >= 70 ? '#7c3aed' : s >= 50 ? '#d97706' : '#6b7280'
+
+    const appsHtml = sortedApps.length === 0
+      ? '<p style="color:#9ca3af;font-size:13px;">Sin postulaciones registradas.</p>'
+      : sortedApps.map(a => {
+          const vac = vacancies.find(v => v.id === a.vacancyId)
+          const stageColor = STAGE_COLORS[a.status] ?? '#6b7280'
+          const appInterviews = interviews.filter(i => i.candidateId === candidate.id && i.vacancyId === a.vacancyId)
+          return `
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+                <div>
+                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${vac?.title ?? '—'}</p>
+                  ${vac?.client?.name ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${vac.client.name}</p>` : ''}
+                </div>
+                <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:${stageColor}22;color:${stageColor};white-space:nowrap;flex-shrink:0;border:1px solid ${stageColor}44;">${a.status}</span>
+              </div>
+              <p style="font-size:11px;color:#9ca3af;margin:0 0 12px;">
+                Ingreso: ${new Date(a.appliedAt).toLocaleDateString('es-AR')} · Última actualización: ${new Date(a.updatedAt).toLocaleDateString('es-AR')}
+              </p>
+              ${appInterviews.length > 0 ? `
+                <div style="padding-top:10px;border-top:1px solid #e5e7eb;">
+                  <p style="font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Entrevistas</p>
+                  ${appInterviews.map(i => `
+                    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;color:#374151;margin-bottom:6px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;">
+                      <span style="color:#7c3aed;font-weight:600;">${i.type}</span>
+                      <span style="color:#9ca3af;">|</span>
+                      <span>${i.meetingPlatform}</span>
+                      <span style="color:#9ca3af;">|</span>
+                      <span>${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      ${i.interviewerName ? `<span style="color:#9ca3af;">|</span><span>${i.interviewerName}</span>` : ''}
+                      ${i.notes ? `<br/><span style="color:#9ca3af;font-size:11px;font-style:italic;">Nota: "${i.notes}"</span>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `
+        }).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <title>Informe de Proceso — ${candidate.fullName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <!-- Header card -->
+  <div style="background:linear-gradient(135deg,#5D50D6,#8B7EFF);padding:28px 32px;border-radius:14px;margin-bottom:28px;color:#fff;">
+    <p style="font-size:11px;font-weight:600;opacity:0.65;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Informe de Proceso de Selección</p>
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${candidate.fullName}</h1>
+    <p style="font-size:14px;opacity:0.8;margin-bottom:2px;">${candidate.email}${candidate.phone ? ' · ' + candidate.phone : ''}</p>
+    <div style="display:flex;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);flex-wrap:wrap;">
+      ${candidate.atsScore ? `<div><p style="font-size:20px;font-weight:800;color:${scoreColor(candidate.atsScore)};">${candidate.atsScore}</p><p style="font-size:11px;opacity:0.65;">ATS Score</p></div>` : ''}
+      <div><p style="font-size:20px;font-weight:800;">${sortedApps.length}</p><p style="font-size:11px;opacity:0.65;">Proceso${sortedApps.length !== 1 ? 's' : ''}</p></div>
+      <div><p style="font-size:20px;font-weight:800;">${interviews.length}</p><p style="font-size:11px;opacity:0.65;">Entrevista${interviews.length !== 1 ? 's' : ''}</p></div>
+    </div>
+    <p style="font-size:11px;opacity:0.45;margin-top:10px;">Generado: ${today}</p>
+  </div>
+
+  ${candidate.skills?.length ? `
+  <div style="margin-bottom:24px;">
+    <p style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Skills</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${candidate.skills.map(s => `<span style="font-size:12px;padding:3px 10px;border-radius:99px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;">${s}</span>`).join('')}
+    </div>
+  </div>` : ''}
+
+  <div>
+    <p style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Historial de Procesos</p>
+    ${appsHtml}
+  </div>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
+    <p style="font-size:11px;color:#9ca3af;">ConectAr Talento · Informe generado el ${today}</p>
+  </div>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`
+    const win = window.open('', '_blank')
+    if (win) {
+      win.document.write(html)
+      win.document.close()
+    }
+  }
+
+  const sortedApps = [...apps].sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          width: '100%',
+          maxWidth: 'min(600px, 95vw)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+          ...dragStyle,
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', ...headerStyle }}
+          onMouseDown={onMouseDown}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle2 style={{ width: 15, height: 15, color: '#34d399' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Proceso completo</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+              <Loader2 style={{ width: 24, height: 24, color: 'var(--muted)' }} className="animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Historial de postulaciones</p>
+                {sortedApps.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sin postulaciones registradas.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {sortedApps.map(app => {
+                      const vac = vacancies.find(v => v.id === app.vacancyId)
+                      const stageColor = STAGE_COLORS[app.status] ?? '#6b7280'
+                      const appInterviews = interviews.filter(i => i.candidateId === candidate.id)
+                      return (
+                        <div
+                          key={app.id}
+                          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {vac?.title ?? '—'}
+                                {vac?.client?.name ? <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400, marginLeft: 6 }}>· {vac.client.name}</span> : null}
+                              </p>
+                              <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0, marginTop: 2 }}>
+                                Ingreso: {new Date(app.appliedAt).toLocaleDateString('es-AR')} · Actualizado: {new Date(app.updatedAt).toLocaleDateString('es-AR')}
+                              </p>
+                            </div>
+                            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: `${stageColor}22`, color: stageColor, border: `1px solid ${stageColor}44` }}>
+                              {app.status}
+                            </span>
+                          </div>
+                          {appInterviews.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                              {appInterviews.map(i => (
+                                <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
+                                  <Calendar style={{ width: 11, height: 11, color: '#a78bfa', flexShrink: 0 }} />
+                                  <span style={{ color: '#a78bfa', fontWeight: 500 }}>{i.type}</span>
+                                  <span>·</span>
+                                  <span>{i.meetingPlatform}</span>
+                                  <span>·</span>
+                                  <span>{new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                  {i.interviewerName && <><span>·</span><span>{i.interviewerName}</span></>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+          >
+            Cerrar
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}
+          >
+            <FileText style={{ width: 13, height: 13 }} />
+            Descargar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Stage Prompt Dialog ──────────────────────────────────────────────────────
+function StagePromptDialog({
+  candidateName,
+  currentStage,
+  appId,
+  onDecide,
+  onClose,
+}: {
+  candidateName: string
+  currentStage: VacancyStatus
+  appId: string
+  onDecide: (appId: string, action: DecisionAction) => void
+  onClose: () => void
+}) {
+  const STAGE_ORDER_FULL: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+  const currentIdx = STAGE_ORDER_FULL.indexOf(currentStage)
+  const nextStages = STAGE_ORDER_FULL.slice(currentIdx + 1)
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 60,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        maxWidth: 320,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, flex: 1 }}>
+          ¿Querés mover a <span style={{ color: 'var(--accent-2)' }}>{candidateName}</span> a una nueva etapa?
+        </p>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 2, flexShrink: 0 }}>
+          <X style={{ width: 14, height: 14 }} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {nextStages.map(stage => {
+          const color = STAGE_COLORS[stage]
+          return (
+            <button
+              key={stage}
+              onClick={() => { onDecide(appId, 'avanzar_etapa'); onClose() }}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                background: `${color}18`,
+                border: `1px solid ${color}44`,
+                color,
+                cursor: 'pointer',
+                textAlign: 'left' as const,
+              }}
+            >
+              Mover a: {stage}
+            </button>
+          )
+        })}
+        <button
+          onClick={onClose}
+          style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', textAlign: 'left' as const }}
+        >
+          Mantener etapa actual
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ─── Candidate card ───────────────────────────────────────────────────────────
 interface CardProps {
@@ -1308,7 +1640,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       }}
       onClick={() => {
         if (!pointerMoved.current && !isDragging) {
-          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId, app })
+          onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId ?? '', app })
         }
       }}
       className={cn('select-none cursor-grab', isDragging && 'opacity-50 rotate-1')}
@@ -1519,85 +1851,112 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
             transition: 'opacity 0.15s',
           }}
         >
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Enviar email"
-          >
-            <Mail style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Agendar entrevista"
-          >
-            <Calendar style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="WhatsApp"
-          >
-            <MessageCircle style={{ width: 11, height: 11 }} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onAction({ type: 'notes', candidate: c }) }}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted2)',
-            }}
-            title="Notas"
-          >
-            <FileText style={{ width: 11, height: 11 }} />
-          </button>
+          {app.status === 'Contratado' ? (
+            <button
+              onClick={e => { e.stopPropagation(); onAction({ type: 'history', candidate: c }) }}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: 'rgba(52,211,153,0.15)',
+                border: '1px solid rgba(52,211,153,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                cursor: 'pointer',
+                color: '#34d399',
+                fontSize: 10,
+                fontWeight: 600,
+                whiteSpace: 'nowrap' as const,
+              }}
+              title="Ver proceso completo"
+            >
+              <CheckCircle2 style={{ width: 11, height: 11 }} />
+              Ver proceso
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Enviar email"
+              >
+                <Mail style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Agendar entrevista"
+              >
+                <Calendar style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="WhatsApp"
+              >
+                <MessageCircle style={{ width: 11, height: 11 }} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onAction({ type: 'notes', candidate: c }) }}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--muted2)',
+                }}
+                title="Notas"
+              >
+                <FileText style={{ width: 11, height: 11 }} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Decision buttons — only visible on hover for Entrevistas stage */}
       {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice.current) && !isDragging && (
         <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
-          {(Object.entries(DECISION_CONFIG) as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
+          {(Object.entries(DECISION_CONFIG).filter(([a]) => a !== 'avanzar_etapa') as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
             <button
               key={action}
               onClick={e => { e.stopPropagation(); onDecide(app.id, action) }}
@@ -1620,6 +1979,35 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
               {cfg.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Avanzar / Rechazar — always visible on all cards except Entrevistas (which has its own 4-button panel) */}
+      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && app.status !== 'Entrevistas' && !isDragging && (
+        <div
+          style={{ display: 'flex', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }}
+            style={{
+              flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 6px', borderRadius: 6,
+              background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.28)', color: '#34d399',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}
+          >
+            <ChevronRight size={11} /> Avanzar
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }}
+            style={{
+              flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 6px', borderRadius: 6,
+              background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.28)', color: '#f87171',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+            }}
+          >
+            <X size={11} /> Rechazar
+          </button>
         </div>
       )}
     </div>
@@ -1838,149 +2226,252 @@ function ProcessDetailModal({
 
         {/* Footer actions */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <Mail size={13} /> Email
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <MessageCircle size={13} /> WhatsApp
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <Calendar size={13} /> Entrevista
-          </button>
-          <button
-            onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
-            style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
-          >
-            <FileText size={13} /> Notas
-          </button>
+          {app.status === 'Contratado' ? (
+            <button
+              onClick={() => { onClose(); onAction({ type: 'history', candidate: c }) }}
+              style={{ flex: 1, minWidth: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, color: '#34d399', cursor: 'pointer', fontWeight: 600 }}
+            >
+              <CheckCircle2 size={14} /> Ver proceso completo
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'email', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Mail size={13} /> Email
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'whatsapp', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <MessageCircle size={13} /> WhatsApp
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Calendar size={13} /> Entrevista
+              </button>
+              <button
+                onClick={() => { onClose(); onAction({ type: 'notes', candidate: c }) }}
+                style={{ flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <FileText size={13} /> Notas
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Sortable card ────────────────────────────────────────────────────────────
-function SortableCard({ app, onAction, onDecide, interviewDate }: { app: HydratedApplication; onAction: (modal: ActiveModal) => void; onDecide?: (appId: string, action: DecisionAction) => void; interviewDate?: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: app.id })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+// ─── Candidate row (list view) ────────────────────────────────────────────────
+function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
+  const c = app.candidate
+  if (!c) return null
+  const [hovered, setHovered] = React.useState(false)
+
+  const stageColor = STAGE_COLORS[app.status]
+  const score = c.atsScore ?? 0
+  const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
+  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const skills = (c.skills ?? []).slice(0, 2)
+
+  const iconBtn: React.CSSProperties = {
+    width: 26, height: 26, borderRadius: 7, background: 'var(--surface)',
+    border: '1px solid var(--border)', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', cursor: 'pointer', color: 'var(--muted2)',
   }
+  const decisionBtn = (bg: string, border: string, color: string): React.CSSProperties => ({
+    fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+    background: bg, border: `1px solid ${border}`, color, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  })
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CandidateCard app={app} isDragging={isDragging} onAction={onAction} onDecide={onDecide} interviewDate={interviewDate} />
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => onAction({ type: 'process', candidate: c, vacancyId: app.vacancyId ?? '', app })}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+        borderBottom: '1px solid var(--border)', cursor: 'pointer',
+        background: hovered ? 'var(--surface2)' : 'transparent',
+        transition: 'background 0.12s',
+      }}
+    >
+      {/* Avatar */}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: avatarGradient(c.fullName), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-nunito, Nunito, sans-serif)' }}>
+          {getInitials(c.fullName)}
+        </div>
+        {score > 0 && (
+          <div style={{ position: 'absolute', bottom: -3, right: -4, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 5, padding: '0 3px', fontSize: 9, fontWeight: 900, color: scoreColor, lineHeight: 1.4 }}>
+            {score}
+          </div>
+        )}
+      </div>
+
+      {/* Name + vacancy */}
+      <div style={{ flex: '0 0 190px', minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{c.fullName}</p>
+        {app.vacancyTitle && (
+          <p style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{app.vacancyTitle}</p>
+        )}
+      </div>
+
+      {/* Skills */}
+      <div style={{ flex: 1, display: 'flex', gap: 4, minWidth: 0, overflow: 'hidden' }}>
+        {skills.map(sk => (
+          <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid rgba(108,99,255,0.18)', fontWeight: 500, whiteSpace: 'nowrap' }}>{sk}</span>
+        ))}
+      </div>
+
+      {/* Stage pill */}
+      <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: `${stageColor}18`, color: stageColor, border: `1px solid ${stageColor}30`, whiteSpace: 'nowrap' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
+        {app.status}
+      </span>
+
+      {/* Interview date */}
+      {interviewDate && (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Calendar style={{ width: 11, height: 11, color: '#a78bfa' }} />
+          <span style={{ fontSize: 11, color: '#a78bfa', whiteSpace: 'nowrap' }}>
+            {new Date(interviewDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+          </span>
+        </div>
+      )}
+
+      {/* Source + days */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+        {c.source && (
+          <span style={{ fontSize: 9, padding: '1.5px 6px', borderRadius: 99, fontWeight: 600, background: SOURCE_BG[c.source] ?? 'rgba(107,114,128,0.15)', color: SOURCE_TEXT[c.source] ?? '#9ca3af', whiteSpace: 'nowrap' }}>
+            {c.source}
+          </span>
+        )}
+        <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+          {daysSince === 0 ? 'Hoy' : `${daysSince}d`}
+        </span>
+      </div>
+
+      {/* Communication buttons — visible on hover */}
+      <div style={{ flexShrink: 0, display: 'flex', gap: 3, opacity: hovered ? 1 : 0, transition: 'opacity 0.15s' }} onClick={e => e.stopPropagation()}>
+        {app.status === 'Contratado' ? (
+          <button
+            onClick={e => { e.stopPropagation(); onAction({ type: 'history', candidate: c }) }}
+            style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#34d399', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' as const }}
+            title="Ver proceso completo"
+          >
+            <CheckCircle2 style={{ width: 12, height: 12 }} />
+            Ver proceso
+          </button>
+        ) : (
+          <>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
+          </>
+        )}
+      </div>
+
+      {/* Decision buttons — always visible for actionable stages */}
+      {onDecide && app.status !== 'Contratado' && app.status !== 'Descartado' && (
+        <div style={{ flexShrink: 0, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+          {app.status === 'Entrevistas' ? (
+            <>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}>Contratar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'a_considerar') }} style={decisionBtn('rgba(251,191,36,0.12)', 'rgba(251,191,36,0.3)', '#fbbf24')}>Considerar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+            </>
+          ) : (
+            <>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}><ChevronRight size={10} style={{ display: 'inline', marginRight: 2 }} />Avanzar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Lane ─────────────────────────────────────────────────────────────────────
-function Lane({
-  stage,
+// ─── Client section ───────────────────────────────────────────────────────────
+function ClientSection({
+  clientName,
   apps,
   onAction,
   onDecide,
   interviewsByCandidate,
 }: {
-  stage: VacancyStatus
+  clientId: string
+  clientName: string
   apps: HydratedApplication[]
   onAction: (modal: ActiveModal) => void
   onDecide: (appId: string, action: DecisionAction) => void
   interviewsByCandidate: Map<string, string>
 }) {
-  const stageColor = STAGE_COLORS[stage]
-  const { setNodeRef, isOver } = useDroppable({ id: stage })
+  const [collapsed, setCollapsed] = React.useState(false)
+
+  const counts = React.useMemo(() => {
+    const c: Partial<Record<VacancyStatus, number>> = {}
+    apps.forEach(a => { c[a.status] = (c[a.status] ?? 0) + 1 })
+    return c
+  }, [apps])
+
+  const STAGE_SHORT: Record<VacancyStatus, string> = {
+    'Nuevas Vacantes': 'Nuevas',
+    'En Proceso': 'En Proceso',
+    'Entrevistas': 'Entrevistas',
+    'Oferta Enviada': 'Oferta',
+    'Contratado': 'Contratado',
+    'Descartado': 'Descartado',
+  }
+
   return (
-    <div
-      className="flex flex-col rounded-xl min-w-[270px] w-[270px] flex-shrink-0"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        '--lane-color': stageColor,
-        overflow: 'hidden',
-        height: '100%',
-      } as React.CSSProperties}
-    >
-      {/* Lane header — 3px top bar + title row */}
+    <div style={{ marginBottom: 10, border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: 'var(--surface)' }}>
+      {/* Header */}
       <div
+        role="button"
+        onClick={() => setCollapsed(c => !c)}
         style={{
-          position: 'relative',
-          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+          background: 'var(--surface2)', cursor: 'pointer', userSelect: 'none' as const,
+          borderBottom: collapsed ? 'none' : '1px solid var(--border)',
         }}
       >
-        {/* 3px top color bar */}
-        <div style={{ height: 3, background: stageColor }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px' }}>
-          {/* Stage dot */}
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{stage}</span>
-          {/* Count badge */}
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 900,
-              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
-              padding: '1px 8px',
-              borderRadius: 99,
-              background: `${stageColor}22`,
-              color: stageColor,
-            }}
-          >
-            {apps.length}
-          </span>
-          {/* Add button */}
-          <button
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 6,
-              background: 'var(--surface2)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-              flexShrink: 0,
-            }}
-          >
-            <Plus style={{ width: 11, height: 11 }} />
-          </button>
+        {/* Client initials */}
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-soft)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-2)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)' }}>{clientName.slice(0, 2).toUpperCase()}</span>
         </div>
-      </div>
-
-      <SortableContext items={apps.map(a => a.id)} strategy={verticalListSortingStrategy}>
-        <div
-          ref={setNodeRef}
-          style={{
-            display: 'flex', flexDirection: 'column', gap: 8, padding: 8, flex: 1,
-            minHeight: 120, overflowY: 'auto',
-            background: isOver ? `${stageColor}11` : 'transparent',
-            transition: 'background 0.15s',
-          }}
-        >
-          {apps.length === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '28px 0', textAlign: 'center' }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Plus style={{ width: 14, height: 14, color: 'var(--muted)' }} />
-              </div>
-              <p style={{ fontSize: 11, color: 'var(--muted)' }}>Sin candidatos</p>
-            </div>
-          )}
-          {apps.map(app => (
-            <SortableCard key={app.id} app={app} onAction={onAction} onDecide={onDecide} interviewDate={interviewsByCandidate.get(app.candidateId)} />
+        {/* Name */}
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{clientName}</span>
+        {/* Stage pills */}
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {STAGES.filter(s => counts[s]).map(stage => (
+            <span key={stage} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: `${STAGE_COLORS[stage]}18`, color: STAGE_COLORS[stage], border: `1px solid ${STAGE_COLORS[stage]}30`, whiteSpace: 'nowrap' as const }}>
+              {STAGE_SHORT[stage]} · {counts[stage]}
+            </span>
           ))}
         </div>
-      </SortableContext>
+        {/* Count */}
+        <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>{apps.length} candidato{apps.length !== 1 ? 's' : ''}</span>
+        {collapsed
+          ? <ChevronRight style={{ width: 15, height: 15, color: 'var(--muted)', flexShrink: 0 }} />
+          : <ChevronDown style={{ width: 15, height: 15, color: 'var(--muted)', flexShrink: 0 }} />
+        }
+      </div>
+      {/* Rows */}
+      {!collapsed && apps.map(app => (
+        <CandidateRow
+          key={app.id}
+          app={app}
+          onAction={onAction}
+          onDecide={onDecide}
+          interviewDate={interviewsByCandidate.get(app.candidateId)}
+        />
+      ))}
     </div>
   )
 }
@@ -1995,29 +2486,306 @@ function getInitials(name: string): string {
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function Skeleton() {
   return (
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16 }}>
-      {STAGES.map(s => (
-        <div
-          key={s}
-          style={{
-            minWidth: 270,
-            width: 270,
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            overflow: 'hidden',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }}
-        >
-          <div style={{ height: 3, background: `${STAGE_COLORS[s]}55` }} />
-          <div style={{ height: 40, background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }} />
-          <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{ height: 90, borderRadius: 10, background: 'var(--surface2)' }} />
-            ))}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[0, 1, 2].map(g => (
+        <div key={g} style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', animation: 'pulse 1.5s ease-in-out infinite' }}>
+          <div style={{ height: 50, background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }} />
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', opacity: 1 - i * 0.2 }} />
+          ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Single-candidate reject reason dialog ────────────────────────────────────
+function RejectReasonDialog({
+  candidateName,
+  appId,
+  provider,
+  onClose,
+  onDone,
+}: {
+  candidateName: string
+  appId: string
+  provider: SupabaseProvider
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [reason, setReason] = React.useState<RejectionReason | ''>('')
+  const [note, setNote] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+
+  async function handleConfirm() {
+    if (!reason) return
+    setSaving(true)
+    await provider.updateApplicationRejection(appId, reason as RejectionReason, note || undefined)
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    setSaving(false)
+    onDone()
+  }
+
+  async function handleSkip() {
+    // Status already set to Descartado optimistically; just save without reason
+    await provider.updateApplicationStatus(appId, 'Descartado')
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    onClose()
+  }
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+  }
+  const modal: React.CSSProperties = {
+    background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16,
+    width: '100%', maxWidth: 440, padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+  }
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)',
+    borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none',
+  }
+
+  return (
+    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) handleSkip() }}>
+      <div style={modal}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Motivo de descarte</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{candidateName}</p>
+          </div>
+          <button onClick={handleSkip} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {REJECTION_REASONS.map(r => (
+            <label
+              key={r.value}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                borderRadius: 10, border: `1px solid ${reason === r.value ? 'var(--accent)' : 'var(--border)'}`,
+                background: reason === r.value ? 'rgba(108,99,255,0.08)' : 'var(--surface2)',
+                cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              <input
+                type="radio"
+                name="reject-reason"
+                value={r.value}
+                checked={reason === r.value}
+                onChange={() => setReason(r.value)}
+                style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0 }}
+              />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{r.label}</p>
+                <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>{r.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Nota adicional (opcional)</label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Agrega detalles adicionales..."
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleSkip}
+            style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}
+          >
+            Omitir
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!reason || saving}
+            style={{
+              flex: 2, padding: '10px 0', borderRadius: 8, border: 'none',
+              background: reason ? '#f87171' : 'rgba(248,113,113,0.3)',
+              color: reason ? '#fff' : 'rgba(255,255,255,0.5)',
+              fontSize: 13, fontWeight: 600, cursor: reason ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {saving ? 'Guardando…' : 'Confirmar descarte'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Close vacancy remaining dialog ──────────────────────────────────────────
+function CloseVacancyRemainingDialog({
+  vacancyId,
+  vacancyTitle,
+  remainingApps,
+  provider,
+  onClose,
+  onDone,
+}: {
+  vacancyId: string
+  vacancyTitle: string
+  remainingApps: HydratedApplication[]
+  provider: SupabaseProvider
+  onClose: () => void
+  onDone: () => void
+}) {
+  type AppState = { reason: RejectionReason | ''; note: string }
+  const [appStates, setAppStates] = React.useState<Record<string, AppState>>(() =>
+    Object.fromEntries(remainingApps.map(a => [a.id, { reason: '', note: '' }]))
+  )
+  const [bulkReason, setBulkReason] = React.useState<RejectionReason | ''>('')
+  const [bulkNote, setBulkNote] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+
+  function applyBulk() {
+    if (!bulkReason) return
+    setAppStates(prev => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        next[key] = { reason: bulkReason, note: bulkNote }
+      }
+      return next
+    })
+  }
+
+  async function handleSave() {
+    const toUpdate = remainingApps.filter(a => appStates[a.id]?.reason)
+    if (toUpdate.length === 0) { onDone(); return }
+    setSaving(true)
+    await Promise.all(
+      toUpdate.map(a =>
+        provider.updateApplicationRejection(
+          a.id,
+          appStates[a.id].reason as RejectionReason,
+          appStates[a.id].note || undefined
+        )
+      )
+    )
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    setSaving(false)
+    onDone()
+  }
+
+  const stageColor = (s: string) => STAGE_COLORS[s as VacancyStatus] ?? '#6b7280'
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 12,
+    padding: '5px 8px',
+    outline: 'none',
+    width: '100%',
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(580px, 95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Candidatos del proceso</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '3px 0 0' }}>{vacancyTitle} · Definí el motivo de descarte de cada candidato</p>
+            </div>
+            <button onClick={onClose} style={{ padding: 5, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
+              <X style={{ width: 15, height: 15 }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Bulk action */}
+        {remainingApps.length > 1 && (
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', margin: 0, flexShrink: 0 }}>Aplicar a todos:</p>
+            <select
+              value={bulkReason}
+              onChange={e => setBulkReason(e.target.value as RejectionReason | '')}
+              style={{ ...inputStyle, width: 'auto', flex: 1, minWidth: 180 }}
+            >
+              <option value="">Seleccioná motivo...</option>
+              {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+            <input
+              placeholder="Nota (opcional)"
+              value={bulkNote}
+              onChange={e => setBulkNote(e.target.value)}
+              style={{ ...inputStyle, width: 'auto', flex: 1, minWidth: 120 }}
+            />
+            <button
+              onClick={applyBulk}
+              disabled={!bulkReason}
+              style={{ padding: '5px 12px', borderRadius: 8, background: bulkReason ? 'var(--accent)' : 'var(--surface)', border: '1px solid var(--border)', color: bulkReason ? '#fff' : 'var(--muted)', fontSize: 12, fontWeight: 600, cursor: bulkReason ? 'pointer' : 'default', whiteSpace: 'nowrap' }}
+            >
+              Aplicar
+            </button>
+          </div>
+        )}
+
+        {/* Candidate list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {remainingApps.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>No hay otros candidatos en este proceso.</p>
+          ) : (
+            remainingApps.map(app => {
+              const c = app.candidate
+              const state = appStates[app.id] ?? { reason: '', note: '' }
+              const sc = stageColor(app.status)
+              return (
+                <div key={app.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {(c?.fullName ?? '?').trim().split(/\s+/).map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.fullName ?? '—'}</p>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${sc}22`, color: sc, border: `1px solid ${sc}44` }}>{app.status}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <select
+                      value={state.reason}
+                      onChange={e => setAppStates(prev => ({ ...prev, [app.id]: { ...prev[app.id], reason: e.target.value as RejectionReason | '' } }))}
+                      style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+                    >
+                      <option value="">Sin cambio de estado</option>
+                      {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                    <input
+                      placeholder="Nota (opcional)"
+                      value={state.note}
+                      onChange={e => setAppStates(prev => ({ ...prev, [app.id]: { ...prev[app.id], note: e.target.value } }))}
+                      style={{ ...inputStyle, flex: 1, minWidth: 140 }}
+                    />
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>
+            Omitir
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1 }}
+          >
+            {saving && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+            Guardar y finalizar
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -2028,23 +2796,48 @@ function HireDialog({
   provider,
   onClose,
   onVacancyClosed,
+  allAppsForVacancy,
 }: {
   app: HydratedApplication
   provider: SupabaseProvider
   onClose: () => void
   onVacancyClosed: (vacancyId: string) => void
+  allAppsForVacancy: HydratedApplication[]
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [closing, setClosing] = React.useState(false)
+  const [showRemaining, setShowRemaining] = React.useState(false)
   const candidateName = app.candidate?.fullName ?? 'el candidato'
   const vacancyTitle = app.vacancyTitle
 
+  const remainingApps = React.useMemo(
+    () => allAppsForVacancy.filter(a => a.id !== app.id && a.status !== 'Contratado' && a.status !== 'Descartado'),
+    [allAppsForVacancy, app.id]
+  )
+
   async function handleCloseVacancy() {
     setClosing(true)
-    await provider.closeVacancy(app.vacancyId)
-    onVacancyClosed(app.vacancyId)
+    await provider.closeVacancy(app.vacancyId ?? '')
     setClosing(false)
-    onClose()
+    if (remainingApps.length > 0) {
+      setShowRemaining(true)
+    } else {
+      onVacancyClosed(app.vacancyId ?? '')
+      onClose()
+    }
+  }
+
+  if (showRemaining) {
+    return (
+      <CloseVacancyRemainingDialog
+        vacancyId={app.vacancyId ?? ''}
+        vacancyTitle={vacancyTitle ?? ''}
+        remainingApps={remainingApps}
+        provider={provider}
+        onClose={() => { onVacancyClosed(app.vacancyId ?? ''); onClose() }}
+        onDone={() => { onVacancyClosed(app.vacancyId ?? ''); onClose() }}
+      />
+    )
   }
 
   return (
@@ -2062,6 +2855,11 @@ function HireDialog({
           </div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
             ¿Querés cerrar la vacante <strong style={{ color: 'var(--text)' }}>{vacancyTitle}</strong>? Esto la marcará como cubierta y no aparecerá en el pipeline.
+            {remainingApps.length > 0 && (
+              <span style={{ display: 'block', marginTop: 8, color: '#fbbf24' }}>
+                Hay {remainingApps.length} candidato{remainingApps.length !== 1 ? 's' : ''} sin estado final — podrás definirlo en el siguiente paso.
+              </span>
+            )}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, padding: '12px 20px 20px', justifyContent: 'flex-end' }}>
@@ -2092,7 +2890,6 @@ export default function PipelinePage() {
   const [clients, setClients] = React.useState<Client[]>([])
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [activeApp, setActiveApp] = React.useState<HydratedApplication | null>(null)
   const searchParams = useSearchParams()
   const [filterVacancy, setFilterVacancy] = React.useState<string>(() => {
     const param = searchParams.get('vacancy')
@@ -2109,6 +2906,8 @@ export default function PipelinePage() {
   const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
   const [allInterviews, setAllInterviews] = React.useState<Interview[]>([])
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
+  const [rejectDialog, setRejectDialog] = React.useState<{ appId: string; candidateName: string } | null>(null)
+  const [stagePrompt, setStagePrompt] = React.useState<{ candidateName: string; currentStage: VacancyStatus; appId: string } | null>(null)
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -2161,7 +2960,7 @@ export default function PipelinePage() {
       return {
         ...a,
         status: effectiveStatus,
-        vacancyTitle: vacMap.get(a.vacancyId) ?? '',
+        vacancyTitle: (a.vacancyId ? vacMap.get(a.vacancyId) : undefined) ?? a.vacancyTitle ?? '',
       }
     })
 
@@ -2212,30 +3011,24 @@ export default function PipelinePage() {
 
   React.useEffect(() => {
     function handleChange() { load() }
-    window.addEventListener('vacancy:created', handleChange)
-    window.addEventListener('vacancy:updated', handleChange)
-    window.addEventListener('application:stage-changed', handleChange)
-    window.addEventListener('client:deleted', handleChange)
-    return () => {
-      window.removeEventListener('vacancy:created', handleChange)
-      window.removeEventListener('vacancy:updated', handleChange)
-      window.removeEventListener('application:stage-changed', handleChange)
-      window.removeEventListener('client:deleted', handleChange)
-    }
+    const events = ['vacancy:created', 'vacancy:updated', 'application:stage-changed', 'client:deleted', 'client:updated', 'candidate:updated', 'interview:scheduled', 'candidate:created']
+    events.forEach(e => window.addEventListener(e, handleChange))
+    return () => events.forEach(e => window.removeEventListener(e, handleChange))
   }, [load])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
-  )
-
   const filtered = React.useMemo(() => {
+    const validVacancyIds = new Set(vacancies.map(v => v.id))
+    const activeClientIds = new Set(clients.filter(cl => cl.active !== false).map(cl => cl.id))
     return applications.filter(a => {
       const c = a.candidate
       if (!c) return false
+      // Hide applications whose vacancy was deleted (e.g. when client was deleted)
+      if (!a.vacancyId || !validVacancyIds.has(a.vacancyId)) return false
+      const vac = vacancies.find(v => v.id === a.vacancyId)
+      // Hide applications for vacancies belonging to a deleted or inactive client
+      if (vac?.clientId && !activeClientIds.has(vac.clientId)) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
       if (filterClient !== 'all') {
-        const vac = vacancies.find(v => v.id === a.vacancyId)
         if (!vac || vac.clientId !== filterClient) return false
       }
       if (filterVacancy !== 'all' && a.vacancyId !== filterVacancy) return false
@@ -2245,7 +3038,7 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies])
+  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies, clients])
 
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {
@@ -2262,55 +3055,21 @@ export default function PipelinePage() {
     return map
   }, [filtered])
 
-  const byStage = React.useMemo(() => {
-    const map: Record<VacancyStatus, HydratedApplication[]> = {
-      'Nuevas Vacantes': [],
-      'En Proceso': [],
-      'Entrevistas': [],
-      'Oferta Enviada': [],
-      'Contratado': [],
-      'Descartado': [],
-    }
-    filtered.forEach(a => {
-      if (map[a.status]) map[a.status].push(a)
+  const clientGroups = React.useMemo(() => {
+    const groups = new Map<string, { clientId: string; clientName: string; apps: HydratedApplication[] }>()
+    filtered.forEach(app => {
+      const vac = vacancies.find(v => v.id === app.vacancyId)
+      const clientId = vac?.clientId ?? '__no_client'
+      const clientName = vac?.client?.name ?? clients.find(c => c.id === clientId)?.name ?? 'Sin cliente'
+      if (!groups.has(clientId)) groups.set(clientId, { clientId, clientName, apps: [] })
+      groups.get(clientId)!.apps.push(app)
     })
-    return map
-  }, [filtered])
-
-  function handleDragStart(event: DragStartEvent) {
-    const app = applications.find(a => a.id === event.active.id)
-    setActiveApp(app ?? null)
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveApp(null)
-    if (!over) return
-    const draggedApp = applications.find(a => a.id === active.id)
-    if (!draggedApp) return
-
-    let newStage: VacancyStatus | null = null
-    for (const stage of STAGES) {
-      if (over.id === stage || byStage[stage].some(a => a.id === over.id)) {
-        newStage = stage
-        break
-      }
-    }
-    if (!newStage || newStage === draggedApp.status) return
-
-    setApplications(prev =>
-      prev.map(a => a.id === draggedApp.id ? { ...a, status: newStage! } : a)
-    )
-
-    const isVirtual = draggedApp.id.startsWith('virtual-')
-    if (!isVirtual) {
-      await provider.updateApplicationStatus(draggedApp.id, newStage)
-      // If hired and has a real vacancy, offer to close the vacancy
-      if (newStage === 'Contratado' && draggedApp.vacancyId) {
-        setHireDialog({ app: draggedApp })
-      }
-    }
-  }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.clientId === '__no_client') return 1
+      if (b.clientId === '__no_client') return -1
+      return a.clientName.localeCompare(b.clientName)
+    })
+  }, [filtered, vacancies, clients])
 
   // When an interview is scheduled, promote the candidate's status to Entrevistas and reload data
   function handleInterviewScheduled(candidateId: string) {
@@ -2338,11 +3097,11 @@ export default function PipelinePage() {
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     } else if (action === 'rechazar') {
+      const app = applications.find(a => a.id === appId)
+      const candidateName = app?.candidate?.fullName ?? ''
+      // Optimistically mark as Descartado then let dialog refine the reason
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: null } : a))
-      if (!isVirtual) {
-        await provider.updateApplicationStatus(appId, 'Descartado')
-        window.dispatchEvent(new CustomEvent('application:stage-changed'))
-      }
+      if (!isVirtual) setRejectDialog({ appId, candidateName })
     } else if (action === 'a_considerar') {
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, disposition: 'a_considerar' as CandidateDisposition } : a))
       if (!isVirtual) {
@@ -2350,10 +3109,20 @@ export default function PipelinePage() {
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     } else if (action === 'descartar_cv') {
+      const app = applications.find(a => a.id === appId)
+      const candidateName = app?.candidate?.fullName ?? ''
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: 'descartar_cv' as CandidateDisposition } : a))
+      if (!isVirtual) setRejectDialog({ appId, candidateName })
+    } else if (action === 'avanzar_etapa') {
+      const STAGE_ORDER: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+      const app = applications.find(a => a.id === appId)
+      if (!app) return
+      const idx = STAGE_ORDER.indexOf(app.status)
+      const nextStage = idx >= 0 && idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : null
+      if (!nextStage) return
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a))
       if (!isVirtual) {
-        await provider.updateApplicationDisposition(appId, 'descartar_cv')
-        await provider.updateApplicationStatus(appId, 'Descartado')
+        await provider.updateApplicationStatus(appId, nextStage)
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     }
@@ -2379,7 +3148,11 @@ export default function PipelinePage() {
 
   if (loading) return (
     <div style={{ padding: 24 }}>
-      <div style={{ height: 36, width: 280, borderRadius: 8, background: 'var(--surface2)', marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[180, 120, 100, 90, 90, 80].map((w, i) => (
+          <div key={i} style={{ height: 32, width: w, borderRadius: 99, background: 'var(--surface2)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        ))}
+      </div>
       <Skeleton />
     </div>
   )
@@ -2396,14 +3169,8 @@ export default function PipelinePage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stage pills bar */}
-      <div
-        style={{
-          padding: '10px 24px',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: 0,
-        }}
-      >
+      {/* Stage tabs */}
+      <div style={{ padding: '10px 24px', borderBottom: '1px solid var(--border)' }}>
         <StagePillsBar
           stages={STAGES}
           counts={stageCounts}
@@ -2418,10 +3185,7 @@ export default function PipelinePage() {
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <div className="relative">
-          <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
-            style={{ color: 'var(--muted)' }}
-          />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--muted)' }} />
           <input
             type="text"
             placeholder="Buscar candidato..."
@@ -2438,9 +3202,7 @@ export default function PipelinePage() {
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
             <option value="all">Todos los clientes</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
@@ -2455,10 +3217,7 @@ export default function PipelinePage() {
               <option key={v.id} value={v.id}>{v.title}</option>
             ))}
           </select>
-          <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-            style={{ color: 'var(--muted)' }}
-          />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
         <div className="relative">
           <select
@@ -2471,10 +3230,7 @@ export default function PipelinePage() {
             <option value="60-79">Bueno (60-79)</option>
             <option value="<60">Regular (&lt;60)</option>
           </select>
-          <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-            style={{ color: 'var(--muted)' }}
-          />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
         {(filterClient !== 'all' || filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
@@ -2495,23 +3251,46 @@ export default function PipelinePage() {
         </div>
       </div>
 
-      {/* Kanban board */}
-      <div className="flex-1 overflow-auto p-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4" style={{ minHeight: '100%' }}>
-            {STAGES.map(stage => (
-              <Lane key={stage} stage={stage} apps={byStage[stage]} onAction={setActiveModal} onDecide={handleDecide} interviewsByCandidate={interviewsByCandidate} />
-            ))}
+      {/* KPI strip */}
+      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
+        {([
+          { label: 'Total', value: filtered.length, color: 'var(--text)' },
+          { label: 'Nuevas', value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
+          { label: 'En Proceso', value: stageCounts['En Proceso'], color: STAGE_COLORS['En Proceso'] },
+          { label: 'Entrevistas', value: stageCounts['Entrevistas'], color: STAGE_COLORS['Entrevistas'] },
+          { label: 'Oferta', value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
+          { label: 'Contratados', value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
+        ] as const).map(kpi => (
+          <div key={kpi.label} style={{ flex: '1 1 80px', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: kpi.color, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1 }}>{kpi.value}</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>{kpi.label}</div>
           </div>
-          <DragOverlay>
-            {activeApp && <CandidateCard app={activeApp} isDragging onAction={() => {}} />}
-          </DragOverlay>
-        </DndContext>
+        ))}
+      </div>
+
+      {/* Client-grouped list */}
+      <div className="flex-1 overflow-auto" style={{ padding: '16px 24px' }}>
+        {clientGroups.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '64px 0', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Search style={{ width: 22, height: 22, color: 'var(--muted)' }} />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Sin candidatos</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Probá ajustando los filtros o creando una nueva vacante</p>
+          </div>
+        ) : (
+          clientGroups.map(group => (
+            <ClientSection
+              key={group.clientId}
+              clientId={group.clientId}
+              clientName={group.clientName}
+              apps={group.apps}
+              onAction={setActiveModal}
+              onDecide={handleDecide}
+              interviewsByCandidate={interviewsByCandidate}
+            />
+          ))
+        )}
       </div>
 
       {/* Modals */}
@@ -2521,6 +3300,7 @@ export default function PipelinePage() {
         const interview = allInterviews
           .filter(i => i.candidateId === cid && i.status === 'Programada')
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        const activeApp = applications.find(a => a.candidateId === cid && a.status !== 'Contratado' && a.status !== 'Descartado')
         return (
           <EmailModal
             candidate={activeModal.candidate}
@@ -2529,6 +3309,10 @@ export default function PipelinePage() {
             initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
+            onStagePrompt={activeApp ? () => {
+              setActiveModal(null)
+              setStagePrompt({ candidateName: activeModal.candidate.fullName, currentStage: activeApp.status, appId: activeApp.id })
+            } : undefined}
           />
         )
       })()}
@@ -2538,6 +3322,7 @@ export default function PipelinePage() {
         const interview = allInterviews
           .filter(i => i.candidateId === cid && i.status === 'Programada')
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
+        const activeApp = applications.find(a => a.candidateId === cid && a.status !== 'Contratado' && a.status !== 'Descartado')
         return (
           <WhatsAppModal
             candidate={activeModal.candidate}
@@ -2546,6 +3331,10 @@ export default function PipelinePage() {
             initialVacancy={vac}
             interview={interview}
             onClose={() => setActiveModal(null)}
+            onStagePrompt={activeApp ? () => {
+              setActiveModal(null)
+              setStagePrompt({ candidateName: activeModal.candidate.fullName, currentStage: activeApp.status, appId: activeApp.id })
+            } : undefined}
           />
         )
       })()}
@@ -2584,12 +3373,39 @@ export default function PipelinePage() {
           />
         )
       })()}
+      {activeModal?.type === 'history' && (
+        <ProcessHistoryModal
+          candidate={activeModal.candidate}
+          provider={provider}
+          vacancies={vacancies}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
       {hireDialog && (
         <HireDialog
           app={hireDialog.app}
           provider={provider}
+          allAppsForVacancy={applications.filter(a => a.vacancyId === hireDialog.app.vacancyId)}
           onClose={() => setHireDialog(null)}
           onVacancyClosed={handleVacancyClosed}
+        />
+      )}
+      {rejectDialog && (
+        <RejectReasonDialog
+          appId={rejectDialog.appId}
+          candidateName={rejectDialog.candidateName}
+          provider={provider}
+          onClose={() => setRejectDialog(null)}
+          onDone={() => setRejectDialog(null)}
+        />
+      )}
+      {stagePrompt && (
+        <StagePromptDialog
+          candidateName={stagePrompt.candidateName}
+          currentStage={stagePrompt.currentStage}
+          appId={stagePrompt.appId}
+          onDecide={handleDecide}
+          onClose={() => setStagePrompt(null)}
         />
       )}
     </div>

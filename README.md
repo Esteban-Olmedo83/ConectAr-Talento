@@ -2,73 +2,164 @@
 
 **"El talento que buscás, conectado en un solo lugar."**
 
-ATS (Applicant Tracking System) con IA para reclutadores latinoamericanos. Plataforma SaaS standalone, web + mobile (PWA), con Gemini AI gratis.
+ATS (Applicant Tracking System) con IA para reclutadores latinoamericanos. Plataforma SaaS standalone, web + mobile (PWA), con soporte de IA vía Groq (Llama) y Google Gemini.
 
 ---
 
-## ✨ Features
+## ✨ Funcionalidades del sistema
 
-| Módulo | Descripción |
-|--------|-------------|
-| 🏗️ **Pipeline Kanban** | Drag & drop con scoring ATS por IA. 5 etapas de reclutamiento |
-| 👥 **Candidatos** | Upload de CV → análisis automático → score ATS en segundos |
-| 📋 **Vacantes** | Descripción generada por IA, gestión de skills, filtros avanzados |
-| 📅 **Entrevistas** | Agenda, scorecard con sliders, informe ejecutivo por IA, PDF export |
-| 💬 **Templates** | 10 templates default (LinkedIn/Email/WhatsApp), editor con IA |
-| 🔌 **Integraciones** | LinkedIn, Gmail, Outlook, WhatsApp Business, Zoom, Job boards LATAM |
-| 📊 **Informes** | Dashboard Recharts: funnel, fuentes, ATS score, timeline |
-| 🌐 **Landing Page** | Hero, features, pricing, testimonials — lista para producción |
-| 📚 **Skills Library** | 100 perfiles × 10 rubros LATAM (IT, Marketing, Finanzas, RRHH...) |
+### 🏗️ Pipeline de Reclutamiento
+- Vista agrupada por cliente con pestañas de etapa (Nuevas Vacantes → Contratado)
+- Drag & drop de candidatos entre etapas
+- Botones de decisión **Avanzar / Rechazar** en cada tarjeta
+- Sub-estados de descarte: *A considerar*, *Descartar CV*
+- **Razones de rechazo** configurables (no apto perfil, fuera rango salarial, candidato declinó, decisión empresa, otro)
+- Resumen del proceso al cerrar una vacante
+- Acciones bloqueadas en etapa *Contratado* para evitar movimientos accidentales
+- Sugerencia de etapa siguiente post-comunicación
+- Filtro de clientes activos (vacantes de clientes inactivos no aparecen)
 
----
+### 👥 Candidatos
+- Carga de CV con extracción automática por IA: nombre, email, teléfono, skills, foto
+- Score ATS calculado por IA al subir el CV
+- Edición completa del perfil (foto, datos, skills, educación, notas)
+- Filtros: cliente, fuente (LinkedIn, Indeed, Portal, Referido…), score ATS, búsqueda libre
+- KPIs dinámicos que respetan los filtros activos
+- Solo muestra candidatos de clientes activos
 
-## 🛠️ Stack
+### 📋 Vacantes
+- Formulario completo: rubro, perfil, modalidad, prioridad, salario, fecha de cierre
+- Generación de descripción de puesto por IA
+- Asignación directa de candidatos desde la ficha de la vacante
+- Estado cerrado con resumen del proceso
+- Filtro de clientes activos
 
-- **Next.js 16** App Router + TypeScript strict
-- **Tailwind v4** + Radix UI headless components
-- **Google Gemini 2.5 Flash** — IA gratis (500 req/día)
-- **@dnd-kit** — drag & drop para el Pipeline Kanban
-- **Recharts** — gráficos del dashboard
-- **jsPDF** — exportación de informes a PDF
-- **LocalStorageProvider** — BD local (sin servidor), con abstracción para Google Sheets / Supabase
-- **react-hook-form + zod** — validación de formularios
+### 🏢 Clientes (Multi-cliente)
+- Gestión completa de empresas clientes con logo, contacto, dirección
+- **Sistema Activo / Inactivo**: desactivar preserva historial, eliminar borra definitivamente
+- **Historial de Clientes**: pestaña con línea de tiempo de eventos (creación, desactivación, reactivación), duración del servicio en días, botón de reactivación
+- Eventos de auditoría registrados automáticamente en cada acción
+- Dirección de entrevista y detalles de llegada para candidatos
+- Email de reclutamiento por cliente
+- Ficha de cliente con pestañas: Vacantes activas, Candidatos directos
+- Al eliminar un cliente: sus vacantes se cierran y sus candidatos se archivan (preservando el historial de postulaciones)
+- Eventos propagados a todo el sistema mediante event bus (`client:updated`)
 
----
+### 📅 Entrevistas
+- Agenda en dos vistas: **Agenda** (listado temporal) y **Por Vacante** (agrupado por proceso)
+- Scorecard con sliders (habilidades técnicas, comunicación, fit cultural)
+- Recomendación: Avanzar / Considerar / Rechazar
+- Informe ejecutivo generado por IA (resumen + puntos fuertes/débiles)
+- Exportación de informe a **PDF** (2 páginas, layout moderno)
+- Plataformas: Zoom, Google Meet, Teams, Presencial
+- Filtro por cliente
 
-## 🚀 Deploy rápido
+### 📊 Dashboard
+- KPIs en tiempo real: candidatos activos, vacantes abiertas, entrevistas programadas, tasa de conversión
+- **Indicador de clientes inactivos** con banner de alerta
+- Funnel de reclutamiento (Recharts)
+- Actividad reciente del pipeline
+- Fuentes de candidatos (gráfico de torta)
+- Filtro global por cliente
+- Recarga automática en foco de pestaña y eventos del sistema
 
-### Opción 1 — Un comando (recomendado)
+### 💼 Banco de Talentos
+- Vista de todos los candidatos históricos (incluyendo archivados)
+- Reactivación de candidatos archivados
+- Filtros: rubro, experiencia, skills
+- Edición de perfil desde el banco
+- Alineación visual con el resto del sistema
 
-```bash
-cd "E:\ConectAr HR\conectar-talento"
-bash deploy.sh
+### 💬 Templates de Comunicación
+- 10 templates por defecto (LinkedIn / Email / WhatsApp)
+- Editor con generación de texto por IA
+- Variables dinámicas: nombre candidato, vacante, empresa, fecha entrevista, etc.
+- Autocomplete de variables con selector visual
+- Autocompletado de datos de entrevista al seleccionar candidato/vacante
+
+### 🔔 Notificaciones
+- Sistema de alertas configurables por tipo de evento
+- Notificaciones en tiempo real de cambios en el pipeline
+- Todas las notificaciones activas por defecto
+
+### 🤖 Integraciones de IA
+
+| Proveedor | Uso | Costo |
+|-----------|-----|-------|
+| **Groq (Llama 3.3)** | Análisis de CV, generación de JD, informe de entrevista | $0 (gratis) |
+| **Google Gemini 2.5 Flash** | Fallback / generación de mensajes | $0 (free tier) |
+
+```
+POST /api/ai/analyze-cv      → Analiza CV, extrae skills, calcula ATS score
+POST /api/ai/generate-jd     → Genera descripción de puesto + LinkedIn post
+POST /api/ai/generate-report → Genera informe ejecutivo post-entrevista
 ```
 
-### Opción 2 — Manual con Vercel CLI
+La API key de Groq se configura por usuario en Ajustes y se persiste en Supabase.
 
-```bash
-cd "E:\ConectAr HR\conectar-talento"
+### 🔌 Integraciones externas (configuradas)
+- LinkedIn, Gmail, Outlook, SMTP
+- WhatsApp Business (wa.me + webhook)
+- Zoom, Google Meet, Microsoft Teams
+- Job boards LATAM: Computrabajo, ZonaJobs, Bumeran, OCC, InfoJobs, Indeed, LinkedIn Jobs, GetOnBoard
 
-# Build de verificación
-npm run build
+### 👤 Perfiles de Puestos
+- Biblioteca de 100+ perfiles × 10 rubros LATAM (IT, Marketing, Finanzas, RRHH, Ventas…)
+- Gestión de perfiles personalizados por tenant
+- Asociación de rubro y perfil en cada vacante para scoring preciso
 
-# Deploy a producción
-npx vercel --prod --scope esteban-olmedo83s-projects --yes --name conectar-talento
-```
-
-### Opción 3 — Vercel Dashboard (sin CLI)
-
-1. Ir a [vercel.com/new](https://vercel.com/new)
-2. Importar desde GitHub (crear repo primero)
-3. Framework preset: **Next.js**
-4. Agregar env vars (ver abajo)
-5. Deploy
+### ⚙️ Panel de Administración
+- Gestión de tenants (multi-empresa)
+- Registro de cambios (changelog)
+- Migraciones de base de datos
+- Configuración de planes y límites
 
 ---
 
-## 🔑 Variables de entorno
+## 🛠️ Stack técnico
 
-Crear `.env.local` en la raíz del proyecto (copiar desde `.env.example`):
+| Capa | Tecnología |
+|------|-----------|
+| Framework | **Next.js 16** App Router + TypeScript strict |
+| Estilos | **Tailwind v4** + Radix UI headless |
+| Base de datos | **Supabase** (PostgreSQL + RLS multi-tenant) |
+| Auth | Supabase Auth (email/password) |
+| Storage | Supabase Storage (CVs, logos, avatares) |
+| IA | Groq API (Llama 3.3) + Google Gemini 2.5 Flash |
+| Drag & Drop | @dnd-kit |
+| Gráficos | Recharts |
+| PDF | jsPDF |
+| Formularios | react-hook-form + zod |
+| Abstracción de datos | `DataProvider` interface (LocalStorage / Google Sheets / Supabase) |
+
+---
+
+## 🗄️ Base de datos (Supabase)
+
+Tablas principales con RLS multi-tenant por `tenant_id`:
+
+| Tabla | Descripción |
+|-------|-------------|
+| `users` | Usuarios y configuración (plan, API keys) |
+| `clients` | Clientes con estado activo/inactivo |
+| `client_events` | Auditoría de eventos de cliente |
+| `vacancies` | Vacantes por cliente |
+| `candidates` | Candidatos con CV y score ATS |
+| `applications` | Postulaciones (candidato × vacante × etapa) |
+| `interviews` | Entrevistas programadas |
+| `scorecards` | Evaluaciones post-entrevista |
+| `message_templates` | Templates de comunicación |
+| `integrations` | Cuentas conectadas |
+| `job_rubros` | Rubros personalizados |
+| `custom_job_profiles` | Perfiles de puesto personalizados |
+
+---
+
+## 🚀 Deploy
+
+### Variables de entorno
+
+Crear `.env.local` (copiar desde `.env.example`):
 
 ```bash
 cp .env.example .env.local
@@ -76,65 +167,37 @@ cp .env.example .env.local
 
 | Variable | Descripción | Obligatorio |
 |----------|-------------|-------------|
-| `GEMINI_API_KEY` | Google AI Studio → [obtener gratis](https://aistudio.google.com/app/apikey) | ✅ Sí |
-| `GOOGLE_CLIENT_ID` | OAuth para Google Drive como BD | Opcional |
-| `NEXT_PUBLIC_SUPABASE_URL` | Para plan Business/Enterprise | Opcional |
-| `WHATSAPP_VERIFY_TOKEN` | Webhook de WhatsApp Business | Opcional |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | ✅ Sí |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key de Supabase | ✅ Sí |
+| `GROQ_API_KEY` | Groq AI (análisis CV, informes) | ✅ Sí |
+| `GEMINI_API_KEY` | Google AI Studio (fallback) | Opcional |
+| `GOOGLE_CLIENT_ID` | OAuth Google Drive | Opcional |
+| `WHATSAPP_VERIFY_TOKEN` | Webhook WhatsApp Business | Opcional |
 
----
-
-## 💻 Desarrollo local
+### Desarrollo local
 
 ```bash
-# Instalar dependencias
 npm install
-
-# Variables de entorno
 cp .env.example .env.local
-# Editar .env.local con tu GEMINI_API_KEY
-
-# Servidor de desarrollo
+# Completar variables en .env.local
 npm run dev
 # → http://localhost:3000
-
-# Build de producción
-npm run build
-npm run start
 ```
 
-### Flujo fijo de publicacion
-
-Trabajar siempre desde esta carpeta:
+### Producción (Vercel)
 
 ```bash
-E:\ConectAr Talento\conectar-talento
+npm run build   # verificación
+# Push a main → Vercel auto-deploy
 ```
-
-Opcion manual:
-
-```bash
-git add .
-git commit -m "feat: tu cambio"
-git push origin main
-```
-
-Opcion rapida con script:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\publish-main.ps1 "feat: tu cambio"
-```
-
-Despues del `git push`, GitHub recibe el commit y Vercel dispara el deploy automatico desde `main`.
 
 ---
 
 ## 📱 Credenciales de prueba
 
-Al arrancar la app, ir a `/signup` y crear una cuenta. O usar:
+Ir a `/signup` y crear una cuenta nueva. O usar:
 - **Email:** `demo@conectartalento.com`
 - **Contraseña:** `demo1234`
-
-El pipeline se pre-carga con datos de demostración automáticamente.
 
 ---
 
@@ -153,18 +216,24 @@ El pipeline se pre-carga con datos de demostración automáticamente.
 
 ## 🗺️ Roadmap
 
-- [x] Pipeline Kanban + Candidatos + Vacantes + Entrevistas
-- [x] Templates de comunicación (LinkedIn/Email/WhatsApp)
-- [x] Integraciones (LinkedIn, Email, WhatsApp Business, Zoom, Job Boards)
-- [x] Dashboard de informes (Recharts + PDF export)
-- [x] Landing page de producción
-- [x] Skills library: 100 perfiles × 10 rubros LATAM
+- [x] Pipeline de reclutamiento con drag & drop y etapas
+- [x] Candidatos con análisis de CV por IA y score ATS
+- [x] Vacantes con generación de JD por IA
+- [x] Entrevistas con scorecard e informe PDF por IA
+- [x] Templates de comunicación (LinkedIn / Email / WhatsApp)
+- [x] Dashboard con KPIs en tiempo real y funnel de conversión
+- [x] Sistema multi-cliente con historial y auditoría
+- [x] Clientes activos/inactivos con filtrado global
+- [x] Banco de Talentos (candidatos históricos + reactivación)
+- [x] Integraciones (LinkedIn, Email, WhatsApp, Zoom, Job Boards)
+- [x] Perfiles de puestos: 100+ perfiles × 10 rubros LATAM
+- [x] Supabase multi-tenant con RLS
+- [x] Panel de administración de tenants
 - [ ] OAuth real: LinkedIn, Gmail, Microsoft 365
 - [ ] WhatsApp Business webhook en producción
-- [ ] Google Sheets como base de datos (plan Free)
-- [ ] Supabase multi-tenant (plan Business)
+- [ ] Publicación automática en job boards LATAM
 - [ ] App nativa iOS/Android (Capacitor)
-- [ ] Publicación en job boards LATAM (Computrabajo, ZonaJobs, Bumeran)
+- [ ] Google Sheets como base de datos (plan Free)
 
 ---
 
@@ -174,39 +243,30 @@ El pipeline se pre-carga con datos de demostración automáticamente.
 src/
 ├── app/
 │   ├── (app)/               # Rutas protegidas (requieren login)
-│   │   ├── pipeline/        # Kanban principal
-│   │   ├── candidates/      # Base de datos de candidatos
+│   │   ├── pipeline/        # Pipeline de reclutamiento
+│   │   ├── candidates/      # Base de candidatos con filtros
 │   │   ├── vacancies/       # Gestión de vacantes
 │   │   ├── interviews/      # Agenda de entrevistas
+│   │   ├── clients/         # Clientes + historial de auditoría
+│   │   ├── talent-pool/     # Banco de Talentos
 │   │   ├── templates/       # Templates de comunicación
 │   │   ├── integrations/    # Cuentas conectadas
-│   │   └── reports/         # Analytics
+│   │   ├── reports/         # Analytics y gráficos
+│   │   ├── settings/        # Configuración de usuario y API keys
+│   │   ├── job-profiles/    # Perfiles de puestos LATAM
+│   │   └── admin/           # Panel de administración
 │   ├── (auth)/              # Login + Signup
-│   ├── api/ai/              # API routes Gemini (analyze-cv, generate-jd, generate-report)
+│   ├── api/ai/              # API routes IA (analyze-cv, generate-jd, generate-report)
 │   └── page.tsx             # Landing page pública
 ├── components/
 │   ├── layout/              # AppLayout + Sidebar
 │   ├── recruitment/         # Componentes ATS
-│   └── ui/                  # Design system (Radix UI)
+│   └── ui/                  # Design system (Radix UI + modales arrastrables)
 ├── lib/
-│   ├── providers/           # DataProvider (localStorage / Google Sheets / Supabase)
-│   └── skills/              # 100 perfiles LATAM
-└── types/                   # TypeScript types
+│   ├── providers/           # DataProvider (LocalStorage / Supabase / Google Sheets)
+│   └── skills/              # Biblioteca de 100+ perfiles LATAM
+└── types/                   # TypeScript types centralizados
 ```
-
----
-
-## 🤖 Integraciones de IA
-
-Todos los endpoints usan **Gemini 2.5 Flash** via fetch directo (sin SDK):
-
-```
-POST /api/ai/analyze-cv      → Analiza CV, extrae skills, calcula ATS score
-POST /api/ai/generate-jd     → Genera descripción de puesto + LinkedIn post
-POST /api/ai/generate-report → Genera informe ejecutivo post-entrevista
-```
-
-**Costo: $0** dentro del free tier (500 requests/día).
 
 ---
 

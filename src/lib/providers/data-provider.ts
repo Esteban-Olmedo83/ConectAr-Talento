@@ -10,11 +10,12 @@ import type {
   Integration,
   VacancyStatus,
   CandidateDisposition,
+  RejectionReason,
 } from '@/types'
 
 // ─── Input types (omit server-generated fields) ──────────────────────────────
 
-export type CreateClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt'>
+export type CreateClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'active' | 'deactivatedAt'> & { active?: boolean }
 export type UpdateClientInput = Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>>
 
 export type CreateVacancyInput = Omit<Vacancy, 'id' | 'createdAt' | 'applications' | 'client'>
@@ -42,6 +43,9 @@ export interface DataProvider {
   createClient(input: CreateClientInput): Promise<DataResult<Client>>
   updateClient(id: string, input: UpdateClientInput): Promise<DataResult<Client>>
   deleteClient(id: string): Promise<DataResult<void>>
+  deactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>>
+  reactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>>
+  getClientEvents(tenantId: string, clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>>
 
   // Vacancies
   getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>>
@@ -60,6 +64,9 @@ export interface DataProvider {
   createApplication(input: CreateApplicationInput): Promise<DataResult<Application>>
   updateApplicationStatus(id: string, status: VacancyStatus): Promise<DataResult<Application>>
   updateApplicationDisposition(id: string, disposition: CandidateDisposition | null): Promise<DataResult<Application>>
+  updateApplicationRejection(id: string, reason: RejectionReason, note?: string): Promise<DataResult<Application>>
+  snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void>
+  archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void>
 
   // Interviews
   getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>>
@@ -146,6 +153,7 @@ export class LocalStorageProvider implements DataProvider {
     try {
       const client: Client = {
         ...input,
+        active: input.active ?? true,
         id: generateId(),
         createdAt: now(),
         updatedAt: now(),
@@ -184,6 +192,26 @@ export class LocalStorageProvider implements DataProvider {
     } catch (e) {
       return err(`deleteClient failed: ${String(e)}`)
     }
+  }
+
+  async deactivateClient(id: string, _clientName: string, _tenantId: string): Promise<DataResult<Client>> {
+    const all = readCollection<Client>(KEYS.clients)
+    const updated = all.map(c => c.id === id ? { ...c, active: false, deactivatedAt: new Date().toISOString() } : c)
+    writeCollection(KEYS.clients, updated)
+    const found = updated.find(c => c.id === id)
+    return found ? ok(found) : err('Client not found')
+  }
+
+  async reactivateClient(id: string, _clientName: string, _tenantId: string): Promise<DataResult<Client>> {
+    const all = readCollection<Client>(KEYS.clients)
+    const updated = all.map(c => c.id === id ? { ...c, active: true, deactivatedAt: null } : c)
+    writeCollection(KEYS.clients, updated)
+    const found = updated.find(c => c.id === id)
+    return found ? ok(found) : err('Client not found')
+  }
+
+  async getClientEvents(_tenantId: string, _clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    return ok([])
   }
 
   // ── Vacancies ──────────────────────────────────────────────────────────────
@@ -373,6 +401,55 @@ export class LocalStorageProvider implements DataProvider {
     } catch (e) {
       return err(`updateApplicationDisposition failed: ${String(e)}`)
     }
+  }
+
+  async updateApplicationRejection(
+    id: string,
+    reason: RejectionReason,
+    note?: string
+  ): Promise<DataResult<Application>> {
+    try {
+      const all = readCollection<Application>(KEYS.applications)
+      const idx = all.findIndex((a) => a.id === id)
+      if (idx === -1) return err(`Application ${id} not found`)
+      const updated: Application = {
+        ...all[idx],
+        status: 'Descartado',
+        rejectionReason: reason,
+        rejectionNote: note ?? null,
+        disposition: null,
+        updatedAt: now(),
+      }
+      all[idx] = updated
+      writeCollection(KEYS.applications, all)
+      return ok(updated)
+    } catch (e) {
+      return err(`updateApplicationRejection failed: ${String(e)}`)
+    }
+  }
+
+  async snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void> {
+    const apps = readCollection<Application>(KEYS.applications)
+    const updated = apps.map(a => a.vacancyId === vacancyId ? { ...a, vacancyTitle, clientName } : a)
+    writeCollection(KEYS.applications, updated)
+  }
+
+  async archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void> {
+    const vacancySet = new Set(clientVacancyIds)
+    const apps = readCollection<Application>(KEYS.applications)
+    const candidates = readCollection<Candidate>(KEYS.candidates)
+    const clientCandidateIds = new Set(
+      apps.filter(a => a.vacancyId && vacancySet.has(a.vacancyId)).map(a => a.candidateId)
+    )
+    const stillActive = new Set(
+      apps.filter(a => a.vacancyId && !vacancySet.has(a.vacancyId) && clientCandidateIds.has(a.candidateId)).map(a => a.candidateId)
+    )
+    const updated = candidates.map(c =>
+      clientCandidateIds.has(c.id) && !stillActive.has(c.id) && (!c.clientId || c.clientId === clientId)
+        ? { ...c, archived: true }
+        : c
+    )
+    writeCollection(KEYS.candidates, updated)
   }
 
   // ── Interviews ─────────────────────────────────────────────────────────────

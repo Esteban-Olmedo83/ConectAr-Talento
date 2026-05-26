@@ -20,6 +20,7 @@ import type {
   IntegrationPlatform,
   IntegrationStatus,
   CandidateDisposition,
+  RejectionReason,
 } from '@/types'
 import type {
   DataProvider,
@@ -250,7 +251,7 @@ function rowToApplication(row: RawRow): Application {
 function applicationToRow(a: Application): RawRow {
   return [
     a.id,
-    a.vacancyId,
+    a.vacancyId ?? '',
     a.candidateId,
     a.status,
     String(a.positionInStage),
@@ -456,6 +457,16 @@ export class GoogleSheetsProvider implements DataProvider {
 
   async deleteClient(_id: string): Promise<DataResult<void>> {
     return { data: null, error: 'Clients not supported in Google Sheets provider' }
+  }
+
+  async deactivateClient(_id: string, _clientName: string, _tenantId: string): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Not supported' }
+  }
+  async reactivateClient(_id: string, _clientName: string, _tenantId: string): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Not supported' }
+  }
+  async getClientEvents(_tenantId: string, _clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    return ok([])
   }
 
   // ─── Private HTTP helpers ────────────────────────────────────────────────
@@ -733,6 +744,36 @@ export class GoogleSheetsProvider implements DataProvider {
       return err(`updateApplicationDisposition failed: ${String(e)}`)
     }
   }
+
+  async updateApplicationRejection(
+    id: string,
+    reason: RejectionReason,
+    note?: string
+  ): Promise<DataResult<Application>> {
+    try {
+      const rows = await this.readSheet(SHEETS.applications)
+      const idx = rows.findIndex((r) => r[0] === id)
+      if (idx === -1) return err(`Application ${id} not found`)
+      const existing = rowToApplication(rows[idx])
+      const updated: Application = {
+        ...existing,
+        status: 'Descartado',
+        rejectionReason: reason,
+        rejectionNote: note ?? null,
+        disposition: null,
+        updatedAt: nowIso(),
+      }
+      await this.updateRow(SHEETS.applications, idx, applicationToRow(updated))
+      return ok(updated)
+    } catch (e) {
+      return err(`updateApplicationRejection failed: ${String(e)}`)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async snapshotApplicationsForVacancy(_vacancyId: string, _vacancyTitle: string, _clientName: string): Promise<void> {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async archiveCandidatesForClient(_clientId: string, _clientVacancyIds: string[]): Promise<void> {}
 
   // ─── Interviews ────────────────────────────────────────────────────────────
 

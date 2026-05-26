@@ -122,6 +122,29 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
     }
   }, [open, candidateProp, provider])
 
+  // Reload process info when stage changes in another tab/page
+  React.useEffect(() => {
+    if (!open || !candidateProp) return
+    function reloadProcess() {
+      if (!candidateProp) return
+      setLoadingProcess(true)
+      Promise.all([
+        provider.getApplicationsByCandidateId(candidateProp.id),
+        provider.getInterviews(candidateProp.id),
+      ]).then(([appRes, intRes]) => {
+        setApplications(appRes.data ?? [])
+        setInterviews(intRes.data ?? [])
+        setLoadingProcess(false)
+      })
+    }
+    window.addEventListener('application:stage-changed', reloadProcess)
+    window.addEventListener('interview:scheduled', reloadProcess)
+    return () => {
+      window.removeEventListener('application:stage-changed', reloadProcess)
+      window.removeEventListener('interview:scheduled', reloadProcess)
+    }
+  }, [open, candidateProp, provider])
+
   async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !candidate) return
@@ -647,6 +670,13 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
     if (result.error) {
       setError(result.error)
     } else {
+      // Promote application status to Entrevistas in DB
+      const vacancyId = form.vacancyId || (vacancies[0]?.id ?? '')
+      if (vacancyId) {
+        const appRes = await provider.getApplicationsByCandidateId(candidate.id)
+        const app = appRes.data?.find(a => a.vacancyId === vacancyId && a.status === 'Nuevas Vacantes')
+        if (app) await provider.updateApplicationStatus(app.id, 'Entrevistas')
+      }
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       setTimeout(onClose, 1200)
@@ -1232,23 +1262,33 @@ export default function CandidatesPage() {
   React.useEffect(() => { load() }, [load])
 
   React.useEffect(() => {
-    function handleClientDeleted() { load() }
+    function handleClientChanged() { load() }
     function handleVisibility() {
       if (document.visibilityState === 'visible') load()
     }
-    window.addEventListener('client:deleted', handleClientDeleted)
+    window.addEventListener('client:deleted', handleClientChanged)
+    window.addEventListener('client:updated', handleClientChanged)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
-      window.removeEventListener('client:deleted', handleClientDeleted)
+      window.removeEventListener('client:deleted', handleClientChanged)
+      window.removeEventListener('client:updated', handleClientChanged)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
 
   const filtered = React.useMemo(() => {
+    const activeClientIds = new Set(clients.filter(cl => cl.active !== false).map(cl => cl.id))
     return candidates.filter(c => {
+      // Hide archived candidates (their company was deleted)
+      if (c.archived) return false
+      // Hide candidates whose assigned client is inactive or was deleted
+      if (c.clientId && !activeClientIds.has(c.clientId)) return false
+      // Hide orphaned candidates: all applications point to deleted vacancies (vacancyId = null)
+      const candidateApps = applications.filter(a => a.candidateId === c.id)
+      if (candidateApps.length > 0 && candidateApps.every(a => a.vacancyId === null)) return false
       if (filterClient !== 'all') {
         const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
-        const appliedToClient = applications.some(a => a.candidateId === c.id && clientVacancyIds.has(a.vacancyId))
+        const appliedToClient = applications.some(a => a.candidateId === c.id && a.vacancyId !== null && clientVacancyIds.has(a.vacancyId))
         if (c.clientId !== filterClient && !appliedToClient) return false
       }
       if (search && !c.fullName.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false
@@ -1259,7 +1299,7 @@ export default function CandidatesPage() {
       if (filterSource !== 'all' && c.source !== filterSource) return false
       return true
     })
-  }, [candidates, vacancies, applications, filterClient, search, filterScore, filterSource])
+  }, [candidates, vacancies, applications, clients, filterClient, search, filterScore, filterSource])
 
   const kpis = React.useMemo(() => {
     const total = filtered.length

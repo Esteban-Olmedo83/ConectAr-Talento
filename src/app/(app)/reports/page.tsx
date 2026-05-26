@@ -331,7 +331,7 @@ export default function ReportsPage() {
   const clientFilteredApplications = React.useMemo(() => {
     if (filterClient === 'all') return applications
     return applications.filter(a => {
-      const v = vacancyMap.get(a.vacancyId)
+      const v = a.vacancyId ? vacancyMap.get(a.vacancyId) : undefined
       return v?.clientId === filterClient
     })
   }, [applications, filterClient, vacancyMap])

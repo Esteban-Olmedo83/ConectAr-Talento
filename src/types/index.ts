@@ -8,6 +8,14 @@ export type VacancyStatus =
 
 export type CandidateDisposition = 'a_considerar' | 'descartar_cv'
 
+export type RejectionReason =
+  | 'no_apto_perfil'
+  | 'mejor_candidato'
+  | 'candidato_declino'
+  | 'fuera_rango_salarial'
+  | 'decision_empresa'
+  | 'otro'
+
 export type VacancyModality = 'Presencial' | 'Remoto' | 'Híbrido'
 export type VacancyPriority = 'Alta' | 'Media' | 'Baja'
 
@@ -134,11 +142,12 @@ export interface Candidate {
   interviews: Interview[]
   appliedAt: string
   createdAt: string
+  archived?: boolean
 }
 
 export interface Application {
   id: string
-  vacancyId: string
+  vacancyId: string | null
   candidateId: string
   candidate?: Candidate
   status: VacancyStatus
@@ -146,6 +155,11 @@ export interface Application {
   appliedAt: string
   updatedAt: string
   disposition?: CandidateDisposition | null
+  rejectionReason?: RejectionReason | null
+  rejectionNote?: string | null
+  // Preserved when the vacancy/client is deleted
+  vacancyTitle?: string | null
+  clientName?: string | null
 }
 
 export interface Client {
@@ -154,18 +168,32 @@ export interface Client {
   name: string
   industry?: string
   contactName?: string
-  contactEmail?: string       // corporate / main contact email
-  recruitmentEmail?: string   // email used for recruitment communications
+  contactEmail?: string
+  recruitmentEmail?: string
   contactPhone?: string
-  whatsappPhone?: string      // phone number for WhatsApp
+  whatsappPhone?: string
   address?: string
   interviewAddress?: string
   interviewArrivalDetails?: string
   website?: string
   logoUrl?: string
   notes?: string
+  active: boolean
+  deactivatedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type ClientEventType = 'created' | 'deactivated' | 'reactivated' | 'modified'
+
+export interface ClientEvent {
+  id: string
+  tenantId: string
+  clientId: string
+  clientName: string
+  eventType: ClientEventType
+  occurredAt: string
+  notes?: string | null
 }
 
 export interface Vacancy {

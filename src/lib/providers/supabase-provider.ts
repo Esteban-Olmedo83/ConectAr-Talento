@@ -15,6 +15,7 @@ import type {
   CreateJobProfileInput,
   VacancyStatus,
   CandidateDisposition,
+  RejectionReason,
 } from '@/types'
 import type {
   DataProvider,
@@ -53,8 +54,22 @@ function mapClient(row: Record<string, unknown>): Client {
     website: (row.website as string) ?? undefined,
     logoUrl: (row.logo_url as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
+    active: (row.active as boolean) ?? true,
+    deactivatedAt: (row.deactivated_at as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+  }
+}
+
+function mapClientEvent(row: Record<string, unknown>): import('@/types').ClientEvent {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    clientId: row.client_id as string,
+    clientName: row.client_name as string,
+    eventType: row.event_type as import('@/types').ClientEventType,
+    occurredAt: row.occurred_at as string,
+    notes: (row.notes as string | null) ?? null,
   }
 }
 
@@ -106,6 +121,7 @@ function mapCandidate(row: Record<string, unknown>): Candidate {
     interviews: [],
     appliedAt: row.applied_at as string,
     createdAt: row.created_at as string,
+    archived: (row.archived as boolean) ?? false,
   }
 }
 
@@ -146,7 +162,7 @@ function mapInterview(row: Record<string, unknown>): Interview {
 function mapApplication(row: Record<string, unknown>): Application {
   return {
     id: row.id as string,
-    vacancyId: row.vacancy_id as string,
+    vacancyId: (row.vacancy_id as string | null) ?? null,
     candidateId: row.candidate_id as string,
     status: row.status as VacancyStatus,
     positionInStage: row.position_in_stage as number,
@@ -154,6 +170,10 @@ function mapApplication(row: Record<string, unknown>): Application {
     updatedAt: row.updated_at as string,
     candidate: row.candidate ? mapCandidate(row.candidate as Record<string, unknown>) : undefined,
     disposition: (row.disposition as CandidateDisposition | null) ?? null,
+    rejectionReason: (row.rejection_reason as RejectionReason | null) ?? null,
+    rejectionNote: (row.rejection_note as string | null) ?? undefined,
+    vacancyTitle: (row.vacancy_title as string | null) ?? null,
+    clientName: (row.client_name as string | null) ?? null,
   }
 }
 
@@ -333,6 +353,51 @@ export class SupabaseProvider implements DataProvider {
       interviews: interviewCount,
       scorecards: scorecardCount,
     }
+  }
+
+  async deactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>> {
+    const now = new Date().toISOString()
+    const { data, error } = await this.sb
+      .from('clients')
+      .update({ active: false, deactivated_at: now })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: id, client_name: clientName,
+      event_type: 'deactivated', occurred_at: now,
+    })
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async reactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>> {
+    const { data, error } = await this.sb
+      .from('clients')
+      .update({ active: true, deactivated_at: null })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: id, client_name: clientName,
+      event_type: 'reactivated',
+    })
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async getClientEvents(tenantId: string, clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    let q = this.sb.from('client_events').select('*').eq('tenant_id', tenantId).order('occurred_at', { ascending: false })
+    if (clientId) q = q.eq('client_id', clientId)
+    const { data, error } = await q
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapClientEvent))
+  }
+
+  async logClientEvent(tenantId: string, clientId: string, clientName: string, eventType: import('@/types').ClientEventType, notes?: string): Promise<void> {
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: clientId, client_name: clientName, event_type: eventType, notes: notes ?? null,
+    })
   }
 
   // ── Vacancies ─────────────────────────────────────────────────────────────
@@ -536,6 +601,65 @@ export class SupabaseProvider implements DataProvider {
       .single()
     if (error) return err(error.message)
     return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  async updateApplicationRejection(
+    id: string,
+    reason: RejectionReason,
+    note?: string
+  ): Promise<DataResult<Application>> {
+    const { data, error } = await this.sb
+      .from('applications')
+      .update({
+        status: 'Descartado',
+        rejection_reason: reason,
+        rejection_note: note ?? null,
+        disposition: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*, candidate:candidates(*)')
+      .single()
+    if (error) return err(error.message)
+    return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  async snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void> {
+    await this.sb
+      .from('applications')
+      .update({ vacancy_title: vacancyTitle, client_name: clientName })
+      .eq('vacancy_id', vacancyId)
+  }
+
+  async archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void> {
+    if (clientVacancyIds.length === 0) return
+    // Candidates whose ONLY vacancy applications were for this client's vacancies
+    // First get all candidates with apps for these vacancies
+    const { data: clientApps } = await this.sb
+      .from('applications')
+      .select('candidate_id')
+      .in('vacancy_id', clientVacancyIds)
+    if (!clientApps?.length) return
+    const candidateIds = [...new Set(clientApps.map(a => a.candidate_id as string))]
+    // Of those, find any that have OTHER applications not in this client's vacancies
+    const { data: otherApps } = await this.sb
+      .from('applications')
+      .select('candidate_id')
+      .in('candidate_id', candidateIds)
+      .not('vacancy_id', 'in', `(${clientVacancyIds.map(id => `"${id}"`).join(',')})`)
+      .not('vacancy_id', 'is', null)
+    const stillActiveIds = new Set((otherApps ?? []).map(a => a.candidate_id as string))
+    // Also keep candidates who have a direct clientId pointing to another existing client
+    const { data: directClients } = await this.sb
+      .from('candidates')
+      .select('id, client_id')
+      .in('id', candidateIds)
+      .not('client_id', 'is', null)
+      .neq('client_id', clientId)
+    ;(directClients ?? []).forEach(c => stillActiveIds.add(c.id as string))
+    const toArchive = candidateIds.filter(id => !stillActiveIds.has(id))
+    if (toArchive.length === 0) return
+    await this.sb.from('candidates').update({ archived: true }).in('id', toArchive)
   }
 
   // Stage mapping used by the pipeline drag-and-drop.

@@ -20,6 +20,7 @@ import {
   Columns3,
   BookOpen,
   ShieldCheck,
+  Archive,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -30,6 +31,7 @@ const mainNavItems = [
   { label: 'Clientes', href: '/clients', icon: Building2 },
   { label: 'Procesos', href: '/pipeline', icon: Columns3 },
   { label: 'Candidatos', href: '/candidates', icon: Users },
+  { label: 'Banco de Talento', href: '/talent-pool', icon: Archive },
   { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
   { label: 'Entrevistas', href: '/interviews', icon: Calendar },
 ]
