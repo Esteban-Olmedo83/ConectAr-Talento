@@ -2895,12 +2895,18 @@ export default function PipelinePage() {
   }, [load])
 
   const filtered = React.useMemo(() => {
+    const validVacancyIds = new Set(vacancies.map(v => v.id))
+    const validClientIds = new Set(clients.map(c => c.id))
     return applications.filter(a => {
       const c = a.candidate
       if (!c) return false
+      // Hide applications whose vacancy was deleted (e.g. when client was deleted)
+      if (!validVacancyIds.has(a.vacancyId)) return false
+      const vac = vacancies.find(v => v.id === a.vacancyId)
+      // Hide applications for vacancies belonging to a deleted client
+      if (vac?.clientId && !validClientIds.has(vac.clientId)) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
       if (filterClient !== 'all') {
-        const vac = vacancies.find(v => v.id === a.vacancyId)
         if (!vac || vac.clientId !== filterClient) return false
       }
       if (filterVacancy !== 'all' && a.vacancyId !== filterVacancy) return false
@@ -2910,7 +2916,7 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies])
+  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies, clients])
 
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {

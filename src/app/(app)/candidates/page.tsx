@@ -1275,7 +1275,10 @@ export default function CandidatesPage() {
   }, [load])
 
   const filtered = React.useMemo(() => {
+    const validClientIds = new Set(clients.map(c => c.id))
     return candidates.filter(c => {
+      // Hide candidates whose assigned client was deleted
+      if (c.clientId && !validClientIds.has(c.clientId)) return false
       if (filterClient !== 'all') {
         const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
         const appliedToClient = applications.some(a => a.candidateId === c.id && clientVacancyIds.has(a.vacancyId))
@@ -1289,7 +1292,7 @@ export default function CandidatesPage() {
       if (filterSource !== 'all' && c.source !== filterSource) return false
       return true
     })
-  }, [candidates, vacancies, applications, filterClient, search, filterScore, filterSource])
+  }, [candidates, vacancies, applications, clients, filterClient, search, filterScore, filterSource])
 
   const kpis = React.useMemo(() => {
     const total = filtered.length

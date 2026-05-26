@@ -759,7 +759,7 @@ export default function ClientsPage() {
   }, [clients, search])
 
   function vacancyCountFor(clientId: string) {
-    return vacancies.filter(v => v.clientId === clientId).length
+    return vacancies.filter(v => v.clientId === clientId && v.status !== 'Contratado').length
   }
 
   function handleSaved(c: Client) {
@@ -777,11 +777,15 @@ export default function ClientsPage() {
   }
 
   async function handleDelete(client: Client) {
+    // Delete all vacancies for this client first (applications cascade via FK or are orphaned)
+    const clientVacs = vacancies.filter(v => v.clientId === client.id)
+    await Promise.all(clientVacs.map(v => provider.deleteVacancy(v.id)))
     await provider.deleteClient(client.id)
     setClients(prev => prev.filter(c => c.id !== client.id))
-    setVacancies(prev => prev.map(v => v.clientId === client.id ? { ...v, clientId: undefined, client: undefined } : v))
+    setVacancies(prev => prev.filter(v => v.clientId !== client.id))
     setDeletingClient(undefined)
     window.dispatchEvent(new CustomEvent('client:deleted', { detail: { clientId: client.id } }))
+    window.dispatchEvent(new CustomEvent('vacancy:updated'))
   }
 
   const atLimit = clients.length >= limits.clients
@@ -789,7 +793,7 @@ export default function ClientsPage() {
   // ── KPIs ───────────────────────────────────────────────────────────────────
   const totalClients = clients.length
   const clientsWithVacancy = clients.filter(c => vacancyCountFor(c.id) > 0).length
-  const totalActiveVacancies = vacancies.filter(v => v.clientId).length
+  const totalActiveVacancies = vacancies.filter(v => v.clientId && v.status !== 'Contratado').length
 
   return (
     <div
