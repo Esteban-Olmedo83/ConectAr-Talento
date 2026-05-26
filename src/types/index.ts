@@ -8,6 +8,14 @@ export type VacancyStatus =
 
 export type CandidateDisposition = 'a_considerar' | 'descartar_cv'
 
+export type RejectionReason =
+  | 'no_apto_perfil'
+  | 'mejor_candidato'
+  | 'candidato_declino'
+  | 'fuera_rango_salarial'
+  | 'decision_empresa'
+  | 'otro'
+
 export type VacancyModality = 'Presencial' | 'Remoto' | 'Híbrido'
 export type VacancyPriority = 'Alta' | 'Media' | 'Baja'
 
@@ -146,6 +154,8 @@ export interface Application {
   appliedAt: string
   updatedAt: string
   disposition?: CandidateDisposition | null
+  rejectionReason?: RejectionReason | null
+  rejectionNote?: string | null
 }
 
 export interface Client {

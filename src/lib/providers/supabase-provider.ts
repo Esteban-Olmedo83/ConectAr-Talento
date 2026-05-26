@@ -15,6 +15,7 @@ import type {
   CreateJobProfileInput,
   VacancyStatus,
   CandidateDisposition,
+  RejectionReason,
 } from '@/types'
 import type {
   DataProvider,
@@ -154,6 +155,8 @@ function mapApplication(row: Record<string, unknown>): Application {
     updatedAt: row.updated_at as string,
     candidate: row.candidate ? mapCandidate(row.candidate as Record<string, unknown>) : undefined,
     disposition: (row.disposition as CandidateDisposition | null) ?? null,
+    rejectionReason: (row.rejection_reason as RejectionReason | null) ?? null,
+    rejectionNote: (row.rejection_note as string | null) ?? undefined,
   }
 }
 
@@ -531,6 +534,27 @@ export class SupabaseProvider implements DataProvider {
     const { data, error } = await this.sb
       .from('applications')
       .update({ disposition, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*, candidate:candidates(*)')
+      .single()
+    if (error) return err(error.message)
+    return ok(mapApplication(data as Record<string, unknown>))
+  }
+
+  async updateApplicationRejection(
+    id: string,
+    reason: RejectionReason,
+    note?: string
+  ): Promise<DataResult<Application>> {
+    const { data, error } = await this.sb
+      .from('applications')
+      .update({
+        status: 'Descartado',
+        rejection_reason: reason,
+        rejection_note: note ?? null,
+        disposition: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
       .select('*, candidate:candidates(*)')
       .single()

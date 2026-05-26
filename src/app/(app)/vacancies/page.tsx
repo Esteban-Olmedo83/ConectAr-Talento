@@ -5,7 +5,7 @@ import {
   Plus, Search, Briefcase, Users, Clock, BarChart2,
   ChevronDown, MapPin, Laptop, Building2, Pencil,
   Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2,
-  FileText, Calendar,
+  FileText, Calendar, AlertTriangle,
 } from 'lucide-react'
 import { cn, formatRelativeDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile, Interview, VacancyStatus } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile, Interview, VacancyStatus, Application, RejectionReason } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -769,6 +769,15 @@ function candidateInitials(name: string) {
   return (p[0][0] + (p[1]?.[0] ?? '')).toUpperCase()
 }
 
+const REJECTION_REASON_LABELS: Record<string, string> = {
+  no_apto_perfil: 'No cumple el perfil',
+  mejor_candidato: 'Mejor candidato seleccionado',
+  candidato_declino: 'Candidato declinó',
+  fuera_rango_salarial: 'Fuera de rango salarial',
+  decision_empresa: 'Decisión empresarial',
+  otro: 'Otro motivo',
+}
+
 function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
   vacancy: Vacancy
   onClose: () => void
@@ -779,6 +788,7 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
 
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
   const [assignedIds, setAssignedIds] = React.useState<Set<string>>(new Set())
+  const [allCandidateApps, setAllCandidateApps] = React.useState<Application[]>([])
   const [loadingCandidates, setLoadingCandidates] = React.useState(true)
   const [assigning, setAssigning] = React.useState<Set<string>>(new Set())
   const [search, setSearch] = React.useState('')
@@ -786,12 +796,14 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
   React.useEffect(() => {
     async function load() {
       const tenantId = user?.tenantId ?? user?.id ?? ''
-      const [candRes, appRes] = await Promise.all([
+      const [candRes, appRes, allAppsRes] = await Promise.all([
         provider.getCandidates(tenantId),
         provider.getApplications(vacancy.id),
+        provider.getApplications(undefined, tenantId),
       ])
       setCandidates(candRes.data ?? [])
       setAssignedIds(new Set((appRes.data ?? []).map(a => a.candidateId)))
+      setAllCandidateApps(allAppsRes.data ?? [])
       setLoadingCandidates(false)
     }
     load()
@@ -876,6 +888,12 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
               const isAssigned = assignedIds.has(c.id)
               const isAssigning = assigning.has(c.id)
               const score = c.atsScore ?? 0
+              const prevRejections = allCandidateApps.filter(a =>
+                a.candidateId === c.id &&
+                a.vacancyId !== vacancy.id &&
+                a.status === 'Descartado' &&
+                (a as Application & { rejectionReason?: RejectionReason }).rejectionReason
+              )
               return (
                 <div
                   key={c.id}
@@ -894,6 +912,12 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{c.fullName}</p>
                     <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{c.email}</p>
+                    {prevRejections.length > 0 && (
+                      <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: '#fbbf24' }}>
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        Descartado en {prevRejections.length} proceso{prevRejections.length !== 1 ? 's' : ''} anterior{prevRejections.length !== 1 ? 'es' : ''}: {REJECTION_REASON_LABELS[(prevRejections[0] as Application & { rejectionReason?: RejectionReason }).rejectionReason as string] ?? prevRejections[0].status}
+                      </p>
+                    )}
                   </div>
 
                   {/* Score badge */}

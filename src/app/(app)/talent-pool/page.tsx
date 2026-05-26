@@ -7,7 +7,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getInitials, formatRelativeDate } from '@/lib/utils'
-import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview } from '@/types'
+import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview, RejectionReason } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,17 @@ interface TalentEntry {
   lastClientName: string
   lastUpdated: string
   classification: Classification
+}
+
+// ─── Rejection reason labels ──────────────────────────────────────────────────
+
+const REJECTION_REASON_LABELS: Record<string, string> = {
+  no_apto_perfil: 'No cumple el perfil',
+  mejor_candidato: 'Mejor candidato seleccionado',
+  candidato_declino: 'Candidato declinó',
+  fuera_rango_salarial: 'Fuera de rango salarial',
+  decision_empresa: 'Decisión empresarial',
+  otro: 'Otro motivo',
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -689,6 +700,12 @@ function ProfileDrawer({
                               <span style={{ color: stageColor }}>{app.status}</span>
                               {' · '}{formatRelativeDate(app.updatedAt)}
                             </p>
+                            {app.status === 'Descartado' && (app as Application & { rejectionReason?: RejectionReason }).rejectionReason && (
+                              <p className="text-xs mt-1" style={{ color: '#f87171' }}>
+                                Motivo: {REJECTION_REASON_LABELS[(app as Application & { rejectionReason?: RejectionReason }).rejectionReason as string] ?? (app as Application & { rejectionReason?: RejectionReason }).rejectionReason}
+                                {(app as Application & { rejectionNote?: string }).rejectionNote && ` · "${(app as Application & { rejectionNote?: string }).rejectionNote}"`}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )

@@ -40,6 +40,7 @@ import type {
   InterviewType,
   MeetingPlatform,
   Recommendation,
+  RejectionReason,
 } from '@/types'
 
 type DecisionAction = 'avanzar' | 'rechazar' | 'a_considerar' | 'descartar_cv' | 'avanzar_etapa'
@@ -50,6 +51,15 @@ const DECISION_CONFIG: Record<DecisionAction, { label: string; bg: string; color
   descartar_cv:  { label: 'Descartar CV',     bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
   avanzar_etapa: { label: 'Avanzar etapa',    bg: 'rgba(52,211,153,0.15)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
 }
+
+export const REJECTION_REASONS: { value: RejectionReason; label: string; desc: string }[] = [
+  { value: 'no_apto_perfil',        label: 'No cumple el perfil',        desc: 'El candidato no cumple los requisitos de la vacante' },
+  { value: 'mejor_candidato',       label: 'Mejor candidato seleccionado', desc: 'Se eligió un candidato con perfil más adecuado para el puesto' },
+  { value: 'candidato_declino',     label: 'Candidato declinó',           desc: 'El candidato rechazó la oferta o se retiró del proceso' },
+  { value: 'fuera_rango_salarial',  label: 'Fuera de rango salarial',     desc: 'Las expectativas salariales no coincidieron' },
+  { value: 'decision_empresa',      label: 'Decisión empresarial',        desc: 'La empresa decidió no continuar sin causa específica' },
+  { value: 'otro',                  label: 'Otro motivo',                 desc: 'Otro motivo (completar en la nota)' },
+]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const STAGES: VacancyStatus[] = [
@@ -2489,29 +2499,224 @@ function Skeleton() {
   )
 }
 
+// ─── Close vacancy remaining dialog ──────────────────────────────────────────
+function CloseVacancyRemainingDialog({
+  vacancyId,
+  vacancyTitle,
+  remainingApps,
+  provider,
+  onClose,
+  onDone,
+}: {
+  vacancyId: string
+  vacancyTitle: string
+  remainingApps: HydratedApplication[]
+  provider: SupabaseProvider
+  onClose: () => void
+  onDone: () => void
+}) {
+  type AppState = { reason: RejectionReason | ''; note: string }
+  const [appStates, setAppStates] = React.useState<Record<string, AppState>>(() =>
+    Object.fromEntries(remainingApps.map(a => [a.id, { reason: '', note: '' }]))
+  )
+  const [bulkReason, setBulkReason] = React.useState<RejectionReason | ''>('')
+  const [bulkNote, setBulkNote] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+
+  function applyBulk() {
+    if (!bulkReason) return
+    setAppStates(prev => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        next[key] = { reason: bulkReason, note: bulkNote }
+      }
+      return next
+    })
+  }
+
+  async function handleSave() {
+    const toUpdate = remainingApps.filter(a => appStates[a.id]?.reason)
+    if (toUpdate.length === 0) { onDone(); return }
+    setSaving(true)
+    await Promise.all(
+      toUpdate.map(a =>
+        provider.updateApplicationRejection(
+          a.id,
+          appStates[a.id].reason as RejectionReason,
+          appStates[a.id].note || undefined
+        )
+      )
+    )
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    setSaving(false)
+    onDone()
+  }
+
+  const stageColor = (s: string) => STAGE_COLORS[s as VacancyStatus] ?? '#6b7280'
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    borderRadius: 8,
+    fontSize: 12,
+    padding: '5px 8px',
+    outline: 'none',
+    width: '100%',
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(580px, 95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Candidatos del proceso</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '3px 0 0' }}>{vacancyTitle} · Definí el motivo de descarte de cada candidato</p>
+            </div>
+            <button onClick={onClose} style={{ padding: 5, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
+              <X style={{ width: 15, height: 15 }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Bulk action */}
+        {remainingApps.length > 1 && (
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', margin: 0, flexShrink: 0 }}>Aplicar a todos:</p>
+            <select
+              value={bulkReason}
+              onChange={e => setBulkReason(e.target.value as RejectionReason | '')}
+              style={{ ...inputStyle, width: 'auto', flex: 1, minWidth: 180 }}
+            >
+              <option value="">Seleccioná motivo...</option>
+              {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+            <input
+              placeholder="Nota (opcional)"
+              value={bulkNote}
+              onChange={e => setBulkNote(e.target.value)}
+              style={{ ...inputStyle, width: 'auto', flex: 1, minWidth: 120 }}
+            />
+            <button
+              onClick={applyBulk}
+              disabled={!bulkReason}
+              style={{ padding: '5px 12px', borderRadius: 8, background: bulkReason ? 'var(--accent)' : 'var(--surface)', border: '1px solid var(--border)', color: bulkReason ? '#fff' : 'var(--muted)', fontSize: 12, fontWeight: 600, cursor: bulkReason ? 'pointer' : 'default', whiteSpace: 'nowrap' }}
+            >
+              Aplicar
+            </button>
+          </div>
+        )}
+
+        {/* Candidate list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {remainingApps.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>No hay otros candidatos en este proceso.</p>
+          ) : (
+            remainingApps.map(app => {
+              const c = app.candidate
+              const state = appStates[app.id] ?? { reason: '', note: '' }
+              const sc = stageColor(app.status)
+              return (
+                <div key={app.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {(c?.fullName ?? '?').trim().split(/\s+/).map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.fullName ?? '—'}</p>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${sc}22`, color: sc, border: `1px solid ${sc}44` }}>{app.status}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <select
+                      value={state.reason}
+                      onChange={e => setAppStates(prev => ({ ...prev, [app.id]: { ...prev[app.id], reason: e.target.value as RejectionReason | '' } }))}
+                      style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+                    >
+                      <option value="">Sin cambio de estado</option>
+                      {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                    <input
+                      placeholder="Nota (opcional)"
+                      value={state.note}
+                      onChange={e => setAppStates(prev => ({ ...prev, [app.id]: { ...prev[app.id], note: e.target.value } }))}
+                      style={{ ...inputStyle, flex: 1, minWidth: 140 }}
+                    />
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>
+            Omitir
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1 }}
+          >
+            {saving && <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />}
+            Guardar y finalizar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Hire dialog ─────────────────────────────────────────────────────────────
 function HireDialog({
   app,
   provider,
   onClose,
   onVacancyClosed,
+  allAppsForVacancy,
 }: {
   app: HydratedApplication
   provider: SupabaseProvider
   onClose: () => void
   onVacancyClosed: (vacancyId: string) => void
+  allAppsForVacancy: HydratedApplication[]
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [closing, setClosing] = React.useState(false)
+  const [showRemaining, setShowRemaining] = React.useState(false)
   const candidateName = app.candidate?.fullName ?? 'el candidato'
   const vacancyTitle = app.vacancyTitle
+
+  const remainingApps = React.useMemo(
+    () => allAppsForVacancy.filter(a => a.id !== app.id && a.status !== 'Contratado' && a.status !== 'Descartado'),
+    [allAppsForVacancy, app.id]
+  )
 
   async function handleCloseVacancy() {
     setClosing(true)
     await provider.closeVacancy(app.vacancyId)
-    onVacancyClosed(app.vacancyId)
     setClosing(false)
-    onClose()
+    if (remainingApps.length > 0) {
+      setShowRemaining(true)
+    } else {
+      onVacancyClosed(app.vacancyId)
+      onClose()
+    }
+  }
+
+  if (showRemaining) {
+    return (
+      <CloseVacancyRemainingDialog
+        vacancyId={app.vacancyId}
+        vacancyTitle={vacancyTitle ?? ''}
+        remainingApps={remainingApps}
+        provider={provider}
+        onClose={() => { onVacancyClosed(app.vacancyId); onClose() }}
+        onDone={() => { onVacancyClosed(app.vacancyId); onClose() }}
+      />
+    )
   }
 
   return (
@@ -2529,6 +2734,11 @@ function HireDialog({
           </div>
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
             ¿Querés cerrar la vacante <strong style={{ color: 'var(--text)' }}>{vacancyTitle}</strong>? Esto la marcará como cubierta y no aparecerá en el pipeline.
+            {remainingApps.length > 0 && (
+              <span style={{ display: 'block', marginTop: 8, color: '#fbbf24' }}>
+                Hay {remainingApps.length} candidato{remainingApps.length !== 1 ? 's' : ''} sin estado final — podrás definirlo en el siguiente paso.
+              </span>
+            )}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, padding: '12px 20px 20px', justifyContent: 'flex-end' }}>
@@ -3049,6 +3259,7 @@ export default function PipelinePage() {
         <HireDialog
           app={hireDialog.app}
           provider={provider}
+          allAppsForVacancy={applications.filter(a => a.vacancyId === hireDialog.app.vacancyId)}
           onClose={() => setHireDialog(null)}
           onVacancyClosed={handleVacancyClosed}
         />

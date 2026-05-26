@@ -20,6 +20,7 @@ import type {
   IntegrationPlatform,
   IntegrationStatus,
   CandidateDisposition,
+  RejectionReason,
 } from '@/types'
 import type {
   DataProvider,
@@ -731,6 +732,31 @@ export class GoogleSheetsProvider implements DataProvider {
       return ok(updated)
     } catch (e) {
       return err(`updateApplicationDisposition failed: ${String(e)}`)
+    }
+  }
+
+  async updateApplicationRejection(
+    id: string,
+    reason: RejectionReason,
+    note?: string
+  ): Promise<DataResult<Application>> {
+    try {
+      const rows = await this.readSheet(SHEETS.applications)
+      const idx = rows.findIndex((r) => r[0] === id)
+      if (idx === -1) return err(`Application ${id} not found`)
+      const existing = rowToApplication(rows[idx])
+      const updated: Application = {
+        ...existing,
+        status: 'Descartado',
+        rejectionReason: reason,
+        rejectionNote: note ?? null,
+        disposition: null,
+        updatedAt: nowIso(),
+      }
+      await this.updateRow(SHEETS.applications, idx, applicationToRow(updated))
+      return ok(updated)
+    } catch (e) {
+      return err(`updateApplicationRejection failed: ${String(e)}`)
     }
   }
 
