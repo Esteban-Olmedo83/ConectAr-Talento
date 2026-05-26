@@ -158,55 +158,90 @@ function ProcessHistoryModal({
   }, [candidate.id, provider])
 
   function handleDownloadPDF() {
-    const interviewsHtml = interviews.length === 0
-      ? '<p style="color:#9ca3af;font-size:13px">Sin entrevistas registradas.</p>'
-      : `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f3f4f6;">
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Tipo</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Plataforma</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Fecha</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Entrevistador</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Notas</th>
-          </tr></thead>
-          <tbody>${interviews.map(i => `<tr>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.type}</td>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.meetingPlatform}</td>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.interviewerName}</td>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${i.notes ?? '—'}</td>
-          </tr>`).join('')}</tbody>
-        </table>`
+    const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const scoreColor = (s: number) => s >= 85 ? '#16a34a' : s >= 70 ? '#7c3aed' : s >= 50 ? '#d97706' : '#6b7280'
 
-    const appsHtml = apps.length === 0
-      ? '<p style="color:#9ca3af;font-size:13px">Sin postulaciones registradas.</p>'
-      : `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f3f4f6;">
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Vacante</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Etapa</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Ingreso</th>
-            <th style="padding:6px 10px;text-align:left;border:1px solid #e5e7eb;">Última actualización</th>
-          </tr></thead>
-          <tbody>${apps.map(a => {
-            const vac = vacancies.find(v => v.id === a.vacancyId)
-            return `<tr>
-              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${vac?.title ?? '—'}${vac?.client?.name ? ` · ${vac.client.name}` : ''}</td>
-              <td style="padding:6px 10px;border:1px solid #e5e7eb;color:${STAGE_COLORS[a.status] ?? '#6b7280'}">${a.status}</td>
-              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(a.appliedAt).toLocaleDateString('es-AR')}</td>
-              <td style="padding:6px 10px;border:1px solid #e5e7eb;">${new Date(a.updatedAt).toLocaleDateString('es-AR')}</td>
-            </tr>`
-          }).join('')}</tbody>
-        </table>`
+    const appsHtml = sortedApps.length === 0
+      ? '<p style="color:#9ca3af;font-size:13px;">Sin postulaciones registradas.</p>'
+      : sortedApps.map(a => {
+          const vac = vacancies.find(v => v.id === a.vacancyId)
+          const stageColor = STAGE_COLORS[a.status] ?? '#6b7280'
+          const appInterviews = interviews.filter(i => i.candidateId === candidate.id && i.vacancyId === a.vacancyId)
+          return `
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+                <div>
+                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${vac?.title ?? '—'}</p>
+                  ${vac?.client?.name ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${vac.client.name}</p>` : ''}
+                </div>
+                <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:${stageColor}22;color:${stageColor};white-space:nowrap;flex-shrink:0;border:1px solid ${stageColor}44;">${a.status}</span>
+              </div>
+              <p style="font-size:11px;color:#9ca3af;margin:0 0 12px;">
+                Ingreso: ${new Date(a.appliedAt).toLocaleDateString('es-AR')} · Última actualización: ${new Date(a.updatedAt).toLocaleDateString('es-AR')}
+              </p>
+              ${appInterviews.length > 0 ? `
+                <div style="padding-top:10px;border-top:1px solid #e5e7eb;">
+                  <p style="font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Entrevistas</p>
+                  ${appInterviews.map(i => `
+                    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;color:#374151;margin-bottom:6px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;">
+                      <span style="color:#7c3aed;font-weight:600;">${i.type}</span>
+                      <span style="color:#9ca3af;">|</span>
+                      <span>${i.meetingPlatform}</span>
+                      <span style="color:#9ca3af;">|</span>
+                      <span>${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      ${i.interviewerName ? `<span style="color:#9ca3af;">|</span><span>${i.interviewerName}</span>` : ''}
+                      ${i.notes ? `<br/><span style="color:#9ca3af;font-size:11px;font-style:italic;">Nota: "${i.notes}"</span>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `
+        }).join('')
 
-    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/>
-      <title>Historial de proceso — ${candidate.fullName}</title>
-      <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; } h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; } h2 { font-size: 15px; font-weight: 700; margin: 24px 0 10px; color: #374151; } .meta { font-size: 13px; color: #6b7280; margin-bottom: 6px; } @media print { body { padding: 20px; } }</style>
-      </head><body>
-      <h1>${candidate.fullName}</h1>
-      <p class="meta">${candidate.email}${candidate.phone ? ' · ' + candidate.phone : ''}</p>
-      <h2>Historial de postulaciones</h2>${appsHtml}
-      <h2>Entrevistas</h2>${interviewsHtml}
-      <script>window.onload = function(){ window.print(); }</script>
-      </body></html>`
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <title>Informe de Proceso — ${candidate.fullName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div style="background:linear-gradient(135deg,#5D50D6,#8B7EFF);padding:28px 32px;border-radius:14px;margin-bottom:28px;color:#fff;">
+    <p style="font-size:11px;font-weight:600;opacity:0.65;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Informe de Proceso de Selección</p>
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${candidate.fullName}</h1>
+    <p style="font-size:14px;opacity:0.8;margin-bottom:2px;">${candidate.email}${candidate.phone ? ' · ' + candidate.phone : ''}</p>
+    <div style="display:flex;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);flex-wrap:wrap;">
+      ${candidate.atsScore ? `<div><p style="font-size:20px;font-weight:800;color:${scoreColor(candidate.atsScore)};">${candidate.atsScore}</p><p style="font-size:11px;opacity:0.65;">ATS Score</p></div>` : ''}
+      <div><p style="font-size:20px;font-weight:800;">${sortedApps.length}</p><p style="font-size:11px;opacity:0.65;">Proceso${sortedApps.length !== 1 ? 's' : ''}</p></div>
+      <div><p style="font-size:20px;font-weight:800;">${interviews.length}</p><p style="font-size:11px;opacity:0.65;">Entrevista${interviews.length !== 1 ? 's' : ''}</p></div>
+    </div>
+    <p style="font-size:11px;opacity:0.45;margin-top:10px;">Generado: ${today}</p>
+  </div>
+
+  ${candidate.skills?.length ? `
+  <div style="margin-bottom:24px;">
+    <p style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Skills</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${candidate.skills.map(s => `<span style="font-size:12px;padding:3px 10px;border-radius:99px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;">${s}</span>`).join('')}
+    </div>
+  </div>` : ''}
+
+  <div>
+    <p style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Historial de Procesos</p>
+    ${appsHtml}
+  </div>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
+    <p style="font-size:11px;color:#9ca3af;">ConectAr Talento · Informe generado el ${today}</p>
+  </div>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`
     const win = window.open('', '_blank')
     if (win) { win.document.write(html); win.document.close() }
   }
@@ -637,15 +672,19 @@ function ProfileDrawer({
                   <p className="text-sm" style={{ color: 'var(--muted2)' }}>Sin postulaciones registradas.</p>
                 ) : (
                   <div className="space-y-2">
-                    {applications.map(app => {
+                    {[...applications].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map(app => {
                       const stageColor = STAGE_COLORS[app.status]
+                      const appVacancy = vacancies.find(v => v.id === app.vacancyId)
                       return (
                         <div key={app.id} className="flex items-center gap-3 rounded-lg p-3" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: stageColor }} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                              {lastVacancyTitle !== '—' && app.vacancyId ? lastVacancyTitle : 'Vacante'}
+                              {appVacancy?.title ?? '—'}
                             </p>
+                            {appVacancy?.client?.name && (
+                              <p className="text-xs truncate" style={{ color: 'var(--muted2)' }}>{appVacancy.client.name}</p>
+                            )}
                             <p className="text-xs" style={{ color: 'var(--muted)' }}>
                               <span style={{ color: stageColor }}>{app.status}</span>
                               {' · '}{formatRelativeDate(app.updatedAt)}

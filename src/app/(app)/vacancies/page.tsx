@@ -4,7 +4,8 @@ import * as React from 'react'
 import {
   Plus, Search, Briefcase, Users, Clock, BarChart2,
   ChevronDown, MapPin, Laptop, Building2, Pencil,
-  Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2
+  Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2,
+  FileText, Calendar,
 } from 'lucide-react'
 import { cn, formatRelativeDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile } from '@/types'
+import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile, Interview, VacancyStatus } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
@@ -27,6 +28,21 @@ const MODALITY_ICONS: Record<VacancyModality, React.ElementType> = {
   Presencial: Building2,
   Remoto: Laptop,
   Híbrido: Globe,
+}
+
+const STAGE_COLORS: Record<string, string> = {
+  'Nuevas Vacantes': '#94a3b8',
+  'En Proceso': '#38bdf8',
+  'Entrevistas': '#a78bfa',
+  'Oferta Enviada': '#fbbf24',
+  'Contratado': '#34d399',
+  'Descartado': '#6b7280',
+}
+
+const STAGE_ORDER_SUMMARY: VacancyStatus[] = ['Contratado', 'Oferta Enviada', 'Entrevistas', 'En Proceso', 'Nuevas Vacantes', 'Descartado']
+
+function scoreColorUI(s: number) {
+  return s >= 85 ? '#34d399' : s >= 70 ? '#a78bfa' : s >= 50 ? '#fbbf24' : '#9ca3af'
 }
 
 // ─── Vacancy Form ─────────────────────────────────────────────────────────────
@@ -333,13 +349,278 @@ function VacancyFormDialog({
   )
 }
 
+// ─── Vacancy Process Summary Modal ───────────────────────────────────────────
+function VacancyProcessSummaryModal({ vacancy, onClose }: {
+  vacancy: Vacancy
+  onClose: () => void
+}) {
+  const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const [interviews, setInterviews] = React.useState<Interview[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  const apps = vacancy.applications ?? []
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function fetchInterviews() {
+      const candidateIds = [...new Set(apps.map(a => a.candidateId))]
+      if (candidateIds.length === 0) {
+        if (!cancelled) setLoading(false)
+        return
+      }
+      const results = await Promise.all(candidateIds.map(id => provider.getInterviews(id)))
+      if (!cancelled) {
+        setInterviews(results.flatMap(r => r.data ?? []))
+        setLoading(false)
+      }
+    }
+    fetchInterviews()
+    return () => { cancelled = true }
+  }, [vacancy.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const byStage = React.useMemo(() => {
+    const groups = {} as Record<VacancyStatus, typeof apps>
+    for (const stage of STAGE_ORDER_SUMMARY) {
+      const stageApps = apps.filter(a => a.status === stage)
+      if (stageApps.length > 0) groups[stage] = stageApps
+    }
+    return groups
+  }, [apps])
+
+  function handlePrint() {
+    const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const closingDate = vacancy.closingDate
+      ? new Date(vacancy.closingDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '—'
+
+    const stagesHtml = STAGE_ORDER_SUMMARY
+      .filter(stage => byStage[stage]?.length > 0)
+      .map(stage => {
+        const stageColor = STAGE_COLORS[stage] ?? '#6b7280'
+        return `
+          <div style="margin-bottom:28px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid ${stageColor}55;">
+              <div style="width:10px;height:10px;border-radius:50%;background:${stageColor};flex-shrink:0;"></div>
+              <h3 style="font-size:13px;font-weight:700;color:${stageColor};text-transform:uppercase;letter-spacing:0.06em;margin:0;">
+                ${stage} — ${byStage[stage].length} candidato${byStage[stage].length !== 1 ? 's' : ''}
+              </h3>
+            </div>
+            ${byStage[stage].map(app => {
+              const c = app.candidate
+              if (!c) return ''
+              const cInterviews = interviews.filter(i => i.candidateId === c.id)
+              return `
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;">
+                    <div>
+                      <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${c.fullName}</p>
+                      <p style="font-size:12px;color:#6b7280;margin:3px 0 0;">${c.email}${c.phone ? ' · ' + c.phone : ''}</p>
+                    </div>
+                    ${c.atsScore ? `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;background:${scoreColorUI(c.atsScore)}22;color:${scoreColorUI(c.atsScore)};white-space:nowrap;flex-shrink:0;">${c.atsScore} pts</span>` : ''}
+                  </div>
+                  ${c.skills?.length ? `<p style="font-size:11px;color:#6b7280;margin:4px 0;">Skills: ${c.skills.join(', ')}</p>` : ''}
+                  <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">
+                    Ingreso: ${new Date(app.appliedAt).toLocaleDateString('es-AR')} · Actualizado: ${new Date(app.updatedAt).toLocaleDateString('es-AR')}
+                  </p>
+                  ${cInterviews.length > 0 ? `
+                    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;">
+                      <p style="font-size:11px;font-weight:600;color:#a78bfa;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 6px;">Entrevistas</p>
+                      ${cInterviews.map(i => `
+                        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:4px;">
+                          <span style="color:#a78bfa;font-weight:600;">${i.type}</span>
+                          <span>·</span><span>${i.meetingPlatform}</span>
+                          <span>·</span><span>${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          ${i.interviewerName ? `<span>· <strong>${i.interviewerName}</strong></span>` : ''}
+                          ${i.notes ? `<br/><span style="color:#9ca3af;padding-left:4px;">Nota: "${i.notes}"</span>` : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              `
+            }).join('')}
+          </div>
+        `
+      }).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <title>Informe de Proceso — ${vacancy.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div style="background:linear-gradient(135deg,#5D50D6,#8B7EFF);padding:28px 32px;border-radius:14px;margin-bottom:28px;color:#fff;">
+    <p style="font-size:11px;font-weight:600;opacity:0.65;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Informe de Proceso de Selección</p>
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${vacancy.title}</h1>
+    ${vacancy.client?.name ? `<p style="font-size:15px;opacity:0.85;margin-bottom:4px;">${vacancy.client.name}</p>` : ''}
+    <p style="font-size:13px;opacity:0.65;">${vacancy.department} · ${vacancy.modality}${vacancy.location ? ' · ' + vacancy.location : ''}</p>
+    <div style="display:flex;gap:24px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);">
+      <div><p style="font-size:22px;font-weight:800;">${apps.length}</p><p style="font-size:11px;opacity:0.65;">Candidatos totales</p></div>
+      <div><p style="font-size:22px;font-weight:800;color:#86efac;">${apps.filter(a => a.status === 'Contratado').length}</p><p style="font-size:11px;opacity:0.65;">Contratados</p></div>
+      <div><p style="font-size:22px;font-weight:800;color:#c4b5fd;">${apps.filter(a => a.status === 'Entrevistas').length}</p><p style="font-size:11px;opacity:0.65;">Entrevistados</p></div>
+      <div><p style="font-size:22px;font-weight:800;color:#fcd34d;">${apps.filter(a => a.status === 'Oferta Enviada').length}</p><p style="font-size:11px;opacity:0.65;">Con oferta</p></div>
+    </div>
+    <p style="font-size:11px;opacity:0.45;margin-top:12px;">Fecha de cierre: ${closingDate} · Generado: ${today}</p>
+  </div>
+
+  ${stagesHtml}
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
+    <p style="font-size:11px;color:#9ca3af;">ConectAr Talento · Informe generado el ${today}</p>
+  </div>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`
+    const win = window.open('', '_blank')
+    if (win) { win.document.write(html); win.document.close() }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(680px, 95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(93,80,214,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Briefcase style={{ width: 15, height: 15, color: 'var(--accent-2)' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Resumen del proceso</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>{vacancy.title}{vacancy.client?.name ? ` · ${vacancy.client.name}` : ''}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* Stats strip */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+          {[
+            { label: 'Total', value: apps.length, color: 'var(--text)' },
+            { label: 'Contratados', value: apps.filter(a => a.status === 'Contratado').length, color: '#34d399' },
+            { label: 'Entrevistados', value: apps.filter(a => a.status === 'Entrevistas').length, color: '#a78bfa' },
+            { label: 'Descartados', value: apps.filter(a => a.status === 'Descartado').length, color: '#6b7280' },
+          ].map((s, i) => (
+            <div key={s.label} style={{ flex: 1, padding: '10px 8px', textAlign: 'center', background: 'var(--surface2)', borderRight: i < 3 ? '1px solid var(--border)' : 'none' }}>
+              <p style={{ fontSize: 20, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
+              <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0 }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+              <Loader2 style={{ width: 24, height: 24, color: 'var(--muted)' }} className="animate-spin" />
+            </div>
+          ) : apps.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '40px 0' }}>No hay candidatos registrados en este proceso.</p>
+          ) : (
+            STAGE_ORDER_SUMMARY
+              .filter(stage => byStage[stage]?.length > 0)
+              .map(stage => {
+                const stageColor = STAGE_COLORS[stage] ?? '#6b7280'
+                return (
+                  <div key={stage}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: stageColor, flexShrink: 0 }} />
+                      <p style={{ fontSize: 11, fontWeight: 700, color: stageColor, textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                        {stage} ({byStage[stage].length})
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 16 }}>
+                      {byStage[stage].map(app => {
+                        const c = app.candidate
+                        if (!c) return null
+                        const cInterviews = interviews.filter(i => i.candidateId === c.id)
+                        return (
+                          <div key={app.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{c.fullName}</p>
+                                <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>{c.email}{c.phone ? ` · ${c.phone}` : ''}</p>
+                              </div>
+                              {c.atsScore ? (
+                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: `${scoreColorUI(c.atsScore)}22`, color: scoreColorUI(c.atsScore), flexShrink: 0 }}>
+                                  {c.atsScore}
+                                </span>
+                              ) : null}
+                            </div>
+                            {c.skills && c.skills.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                                {c.skills.slice(0, 5).map(s => (
+                                  <span key={s} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 99, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}>{s}</span>
+                                ))}
+                                {c.skills.length > 5 && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>+{c.skills.length - 5}</span>}
+                              </div>
+                            )}
+                            <p style={{ fontSize: 11, color: 'var(--muted2)', margin: '6px 0 0' }}>
+                              Ingreso: {new Date(app.appliedAt).toLocaleDateString('es-AR')} · Act: {new Date(app.updatedAt).toLocaleDateString('es-AR')}
+                            </p>
+                            {cInterviews.length > 0 && (
+                              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                                {cInterviews.map(i => (
+                                  <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', marginBottom: 3 }}>
+                                    <Calendar style={{ width: 10, height: 10, color: '#a78bfa', flexShrink: 0 }} />
+                                    <span style={{ color: '#a78bfa', fontWeight: 600 }}>{i.type}</span>
+                                    <span>·</span>
+                                    <span>{i.meetingPlatform}</span>
+                                    <span>·</span>
+                                    <span>{new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    {i.interviewerName && <><span>·</span><span>{i.interviewerName}</span></>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}>
+            Cerrar
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'rgba(93,80,214,0.15)', border: '1px solid rgba(93,80,214,0.3)', color: 'var(--accent-2)', cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+          >
+            <FileText style={{ width: 13, height: 13 }} />
+            Imprimir informe
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Vacancy Card ─────────────────────────────────────────────────────────────
-function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
+function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
   vacancy: Vacancy
   onEdit: () => void
   onArchive: () => void | Promise<void>
   onAssign: () => void
+  onViewSummary: () => void
 }) {
+  const isClosed = vacancy.status === 'Contratado'
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
   const salaryStr = vacancy.salaryMin
@@ -347,37 +628,52 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
     : 'A convenir'
 
   return (
-    <Card className="hover:shadow-md transition-shadow group relative cursor-pointer" onClick={onEdit}>
+    <Card
+      className="hover:shadow-md transition-shadow group relative"
+      style={isClosed ? { opacity: 0.75, cursor: 'default' } : { cursor: 'pointer' }}
+      onClick={isClosed ? undefined : onEdit}
+    >
       <CardContent className="p-4">
-        {/* Priority badge */}
+        {/* Badge row */}
         <div className="flex items-start justify-between mb-2">
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-            style={{
-              background: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).bg,
-              color: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).color,
-            }}
-          >
-            {vacancy.priority}
-          </span>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={e => { e.stopPropagation(); onEdit() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button onClick={e => { e.stopPropagation(); onArchive() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
-              <Archive className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          {isClosed ? (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(107,114,128,0.2)', color: '#9ca3af' }}
+            >
+              Vacante Cerrada
+            </span>
+          ) : (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{
+                background: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).bg,
+                color: (PRIORITY_CONFIG[vacancy.priority] ?? PRIORITY_CONFIG['Media']).color,
+              }}
+            >
+              {vacancy.priority}
+            </span>
+          )}
+          {!isClosed && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={e => { e.stopPropagation(); onEdit() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={e => { e.stopPropagation(); onArchive() }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+                <Archive className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
-        <h3 className="font-bold text-base leading-tight mb-1 transition-colors hover:opacity-80" style={{ color: 'var(--text)' }}>
+        <h3 className="font-bold text-base leading-tight mb-1" style={{ color: isClosed ? 'var(--muted)' : 'var(--text)' }}>
           {vacancy.title}
         </h3>
 
         {vacancy.client && (
           <div className="flex items-center gap-1 mb-1">
-            <Building2 className="h-3 w-3 shrink-0" style={{ color: 'var(--accent-2)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--accent-2)' }}>
+            <Building2 className="h-3 w-3 shrink-0" style={{ color: isClosed ? 'var(--muted2)' : 'var(--accent-2)' }} />
+            <span className="text-xs font-medium" style={{ color: isClosed ? 'var(--muted2)' : 'var(--accent-2)' }}>
               {vacancy.client.name}
             </span>
           </div>
@@ -395,7 +691,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
           )}
         </div>
 
-        <div className="text-xs font-semibold mb-3" style={{ color: '#34d399' }}>{salaryStr}</div>
+        {!isClosed && <div className="text-xs font-semibold mb-3" style={{ color: '#34d399' }}>{salaryStr}</div>}
 
         {/* Skills */}
         {vacancy.requirements.length > 0 && (
@@ -404,7 +700,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
               <span
                 key={s}
                 className="text-[10px] px-1.5 py-0.5 rounded-full"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)' }}
+                style={{ background: isClosed ? 'var(--surface2)' : 'var(--accent-soft)', color: isClosed ? 'var(--muted2)' : 'var(--accent-2)' }}
               >
                 {s}
               </span>
@@ -418,7 +714,9 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {days === 0 ? 'Creada hoy' : `Abierta hace ${days} día${days !== 1 ? 's' : ''}`}
+            {isClosed && vacancy.closingDate
+              ? `Cerrada: ${new Date(vacancy.closingDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })}`
+              : days === 0 ? 'Creada hoy' : `Abierta hace ${days} día${days !== 1 ? 's' : ''}`}
           </span>
           <span className="flex items-center gap-1">
             <Users className="h-3 w-3" />
@@ -428,12 +726,26 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign }: {
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
-            Ver pipeline
-          </Button>
-          <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
-            <UserPlus className="h-3 w-3" /> Asignar
-          </Button>
+          {isClosed ? (
+            <Button
+              size="sm"
+              className="w-full text-xs h-7 gap-1"
+              style={{ background: 'rgba(93,80,214,0.15)', color: 'var(--accent-2)', border: '1px solid rgba(93,80,214,0.3)' }}
+              variant="outline"
+              onClick={e => { e.stopPropagation(); onViewSummary() }}
+            >
+              <FileText className="h-3 w-3" /> Ver resumen del proceso
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
+                Ver pipeline
+              </Button>
+              <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
+                <UserPlus className="h-3 w-3" /> Asignar
+              </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -655,6 +967,7 @@ export default function VacanciesPage() {
   const [clients, setClients] = React.useState<Client[]>([])
   const [filterClient, setFilterClient] = React.useState('all')
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
+  const [summaryVacancy, setSummaryVacancy] = React.useState<Vacancy | undefined>()
 
   const { user } = useUser()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
@@ -857,6 +1170,7 @@ export default function VacanciesPage() {
               onEdit={() => { setEditVacancy(v); setShowForm(true) }}
               onArchive={() => handleArchive(v.id)}
               onAssign={() => setAssignVacancy(v)}
+              onViewSummary={() => setSummaryVacancy(v)}
             />
           ))}
         </div>
@@ -874,6 +1188,13 @@ export default function VacanciesPage() {
           vacancy={assignVacancy}
           onClose={() => setAssignVacancy(undefined)}
           onAssigned={handleAssigned}
+        />
+      )}
+
+      {summaryVacancy && (
+        <VacancyProcessSummaryModal
+          vacancy={summaryVacancy}
+          onClose={() => setSummaryVacancy(undefined)}
         />
       )}
     </div>
