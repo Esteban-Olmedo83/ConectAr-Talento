@@ -4,18 +4,17 @@ import * as React from 'react'
 import {
   Plus, Search, Building2, Briefcase, Mail, Phone,
   Globe, Pencil, Trash2, MoreVertical, X, ExternalLink, MapPin, Camera, Loader2,
+  PowerOff, RotateCcw, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Client, Vacancy } from '@/types'
+import type { Client, ClientEvent, Vacancy } from '@/types'
 
 const INDUSTRIES = [
   'Tecnología', 'Finanzas', 'Salud', 'Retail', 'Manufactura',
@@ -461,7 +460,7 @@ function DeleteClientDialog({
           </p>
 
           <div className="rounded-lg px-3 py-2.5 text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <p className="font-semibold">Esta acción no se puede deshacer. Se perderán permanentemente:</p>
             <ul className="ml-3 mt-1 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
               <li>El perfil y datos de contacto del cliente</li>
               <li>
@@ -518,15 +517,64 @@ function DeleteClientDialog({
   )
 }
 
-// ─── Client Card ──────────────────────────────────────────────────────────────
+// ─── Deactivate Confirm Dialog ────────────────────────────────────────────────
 
-function ClientCard({
-  client, vacancyCount, onEdit, onDelete,
+function DeactivateClientDialog({
+  client, onConfirm, onClose,
+}: {
+  client: Client
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const [loading, setLoading] = React.useState(false)
+
+  async function handleConfirm() {
+    setLoading(true)
+    await onConfirm()
+    setLoading(false)
+  }
+
+  return (
+    <DraggableModal open onClose={onClose} title={`Desactivar cliente: ${client.name}`} maxWidth="28rem">
+      <div className="space-y-3">
+        <p className="text-sm" style={{ color: 'var(--text)' }}>
+          Vas a desactivar al cliente <strong>{client.name}</strong>. Esto lo moverá al historial de clientes.
+        </p>
+        <div className="rounded-lg px-3 py-2.5 text-xs space-y-1" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24' }}>
+          <p className="font-semibold">Al desactivar este cliente:</p>
+          <ul className="ml-3 mt-1 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
+            <li>Sus vacantes y candidatos quedarán ocultos de las vistas activas</li>
+            <li>El historial y datos se conservan íntegramente</li>
+            <li>Podés reactivarlo en cualquier momento desde el historial</li>
+          </ul>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 mt-4">
+        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={loading}
+          style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? 'Desactivando...' : 'Desactivar cliente'}
+        </Button>
+      </div>
+    </DraggableModal>
+  )
+}
+
+// ─── Active Client Card ───────────────────────────────────────────────────────
+
+function ActiveClientCard({
+  client, vacancyCount, onEdit, onDelete, onDeactivate,
 }: {
   client: Client
   vacancyCount: number
   onEdit: () => void
   onDelete: () => void
+  onDeactivate: () => void
 }) {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
@@ -565,12 +613,17 @@ function ClientCard({
               }
             </div>
             <div className="min-w-0">
-              <h3
-                className="font-semibold text-sm truncate group-hover:underline"
-                style={{ color: 'var(--text)' }}
-              >
-                {client.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3
+                  className="font-semibold text-sm truncate group-hover:underline"
+                  style={{ color: 'var(--text)' }}
+                >
+                  {client.name}
+                </h3>
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  Activo
+                </span>
+              </div>
               {client.industry && (
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
                   {client.industry}
@@ -590,7 +643,7 @@ function ClientCard({
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 top-8 z-20 w-36 rounded-xl overflow-hidden shadow-xl"
+                className="absolute right-0 top-8 z-20 w-40 rounded-xl overflow-hidden shadow-xl"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
                 <button
@@ -599,6 +652,13 @@ function ClientCard({
                   style={{ color: 'var(--text)' }}
                 >
                   <Pencil className="h-3.5 w-3.5" /> Editar
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); onDeactivate() }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[var(--surface2)] transition-colors"
+                  style={{ color: '#fbbf24' }}
+                >
+                  <PowerOff className="h-3.5 w-3.5" /> Desactivar
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); onDelete() }}
@@ -716,7 +776,186 @@ function ClientCard({
   )
 }
 
+// ─── Inactive Client Card ─────────────────────────────────────────────────────
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function daysBetween(from: string, to: string) {
+  const a = new Date(from).getTime()
+  const b = new Date(to).getTime()
+  return Math.round(Math.abs(b - a) / (1000 * 60 * 60 * 24))
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  created: 'Cliente creado',
+  deactivated: 'Cliente desactivado',
+  reactivated: 'Cliente reactivado',
+  modified: 'Datos modificados',
+}
+
+function InactiveClientCard({
+  client, onReactivate, onDelete, tenantId, provider,
+}: {
+  client: Client
+  onReactivate: () => void
+  onDelete: () => void
+  tenantId: string
+  provider: SupabaseProvider
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [events, setEvents] = React.useState<ClientEvent[]>([])
+  const [loadingEvents, setLoadingEvents] = React.useState(false)
+  const [eventsLoaded, setEventsLoaded] = React.useState(false)
+
+  async function loadEvents() {
+    if (eventsLoaded) return
+    setLoadingEvents(true)
+    const res = await provider.getClientEvents(tenantId, client.id)
+    if (res.data) setEvents(res.data)
+    setEventsLoaded(true)
+    setLoadingEvents(false)
+  }
+
+  function handleToggle() {
+    const next = !expanded
+    setExpanded(next)
+    if (next) loadEvents()
+  }
+
+  const deactivatedAt = client.deactivatedAt ?? client.updatedAt
+  const days = daysBetween(client.createdAt, deactivatedAt)
+
+  return (
+    <Card
+      className="relative overflow-hidden transition-all duration-200"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderLeft: '3px solid var(--muted)',
+        opacity: 0.85,
+      }}
+    >
+      <CardContent className="p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="shrink-0 flex items-center justify-center rounded-xl text-white text-sm font-bold overflow-hidden"
+              style={{
+                width: 40,
+                height: 40,
+                background: client.logoUrl ? 'transparent' : 'var(--surface2)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {client.logoUrl
+                ? <img src={client.logoUrl} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(0.5)' }} />
+                : <span style={{ color: 'var(--muted)', fontSize: 16 }}>{client.name.charAt(0).toUpperCase()}</span>
+              }
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>
+                  {client.name}
+                </h3>
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(100,116,139,0.15)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                  Inactivo
+                </span>
+              </div>
+              {client.industry && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                  {client.industry}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Deactivation info */}
+        <div className="rounded-lg px-3 py-2 mb-3 text-xs" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-1.5 mb-1">
+            <Clock className="h-3 w-3" style={{ color: 'var(--muted)' }} />
+            <span style={{ color: 'var(--muted)' }}>Desactivado el {formatDate(deactivatedAt)}</span>
+          </div>
+          <p style={{ color: 'var(--muted2)', fontWeight: 500 }}>
+            {days === 0 ? 'Menos de 1 día de servicio' : `${days} día${days === 1 ? '' : 's'} de servicio`}
+          </p>
+        </div>
+
+        {/* Timeline toggle */}
+        <button
+          onClick={handleToggle}
+          className="flex items-center gap-1.5 w-full text-xs mb-3 hover:opacity-80 transition-opacity"
+          style={{ color: 'var(--muted2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {expanded ? 'Ocultar historial de eventos' : 'Ver historial de eventos'}
+        </button>
+
+        {/* Timeline */}
+        {expanded && (
+          <div className="mb-3">
+            {loadingEvents ? (
+              <div className="flex items-center gap-2 py-2 text-xs" style={{ color: 'var(--muted)' }}>
+                <Loader2 className="h-3 w-3 animate-spin" /> Cargando eventos...
+              </div>
+            ) : events.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>Sin eventos registrados.</p>
+            ) : (
+              <div className="space-y-2 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
+                {events.map(ev => (
+                  <div key={ev.id} className="pl-3 relative">
+                    <div
+                      className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full"
+                      style={{
+                        background: ev.eventType === 'deactivated' ? '#fbbf24'
+                          : ev.eventType === 'reactivated' ? '#4ade80'
+                          : ev.eventType === 'created' ? 'var(--accent)'
+                          : 'var(--muted)',
+                        transform: 'translateX(-4px)',
+                      }}
+                    />
+                    <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>
+                      {EVENT_LABELS[ev.eventType] ?? ev.eventType}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                      {formatDate(ev.occurredAt)}
+                      {ev.notes ? ` · ${ev.notes}` : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <button
+            onClick={onReactivate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-90"
+            style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)', cursor: 'pointer' }}
+          >
+            <RotateCcw className="h-3 w-3" /> Reactivar
+          </button>
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:opacity-90"
+            style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--coral)', border: '1px solid rgba(239,68,68,0.2)', cursor: 'pointer' }}
+          >
+            <Trash2 className="h-3 w-3" /> Eliminar
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+type PageTab = 'active' | 'history'
 
 export default function ClientsPage() {
   const { user } = useUser()
@@ -726,9 +965,11 @@ export default function ClientsPage() {
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
+  const [activeTab, setActiveTab] = React.useState<PageTab>('active')
   const [formOpen, setFormOpen] = React.useState(false)
   const [editingClient, setEditingClient] = React.useState<Client | undefined>()
   const [deletingClient, setDeletingClient] = React.useState<Client | undefined>()
+  const [deactivatingClient, setDeactivatingClient] = React.useState<Client | undefined>()
 
   const limits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
 
@@ -746,44 +987,80 @@ export default function ClientsPage() {
 
   React.useEffect(() => { load() }, [user?.tenantId])
 
-  const filtered = React.useMemo(() => {
+  const activeClients = React.useMemo(() => clients.filter(c => c.active !== false), [clients])
+  const inactiveClients = React.useMemo(() => clients.filter(c => c.active === false), [clients])
+
+  const filteredActive = React.useMemo(() => {
     const q = search.toLowerCase()
-    if (!q) return clients
-    return clients.filter(
+    if (!q) return activeClients
+    return activeClients.filter(
       c =>
         c.name.toLowerCase().includes(q) ||
         c.industry?.toLowerCase().includes(q) ||
         c.contactName?.toLowerCase().includes(q) ||
         c.contactEmail?.toLowerCase().includes(q)
     )
-  }, [clients, search])
+  }, [activeClients, search])
+
+  const filteredInactive = React.useMemo(() => {
+    const q = search.toLowerCase()
+    if (!q) return inactiveClients
+    return inactiveClients.filter(
+      c =>
+        c.name.toLowerCase().includes(q) ||
+        c.industry?.toLowerCase().includes(q) ||
+        c.contactName?.toLowerCase().includes(q) ||
+        c.contactEmail?.toLowerCase().includes(q)
+    )
+  }, [inactiveClients, search])
 
   function vacancyCountFor(clientId: string) {
     return vacancies.filter(v => v.clientId === clientId && v.status !== 'Contratado').length
   }
 
-  function handleSaved(c: Client) {
+  async function handleSaved(c: Client) {
+    const isNew = !clients.find(x => x.id === c.id)
     setClients(prev => {
       const idx = prev.findIndex(x => x.id === c.id)
       if (idx !== -1) {
         const next = [...prev]
         next[idx] = c
-        window.dispatchEvent(new CustomEvent('client:updated'))
         return next
       }
-      window.dispatchEvent(new CustomEvent('client:created'))
       return [c, ...prev]
     })
+    if (isNew && user?.tenantId) {
+      await provider.logClientEvent(user.tenantId, c.id, c.name, 'created')
+      window.dispatchEvent(new CustomEvent('client:created'))
+    } else {
+      window.dispatchEvent(new CustomEvent('client:updated'))
+    }
+  }
+
+  async function handleDeactivate(client: Client) {
+    if (!user?.tenantId) return
+    const result = await provider.deactivateClient(client.id, client.name, user.tenantId)
+    if (result.data) {
+      setClients(prev => prev.map(c => c.id === client.id ? result.data! : c))
+      window.dispatchEvent(new CustomEvent('client:updated'))
+    }
+    setDeactivatingClient(undefined)
+  }
+
+  async function handleReactivate(client: Client) {
+    if (!user?.tenantId) return
+    const result = await provider.reactivateClient(client.id, client.name, user.tenantId)
+    if (result.data) {
+      setClients(prev => prev.map(c => c.id === client.id ? result.data! : c))
+      window.dispatchEvent(new CustomEvent('client:updated'))
+    }
   }
 
   async function handleDelete(client: Client) {
     const clientVacs = vacancies.filter(v => v.clientId === client.id)
     const clientVacancyIds = clientVacs.map(v => v.id)
-    // 1. Snapshot vacancy/client info into applications (preserves Banco de Talento history)
     await Promise.all(clientVacs.map(v => provider.snapshotApplicationsForVacancy(v.id, v.title, client.name)))
-    // 2. Archive candidates who only had associations with this client
     await provider.archiveCandidatesForClient(client.id, clientVacancyIds)
-    // 3. Delete vacancies (vacancy_id → SET NULL in applications via FK)
     await Promise.all(clientVacs.map(v => provider.deleteVacancy(v.id)))
     await provider.deleteClient(client.id)
     setClients(prev => prev.filter(c => c.id !== client.id))
@@ -793,12 +1070,18 @@ export default function ClientsPage() {
     window.dispatchEvent(new CustomEvent('vacancy:updated'))
   }
 
-  const atLimit = clients.length >= limits.clients
+  const atLimit = activeClients.length >= limits.clients
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
-  const totalClients = clients.length
-  const clientsWithVacancy = clients.filter(c => vacancyCountFor(c.id) > 0).length
-  const totalActiveVacancies = vacancies.filter(v => v.clientId && v.status !== 'Contratado').length
+  const totalActive = activeClients.length
+  const clientsWithVacancy = activeClients.filter(c => vacancyCountFor(c.id) > 0).length
+  const totalActiveVacancies = vacancies.filter(v => {
+    const c = clients.find(cl => cl.id === v.clientId)
+    return c && c.active !== false && v.status !== 'Contratado'
+  }).length
+  const clientsWithCandidates = activeClients.filter(c => {
+    return vacancies.some(v => v.clientId === c.id && v.status !== 'Contratado' && v.status !== 'Descartado')
+  }).length
 
   return (
     <div
@@ -815,25 +1098,65 @@ export default function ClientsPage() {
             Empresas para las que gestionás procesos de selección
           </p>
         </div>
-        <Button
-          onClick={() => {
-            if (atLimit) {
-              alert(`Tu plan ${user?.plan ?? 'free'} permite hasta ${limits.clients === 1 ? '1 cliente' : `${limits.clients} clientes`}. Actualizá para agregar más.`)
-              return
-            }
-            setEditingClient(undefined)
-            setFormOpen(true)
-          }}
-          className="shrink-0 flex items-center gap-2"
-          style={{ background: 'var(--accent)', color: '#fff' }}
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Nuevo cliente</span>
-        </Button>
+        {activeTab === 'active' && (
+          <Button
+            onClick={() => {
+              if (atLimit) {
+                alert(`Tu plan ${user?.plan ?? 'free'} permite hasta ${limits.clients === 1 ? '1 cliente' : `${limits.clients} clientes`}. Actualizá para agregar más.`)
+                return
+              }
+              setEditingClient(undefined)
+              setFormOpen(true)
+            }}
+            className="shrink-0 flex items-center gap-2"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nuevo cliente</span>
+          </Button>
+        )}
       </div>
 
-      {/* Plan limit banner */}
-      {atLimit && (
+      {/* Tab switcher */}
+      <div className="flex items-center gap-2 mb-6">
+        {([
+          { key: 'active', label: 'Clientes Activos', count: activeClients.length },
+          { key: 'history', label: 'Historial de Clientes', count: inactiveClients.length },
+        ] as { key: PageTab; label: string; count: number }[]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 600,
+              border: '1px solid',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              background: activeTab === tab.key ? 'var(--accent)' : 'var(--surface)',
+              color: activeTab === tab.key ? '#fff' : 'var(--muted)',
+              borderColor: activeTab === tab.key ? 'var(--accent)' : 'var(--border)',
+            }}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span
+                className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: activeTab === tab.key ? 'rgba(255,255,255,0.2)' : 'var(--surface2)',
+                  color: activeTab === tab.key ? '#fff' : 'var(--muted)',
+                }}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Plan limit banner (active tab only) */}
+      {activeTab === 'active' && atLimit && (
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-xl mb-6 text-sm"
           style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}
@@ -846,24 +1169,27 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        {[
-          { label: 'Clientes activos', value: totalClients, sub: `de ${limits.clients === Infinity ? '∞' : limits.clients} en tu plan` },
-          { label: 'Con vacantes abiertas', value: clientsWithVacancy, sub: 'tienen procesos activos' },
-          { label: 'Vacantes asignadas', value: totalActiveVacancies, sub: 'vinculadas a un cliente' },
-        ].map(kpi => (
-          <div
-            key={kpi.label}
-            className="rounded-xl p-4"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <p className="text-2xl font-bold" style={{ color: 'var(--accent-2)' }}>{kpi.value}</p>
-            <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text)' }}>{kpi.label}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{kpi.sub}</p>
-          </div>
-        ))}
-      </div>
+      {/* KPIs (active tab only) */}
+      {activeTab === 'active' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {[
+            { label: 'Clientes activos', value: totalActive, sub: `de ${limits.clients === Infinity ? '∞' : limits.clients} en tu plan` },
+            { label: 'Con vacantes abiertas', value: clientsWithVacancy, sub: 'tienen procesos activos' },
+            { label: 'Vacantes asignadas', value: totalActiveVacancies, sub: 'vinculadas a un cliente' },
+            { label: 'Con candidatos en proceso', value: clientsWithCandidates, sub: 'con postulantes activos' },
+          ].map(kpi => (
+            <div
+              key={kpi.label}
+              className="rounded-xl p-4"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
+              <p className="text-2xl font-bold" style={{ color: 'var(--accent-2)' }}>{kpi.value}</p>
+              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text)' }}>{kpi.label}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{kpi.sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div
@@ -896,39 +1222,70 @@ export default function ClientsPage() {
             />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Building2 className="h-12 w-12 mb-4" style={{ color: 'var(--muted)' }} />
-          <h3 className="font-semibold text-lg mb-1" style={{ color: 'var(--text)' }}>
-            {search ? 'Sin resultados' : 'Todavía no tenés clientes'}
-          </h3>
-          <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
-            {search
-              ? 'Probá con otro término de búsqueda.'
-              : 'Creá tu primer cliente para asociarle vacantes y generar informes por empresa.'}
-          </p>
-          {!search && !atLimit && (
-            <Button
-              className="mt-4"
-              onClick={() => { setEditingClient(undefined); setFormOpen(true) }}
-              style={{ background: 'var(--accent)', color: '#fff' }}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Crear primer cliente
-            </Button>
-          )}
-        </div>
+      ) : activeTab === 'active' ? (
+        filteredActive.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Building2 className="h-12 w-12 mb-4" style={{ color: 'var(--muted)' }} />
+            <h3 className="font-semibold text-lg mb-1" style={{ color: 'var(--text)' }}>
+              {search ? 'Sin resultados' : 'Todavía no tenés clientes activos'}
+            </h3>
+            <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
+              {search
+                ? 'Probá con otro término de búsqueda.'
+                : 'Creá tu primer cliente para asociarle vacantes y generar informes por empresa.'}
+            </p>
+            {!search && !atLimit && (
+              <Button
+                className="mt-4"
+                onClick={() => { setEditingClient(undefined); setFormOpen(true) }}
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Crear primer cliente
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredActive.map(client => (
+              <ActiveClientCard
+                key={client.id}
+                client={client}
+                vacancyCount={vacancyCountFor(client.id)}
+                onEdit={() => { setEditingClient(client); setFormOpen(true) }}
+                onDelete={() => setDeletingClient(client)}
+                onDeactivate={() => setDeactivatingClient(client)}
+              />
+            ))}
+          </div>
+        )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(client => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              vacancyCount={vacancyCountFor(client.id)}
-              onEdit={() => { setEditingClient(client); setFormOpen(true) }}
-              onDelete={() => setDeletingClient(client)}
-            />
-          ))}
-        </div>
+        // History tab
+        filteredInactive.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Clock className="h-12 w-12 mb-4" style={{ color: 'var(--muted)' }} />
+            <h3 className="font-semibold text-lg mb-1" style={{ color: 'var(--text)' }}>
+              {search ? 'Sin resultados' : 'No hay clientes inactivos en el historial'}
+            </h3>
+            <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
+              {search
+                ? 'Probá con otro término de búsqueda.'
+                : 'Los clientes desactivados aparecerán aquí con su historial de eventos.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredInactive.map(client => (
+              <InactiveClientCard
+                key={client.id}
+                client={client}
+                onReactivate={() => handleReactivate(client)}
+                onDelete={() => setDeletingClient(client)}
+                tenantId={user?.tenantId ?? ''}
+                provider={provider}
+              />
+            ))}
+          </div>
+        )
       )}
 
       {/* Dialogs */}
@@ -938,6 +1295,14 @@ export default function ClientsPage() {
         client={editingClient}
         onSave={handleSaved}
       />
+
+      {deactivatingClient && (
+        <DeactivateClientDialog
+          client={deactivatingClient}
+          onConfirm={() => handleDeactivate(deactivatingClient)}
+          onClose={() => setDeactivatingClient(undefined)}
+        />
+      )}
 
       {deletingClient && (
         <DeleteClientDialog
