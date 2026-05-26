@@ -22,6 +22,7 @@ const TITLE_MAP: Record<string, string> = {
   '/settings': 'Configuración',
   '/job-profiles': 'Perfiles de Puestos',
   '/admin': 'Administración',
+  '/talent-pool': 'Banco de Talentos',
 }
 
 export default function AppRouteLayout({ children }: { children: React.ReactNode }) {

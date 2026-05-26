@@ -739,7 +739,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
           ) : (
             <>
               <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
-                Ver pipeline
+                Ver procesos
               </Button>
               <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
                 <UserPlus className="h-3 w-3" /> Asignar

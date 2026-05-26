@@ -842,12 +842,12 @@ function IncorporarModal({
               {entry.candidate.fullName} fue incorporado a {successVacancyTitle}.
             </p>
             <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-              Podés verlo en el pipeline.
+              Podés verlo en los Procesos.
             </p>
           </div>
           <Link href="/pipeline">
             <Button variant="outline" className="gap-1.5" onClick={onClose}>
-              Ir al Pipeline <ChevronRight className="h-4 w-4" />
+              Ir a Procesos <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -1160,25 +1160,6 @@ export default function TalentPoolPage() {
 
   return (
     <div className="flex flex-col min-h-0 gap-5">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1
-            style={{
-              fontSize: 26,
-              fontWeight: 900,
-              color: 'var(--text)',
-              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
-              lineHeight: 1.1,
-              marginBottom: 4,
-            }}
-          >
-            Banco de Talentos
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--muted2)' }}>Base histórica de candidatos evaluados</p>
-        </div>
-      </div>
-
       {/* ── KPI strip ── */}
       {!loading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

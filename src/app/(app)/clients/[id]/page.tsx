@@ -345,7 +345,7 @@ function VacancyRow({ vacancy, applications, clientId }: {
         style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
       >
         <Briefcase className="h-3.5 w-3.5" />
-        Pipeline
+        Procesos
         <ChevronRight className="h-3.5 w-3.5" />
       </Link>
     </div>
