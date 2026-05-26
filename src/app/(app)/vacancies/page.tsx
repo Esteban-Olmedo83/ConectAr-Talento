@@ -1023,21 +1023,26 @@ export default function VacanciesPage() {
     window.addEventListener('application:stage-changed', handle)
     window.addEventListener('vacancy:created', handle)
     window.addEventListener('vacancy:updated', handle)
+    window.addEventListener('client:updated', handle)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('application:stage-changed', handle)
       window.removeEventListener('vacancy:created', handle)
       window.removeEventListener('vacancy:updated', handle)
+      window.removeEventListener('client:updated', handle)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
 
   const filtered = React.useMemo(() => vacancies.filter(v => {
+    // Hide vacancies belonging to inactive clients
+    const clientOfVac = v.clientId ? clients.find(c => c.id === v.clientId) : undefined
+    if (clientOfVac && clientOfVac.active === false) return false
     if (filterClient !== 'all' && v.clientId !== filterClient) return false
     if (search && !v.title.toLowerCase().includes(search.toLowerCase()) && !v.department.toLowerCase().includes(search.toLowerCase())) return false
     if (filterPriority !== 'all' && v.priority !== filterPriority) return false
     return true
-  }), [vacancies, search, filterPriority, filterClient])
+  }), [vacancies, search, filterPriority, filterClient, clients])
 
   const kpis = React.useMemo(() => ({
     total: vacancies.length,

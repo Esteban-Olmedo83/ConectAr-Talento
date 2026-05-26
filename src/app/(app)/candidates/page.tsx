@@ -1262,25 +1262,27 @@ export default function CandidatesPage() {
   React.useEffect(() => { load() }, [load])
 
   React.useEffect(() => {
-    function handleClientDeleted() { load() }
+    function handleClientChanged() { load() }
     function handleVisibility() {
       if (document.visibilityState === 'visible') load()
     }
-    window.addEventListener('client:deleted', handleClientDeleted)
+    window.addEventListener('client:deleted', handleClientChanged)
+    window.addEventListener('client:updated', handleClientChanged)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
-      window.removeEventListener('client:deleted', handleClientDeleted)
+      window.removeEventListener('client:deleted', handleClientChanged)
+      window.removeEventListener('client:updated', handleClientChanged)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [load])
 
   const filtered = React.useMemo(() => {
-    const validClientIds = new Set(clients.map(c => c.id))
+    const activeClientIds = new Set(clients.filter(cl => cl.active !== false).map(cl => cl.id))
     return candidates.filter(c => {
       // Hide archived candidates (their company was deleted)
       if (c.archived) return false
-      // Hide candidates whose assigned client was deleted
-      if (c.clientId && !validClientIds.has(c.clientId)) return false
+      // Hide candidates whose assigned client is inactive or was deleted
+      if (c.clientId && !activeClientIds.has(c.clientId)) return false
       // Hide orphaned candidates: all applications point to deleted vacancies (vacancyId = null)
       const candidateApps = applications.filter(a => a.candidateId === c.id)
       if (candidateApps.length > 0 && candidateApps.every(a => a.vacancyId === null)) return false

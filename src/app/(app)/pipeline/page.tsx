@@ -3011,22 +3011,22 @@ export default function PipelinePage() {
 
   React.useEffect(() => {
     function handleChange() { load() }
-    const events = ['vacancy:created', 'vacancy:updated', 'application:stage-changed', 'client:deleted', 'candidate:updated', 'interview:scheduled', 'candidate:created']
+    const events = ['vacancy:created', 'vacancy:updated', 'application:stage-changed', 'client:deleted', 'client:updated', 'candidate:updated', 'interview:scheduled', 'candidate:created']
     events.forEach(e => window.addEventListener(e, handleChange))
     return () => events.forEach(e => window.removeEventListener(e, handleChange))
   }, [load])
 
   const filtered = React.useMemo(() => {
     const validVacancyIds = new Set(vacancies.map(v => v.id))
-    const validClientIds = new Set(clients.map(c => c.id))
+    const activeClientIds = new Set(clients.filter(cl => cl.active !== false).map(cl => cl.id))
     return applications.filter(a => {
       const c = a.candidate
       if (!c) return false
       // Hide applications whose vacancy was deleted (e.g. when client was deleted)
       if (!a.vacancyId || !validVacancyIds.has(a.vacancyId)) return false
       const vac = vacancies.find(v => v.id === a.vacancyId)
-      // Hide applications for vacancies belonging to a deleted client
-      if (vac?.clientId && !validClientIds.has(vac.clientId)) return false
+      // Hide applications for vacancies belonging to a deleted or inactive client
+      if (vac?.clientId && !activeClientIds.has(vac.clientId)) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
       if (filterClient !== 'all') {
         if (!vac || vac.clientId !== filterClient) return false
