@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const buffer = Buffer.from(bytes)
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${type}s/${tenantId}/${entityId}/${Date.now()}.${ext}`
+    const path = `${tenantId}/${type}s/${entityId}/${Date.now()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
       .from('cvs')
