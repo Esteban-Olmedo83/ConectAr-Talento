@@ -283,6 +283,10 @@ export default function DashboardPage() {
   const vacancies = data?.vacancies ?? []
   const clients = data?.clients ?? []
 
+  // Active vs inactive clients
+  const activeClients = clients.filter(c => c.active !== false)
+  const inactiveClients = clients.filter(c => c.active === false)
+
   // Build a vacancyMap for client lookups
   const vacancyMap = new Map<string, Vacancy>()
   vacancies.forEach(v => vacancyMap.set(v.id, v))
@@ -474,13 +478,36 @@ export default function DashboardPage() {
               }}
             >
               <option value="all">Todos</option>
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
         )}
       </div>
+
+      {/* Inactive clients alert banner */}
+      {inactiveClients.length > 0 && (
+        <div
+          style={{
+            background: 'rgba(107,114,128,0.08)',
+            border: '1px solid rgba(107,114,128,0.2)',
+            borderRadius: 10,
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>ℹ️</span>
+          <p style={{ fontSize: 13, color: 'var(--muted2)', flex: 1 }}>
+            Tenés {inactiveClients.length} cliente{inactiveClients.length > 1 ? 's' : ''} inactivo{inactiveClients.length > 1 ? 's' : ''} con historial guardado.{' '}
+            <a href="/clients" style={{ color: 'var(--accent-2)', textDecoration: 'underline', fontWeight: 500 }}>
+              Ver clientes
+            </a>
+          </p>
+        </div>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -509,6 +536,24 @@ export default function DashboardPage() {
           accentColor="var(--gold)"
         />
       </div>
+
+      {/* Clients KPI row */}
+      {clients.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Clientes activos"
+            value={activeClients.length}
+            sub="con procesos en curso"
+            accentColor="var(--accent)"
+          />
+          <KpiCard
+            label="Clientes inactivos"
+            value={inactiveClients.length}
+            sub="historial guardado"
+            accentColor="#6b7280"
+          />
+        </div>
+      )}
 
       {/* AI Insight */}
       <div

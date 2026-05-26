@@ -1152,39 +1152,92 @@ export default function TalentPoolPage() {
     { value: 'descartado', label: 'Descartados' },
   ]
 
-  const pillBase = 'text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer'
-
   return (
     <div className="flex flex-col min-h-0 gap-5">
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Banco de Talento</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Base histórica de candidatos evaluados</p>
+          <h1
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: 'var(--text)',
+              fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+              lineHeight: 1.1,
+              marginBottom: 4,
+            }}
+          >
+            Banco de Talentos
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--muted2)' }}>Base histórica de candidatos evaluados</p>
         </div>
-        {!loading && (
-          <div className="flex gap-2 flex-wrap">
-            <span
-              className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}
-            >
-              {stats.activo} activos
-            </span>
-            <span
-              className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}
-            >
-              {stats.reserva} reserva
-            </span>
-            <span
-              className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{ background: 'rgba(107,114,128,0.12)', color: '#9ca3af' }}
-            >
-              {stats.descartado} descartados
-            </span>
-          </div>
-        )}
       </div>
+
+      {/* ── KPI strip ── */}
+      {!loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Total */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '14px 16px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--accent)' }} />
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Total candidatos</p>
+            <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{allEntries.length}</p>
+          </div>
+          {/* Activos */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '14px 16px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#34d399' }} />
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Activos en proceso</p>
+            <p style={{ fontSize: 24, fontWeight: 900, color: '#34d399', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.activo}</p>
+          </div>
+          {/* Reserva */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '14px 16px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#fbbf24' }} />
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Reserva</p>
+            <p style={{ fontSize: 24, fontWeight: 900, color: '#fbbf24', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.reserva}</p>
+          </div>
+          {/* Descartados */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '14px 16px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#6b7280' }} />
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Descartados</p>
+            <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--muted)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.descartado}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Filter bar ── */}
       <div
@@ -1198,8 +1251,19 @@ export default function TalentPoolPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre, email o skill..."
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            style={{ borderColor: 'var(--border)' }}
+            style={{
+              width: '100%',
+              paddingLeft: 32,
+              paddingRight: 32,
+              paddingTop: 8,
+              paddingBottom: 8,
+              fontSize: 13,
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              outline: 'none',
+            }}
           />
           {search && (
             <button
@@ -1220,11 +1284,16 @@ export default function TalentPoolPage() {
               <button
                 key={opt.value}
                 onClick={() => setClassFilter(opt.value)}
-                className={pillBase}
                 style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: '6px 14px',
+                  borderRadius: 99,
+                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
                   background: active ? 'var(--accent)' : 'transparent',
                   color: active ? 'white' : 'var(--muted)',
-                  borderColor: active ? 'var(--accent)' : 'var(--border)',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
                 }}
               >
                 {opt.label}
@@ -1234,33 +1303,45 @@ export default function TalentPoolPage() {
         </div>
 
         {/* Score filter */}
-        <div className="relative">
-          <select
-            value={scoreFilter}
-            onChange={e => setScoreFilter(e.target.value as ScoreFilter)}
-            className="pl-3 pr-7 py-2 text-sm rounded-md border bg-background focus:outline-none appearance-none"
-            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-          >
-            <option value="todos">Todos los scores</option>
-            <option value="80+">ATS 80+</option>
-            <option value="60-79">ATS 60-79</option>
-            <option value="<60">ATS &lt;60</option>
-          </select>
-        </div>
+        <select
+          value={scoreFilter}
+          onChange={e => setScoreFilter(e.target.value as ScoreFilter)}
+          style={{
+            padding: '7px 12px',
+            fontSize: 13,
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            outline: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="todos">Todos los scores</option>
+          <option value="80+">ATS 80+</option>
+          <option value="60-79">ATS 60-79</option>
+          <option value="<60">ATS &lt;60</option>
+        </select>
 
         {/* Client filter */}
         {clients.length > 0 && (
-          <div className="relative">
-            <select
-              value={clientFilter}
-              onChange={e => setClientFilter(e.target.value)}
-              className="pl-3 pr-7 py-2 text-sm rounded-md border bg-background focus:outline-none appearance-none"
-              style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-            >
-              <option value="todos">Todos los clientes</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
+          <select
+            value={clientFilter}
+            onChange={e => setClientFilter(e.target.value)}
+            style={{
+              padding: '7px 12px',
+              fontSize: 13,
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="todos">Todos los clientes</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         )}
 
         {/* Count */}

@@ -168,18 +168,32 @@ export interface Client {
   name: string
   industry?: string
   contactName?: string
-  contactEmail?: string       // corporate / main contact email
-  recruitmentEmail?: string   // email used for recruitment communications
+  contactEmail?: string
+  recruitmentEmail?: string
   contactPhone?: string
-  whatsappPhone?: string      // phone number for WhatsApp
+  whatsappPhone?: string
   address?: string
   interviewAddress?: string
   interviewArrivalDetails?: string
   website?: string
   logoUrl?: string
   notes?: string
+  active: boolean
+  deactivatedAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type ClientEventType = 'created' | 'deactivated' | 'reactivated' | 'modified'
+
+export interface ClientEvent {
+  id: string
+  tenantId: string
+  clientId: string
+  clientName: string
+  eventType: ClientEventType
+  occurredAt: string
+  notes?: string | null
 }
 
 export interface Vacancy {

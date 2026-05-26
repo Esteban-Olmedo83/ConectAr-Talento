@@ -459,6 +459,16 @@ export class GoogleSheetsProvider implements DataProvider {
     return { data: null, error: 'Clients not supported in Google Sheets provider' }
   }
 
+  async deactivateClient(_id: string, _clientName: string, _tenantId: string): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Not supported' }
+  }
+  async reactivateClient(_id: string, _clientName: string, _tenantId: string): Promise<DataResult<import('@/types').Client>> {
+    return { data: null, error: 'Not supported' }
+  }
+  async getClientEvents(_tenantId: string, _clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    return ok([])
+  }
+
   // ─── Private HTTP helpers ────────────────────────────────────────────────
 
   private authHeaders(): HeadersInit {

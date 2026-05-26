@@ -54,8 +54,22 @@ function mapClient(row: Record<string, unknown>): Client {
     website: (row.website as string) ?? undefined,
     logoUrl: (row.logo_url as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
+    active: (row.active as boolean) ?? true,
+    deactivatedAt: (row.deactivated_at as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+  }
+}
+
+function mapClientEvent(row: Record<string, unknown>): import('@/types').ClientEvent {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    clientId: row.client_id as string,
+    clientName: row.client_name as string,
+    eventType: row.event_type as import('@/types').ClientEventType,
+    occurredAt: row.occurred_at as string,
+    notes: (row.notes as string | null) ?? null,
   }
 }
 
@@ -339,6 +353,51 @@ export class SupabaseProvider implements DataProvider {
       interviews: interviewCount,
       scorecards: scorecardCount,
     }
+  }
+
+  async deactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>> {
+    const now = new Date().toISOString()
+    const { data, error } = await this.sb
+      .from('clients')
+      .update({ active: false, deactivated_at: now })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: id, client_name: clientName,
+      event_type: 'deactivated', occurred_at: now,
+    })
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async reactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>> {
+    const { data, error } = await this.sb
+      .from('clients')
+      .update({ active: true, deactivated_at: null })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) return err(error.message)
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: id, client_name: clientName,
+      event_type: 'reactivated',
+    })
+    return ok(mapClient(data as Record<string, unknown>))
+  }
+
+  async getClientEvents(tenantId: string, clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    let q = this.sb.from('client_events').select('*').eq('tenant_id', tenantId).order('occurred_at', { ascending: false })
+    if (clientId) q = q.eq('client_id', clientId)
+    const { data, error } = await q
+    if (error) return err(error.message)
+    return ok((data ?? []).map(mapClientEvent))
+  }
+
+  async logClientEvent(tenantId: string, clientId: string, clientName: string, eventType: import('@/types').ClientEventType, notes?: string): Promise<void> {
+    await this.sb.from('client_events').insert({
+      tenant_id: tenantId, client_id: clientId, client_name: clientName, event_type: eventType, notes: notes ?? null,
+    })
   }
 
   // ── Vacancies ─────────────────────────────────────────────────────────────

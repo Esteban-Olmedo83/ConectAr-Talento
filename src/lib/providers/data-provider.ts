@@ -15,7 +15,7 @@ import type {
 
 // ─── Input types (omit server-generated fields) ──────────────────────────────
 
-export type CreateClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt'>
+export type CreateClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'active' | 'deactivatedAt'> & { active?: boolean }
 export type UpdateClientInput = Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>>
 
 export type CreateVacancyInput = Omit<Vacancy, 'id' | 'createdAt' | 'applications' | 'client'>
@@ -43,6 +43,9 @@ export interface DataProvider {
   createClient(input: CreateClientInput): Promise<DataResult<Client>>
   updateClient(id: string, input: UpdateClientInput): Promise<DataResult<Client>>
   deleteClient(id: string): Promise<DataResult<void>>
+  deactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>>
+  reactivateClient(id: string, clientName: string, tenantId: string): Promise<DataResult<Client>>
+  getClientEvents(tenantId: string, clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>>
 
   // Vacancies
   getVacancies(tenantId: string): Promise<DataResult<Vacancy[]>>
@@ -150,6 +153,7 @@ export class LocalStorageProvider implements DataProvider {
     try {
       const client: Client = {
         ...input,
+        active: input.active ?? true,
         id: generateId(),
         createdAt: now(),
         updatedAt: now(),
@@ -188,6 +192,26 @@ export class LocalStorageProvider implements DataProvider {
     } catch (e) {
       return err(`deleteClient failed: ${String(e)}`)
     }
+  }
+
+  async deactivateClient(id: string, _clientName: string, _tenantId: string): Promise<DataResult<Client>> {
+    const all = readCollection<Client>(KEYS.clients)
+    const updated = all.map(c => c.id === id ? { ...c, active: false, deactivatedAt: new Date().toISOString() } : c)
+    writeCollection(KEYS.clients, updated)
+    const found = updated.find(c => c.id === id)
+    return found ? ok(found) : err('Client not found')
+  }
+
+  async reactivateClient(id: string, _clientName: string, _tenantId: string): Promise<DataResult<Client>> {
+    const all = readCollection<Client>(KEYS.clients)
+    const updated = all.map(c => c.id === id ? { ...c, active: true, deactivatedAt: null } : c)
+    writeCollection(KEYS.clients, updated)
+    const found = updated.find(c => c.id === id)
+    return found ? ok(found) : err('Client not found')
+  }
+
+  async getClientEvents(_tenantId: string, _clientId?: string): Promise<DataResult<import('@/types').ClientEvent[]>> {
+    return ok([])
   }
 
   // ── Vacancies ──────────────────────────────────────────────────────────────
