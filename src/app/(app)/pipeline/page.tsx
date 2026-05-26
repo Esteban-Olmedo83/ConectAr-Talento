@@ -2499,6 +2499,127 @@ function Skeleton() {
   )
 }
 
+// ─── Single-candidate reject reason dialog ────────────────────────────────────
+function RejectReasonDialog({
+  candidateName,
+  appId,
+  provider,
+  onClose,
+  onDone,
+}: {
+  candidateName: string
+  appId: string
+  provider: SupabaseProvider
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [reason, setReason] = React.useState<RejectionReason | ''>('')
+  const [note, setNote] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+
+  async function handleConfirm() {
+    if (!reason) return
+    setSaving(true)
+    await provider.updateApplicationRejection(appId, reason as RejectionReason, note || undefined)
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    setSaving(false)
+    onDone()
+  }
+
+  async function handleSkip() {
+    // Status already set to Descartado optimistically; just save without reason
+    await provider.updateApplicationStatus(appId, 'Descartado')
+    window.dispatchEvent(new CustomEvent('application:stage-changed'))
+    onClose()
+  }
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+  }
+  const modal: React.CSSProperties = {
+    background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16,
+    width: '100%', maxWidth: 440, padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
+  }
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)',
+    borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none',
+  }
+
+  return (
+    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) handleSkip() }}>
+      <div style={modal}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Motivo de descarte</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{candidateName}</p>
+          </div>
+          <button onClick={handleSkip} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {REJECTION_REASONS.map(r => (
+            <label
+              key={r.value}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                borderRadius: 10, border: `1px solid ${reason === r.value ? 'var(--accent)' : 'var(--border)'}`,
+                background: reason === r.value ? 'rgba(108,99,255,0.08)' : 'var(--surface2)',
+                cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              <input
+                type="radio"
+                name="reject-reason"
+                value={r.value}
+                checked={reason === r.value}
+                onChange={() => setReason(r.value)}
+                style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0 }}
+              />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{r.label}</p>
+                <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>{r.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Nota adicional (opcional)</label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Agrega detalles adicionales..."
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleSkip}
+            style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}
+          >
+            Omitir
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!reason || saving}
+            style={{
+              flex: 2, padding: '10px 0', borderRadius: 8, border: 'none',
+              background: reason ? '#f87171' : 'rgba(248,113,113,0.3)',
+              color: reason ? '#fff' : 'rgba(255,255,255,0.5)',
+              fontSize: 13, fontWeight: 600, cursor: reason ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {saving ? 'Guardando…' : 'Confirmar descarte'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Close vacancy remaining dialog ──────────────────────────────────────────
 function CloseVacancyRemainingDialog({
   vacancyId,
@@ -2785,6 +2906,7 @@ export default function PipelinePage() {
   const [interviewsByCandidate, setInterviewsByCandidate] = React.useState<Map<string, string>>(new Map())
   const [allInterviews, setAllInterviews] = React.useState<Interview[]>([])
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
+  const [rejectDialog, setRejectDialog] = React.useState<{ appId: string; candidateName: string } | null>(null)
   const [stagePrompt, setStagePrompt] = React.useState<{ candidateName: string; currentStage: VacancyStatus; appId: string } | null>(null)
 
   const { user } = useUser()
@@ -2975,11 +3097,11 @@ export default function PipelinePage() {
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     } else if (action === 'rechazar') {
+      const app = applications.find(a => a.id === appId)
+      const candidateName = app?.candidate?.fullName ?? ''
+      // Optimistically mark as Descartado then let dialog refine the reason
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: null } : a))
-      if (!isVirtual) {
-        await provider.updateApplicationStatus(appId, 'Descartado')
-        window.dispatchEvent(new CustomEvent('application:stage-changed'))
-      }
+      if (!isVirtual) setRejectDialog({ appId, candidateName })
     } else if (action === 'a_considerar') {
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, disposition: 'a_considerar' as CandidateDisposition } : a))
       if (!isVirtual) {
@@ -2987,12 +3109,10 @@ export default function PipelinePage() {
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     } else if (action === 'descartar_cv') {
+      const app = applications.find(a => a.id === appId)
+      const candidateName = app?.candidate?.fullName ?? ''
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: 'descartar_cv' as CandidateDisposition } : a))
-      if (!isVirtual) {
-        await provider.updateApplicationDisposition(appId, 'descartar_cv')
-        await provider.updateApplicationStatus(appId, 'Descartado')
-        window.dispatchEvent(new CustomEvent('application:stage-changed'))
-      }
+      if (!isVirtual) setRejectDialog({ appId, candidateName })
     } else if (action === 'avanzar_etapa') {
       const STAGE_ORDER: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
       const app = applications.find(a => a.id === appId)
@@ -3268,6 +3388,15 @@ export default function PipelinePage() {
           allAppsForVacancy={applications.filter(a => a.vacancyId === hireDialog.app.vacancyId)}
           onClose={() => setHireDialog(null)}
           onVacancyClosed={handleVacancyClosed}
+        />
+      )}
+      {rejectDialog && (
+        <RejectReasonDialog
+          appId={rejectDialog.appId}
+          candidateName={rejectDialog.candidateName}
+          provider={provider}
+          onClose={() => setRejectDialog(null)}
+          onDone={() => setRejectDialog(null)}
         />
       )}
       {stagePrompt && (

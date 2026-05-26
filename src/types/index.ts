@@ -142,6 +142,7 @@ export interface Candidate {
   interviews: Interview[]
   appliedAt: string
   createdAt: string
+  archived?: boolean
 }
 
 export interface Application {

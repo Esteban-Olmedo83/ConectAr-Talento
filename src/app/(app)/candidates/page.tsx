@@ -1277,9 +1277,11 @@ export default function CandidatesPage() {
   const filtered = React.useMemo(() => {
     const validClientIds = new Set(clients.map(c => c.id))
     return candidates.filter(c => {
+      // Hide archived candidates (their company was deleted)
+      if (c.archived) return false
       // Hide candidates whose assigned client was deleted
       if (c.clientId && !validClientIds.has(c.clientId)) return false
-      // Hide orphaned candidates: they have applications but ALL point to deleted vacancies (vacancyId = null)
+      // Hide orphaned candidates: all applications point to deleted vacancies (vacancyId = null)
       const candidateApps = applications.filter(a => a.candidateId === c.id)
       if (candidateApps.length > 0 && candidateApps.every(a => a.vacancyId === null)) return false
       if (filterClient !== 'all') {

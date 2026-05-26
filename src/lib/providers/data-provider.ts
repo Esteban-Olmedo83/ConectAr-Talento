@@ -63,6 +63,7 @@ export interface DataProvider {
   updateApplicationDisposition(id: string, disposition: CandidateDisposition | null): Promise<DataResult<Application>>
   updateApplicationRejection(id: string, reason: RejectionReason, note?: string): Promise<DataResult<Application>>
   snapshotApplicationsForVacancy(vacancyId: string, vacancyTitle: string, clientName: string): Promise<void>
+  archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void>
 
   // Interviews
   getInterviews(candidateId?: string, tenantId?: string): Promise<DataResult<Interview[]>>
@@ -407,6 +408,24 @@ export class LocalStorageProvider implements DataProvider {
     const apps = readCollection<Application>(KEYS.applications)
     const updated = apps.map(a => a.vacancyId === vacancyId ? { ...a, vacancyTitle, clientName } : a)
     writeCollection(KEYS.applications, updated)
+  }
+
+  async archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void> {
+    const vacancySet = new Set(clientVacancyIds)
+    const apps = readCollection<Application>(KEYS.applications)
+    const candidates = readCollection<Candidate>(KEYS.candidates)
+    const clientCandidateIds = new Set(
+      apps.filter(a => a.vacancyId && vacancySet.has(a.vacancyId)).map(a => a.candidateId)
+    )
+    const stillActive = new Set(
+      apps.filter(a => a.vacancyId && !vacancySet.has(a.vacancyId) && clientCandidateIds.has(a.candidateId)).map(a => a.candidateId)
+    )
+    const updated = candidates.map(c =>
+      clientCandidateIds.has(c.id) && !stillActive.has(c.id) && (!c.clientId || c.clientId === clientId)
+        ? { ...c, archived: true }
+        : c
+    )
+    writeCollection(KEYS.candidates, updated)
   }
 
   // ── Interviews ─────────────────────────────────────────────────────────────

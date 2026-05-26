@@ -107,6 +107,7 @@ function mapCandidate(row: Record<string, unknown>): Candidate {
     interviews: [],
     appliedAt: row.applied_at as string,
     createdAt: row.created_at as string,
+    archived: (row.archived as boolean) ?? false,
   }
 }
 
@@ -569,6 +570,37 @@ export class SupabaseProvider implements DataProvider {
       .from('applications')
       .update({ vacancy_title: vacancyTitle, client_name: clientName })
       .eq('vacancy_id', vacancyId)
+  }
+
+  async archiveCandidatesForClient(clientId: string, clientVacancyIds: string[]): Promise<void> {
+    if (clientVacancyIds.length === 0) return
+    // Candidates whose ONLY vacancy applications were for this client's vacancies
+    // First get all candidates with apps for these vacancies
+    const { data: clientApps } = await this.sb
+      .from('applications')
+      .select('candidate_id')
+      .in('vacancy_id', clientVacancyIds)
+    if (!clientApps?.length) return
+    const candidateIds = [...new Set(clientApps.map(a => a.candidate_id as string))]
+    // Of those, find any that have OTHER applications not in this client's vacancies
+    const { data: otherApps } = await this.sb
+      .from('applications')
+      .select('candidate_id')
+      .in('candidate_id', candidateIds)
+      .not('vacancy_id', 'in', `(${clientVacancyIds.map(id => `"${id}"`).join(',')})`)
+      .not('vacancy_id', 'is', null)
+    const stillActiveIds = new Set((otherApps ?? []).map(a => a.candidate_id as string))
+    // Also keep candidates who have a direct clientId pointing to another existing client
+    const { data: directClients } = await this.sb
+      .from('candidates')
+      .select('id, client_id')
+      .in('id', candidateIds)
+      .not('client_id', 'is', null)
+      .neq('client_id', clientId)
+    ;(directClients ?? []).forEach(c => stillActiveIds.add(c.id as string))
+    const toArchive = candidateIds.filter(id => !stillActiveIds.has(id))
+    if (toArchive.length === 0) return
+    await this.sb.from('candidates').update({ archived: true }).in('id', toArchive)
   }
 
   // Stage mapping used by the pipeline drag-and-drop.

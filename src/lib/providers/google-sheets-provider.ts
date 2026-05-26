@@ -762,6 +762,8 @@ export class GoogleSheetsProvider implements DataProvider {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async snapshotApplicationsForVacancy(_vacancyId: string, _vacancyTitle: string, _clientName: string): Promise<void> {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async archiveCandidatesForClient(_clientId: string, _clientVacancyIds: string[]): Promise<void> {}
 
   // ─── Interviews ────────────────────────────────────────────────────────────
 
