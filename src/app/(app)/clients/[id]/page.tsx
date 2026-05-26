@@ -367,6 +367,7 @@ function CandidateRow({ application, candidate, vacancyTitle }: {
   const name = resolvedCandidate?.fullName ?? `Candidato ${fallbackId.slice(0, 6)}`
   const email = resolvedCandidate?.email
   const score = resolvedCandidate?.atsScore
+  const avatarUrl = resolvedCandidate?.avatarUrl
 
   return (
     <div
@@ -374,14 +375,17 @@ function CandidateRow({ application, candidate, vacancyTitle }: {
       style={{ border: '1px solid var(--border)' }}
     >
       <div
-        className="shrink-0 flex items-center justify-center rounded-full text-white text-xs font-bold"
+        className="shrink-0 flex items-center justify-center rounded-full text-white text-xs font-bold overflow-hidden"
         style={{
           width: 36,
           height: 36,
           background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
         }}
       >
-        {name.charAt(0).toUpperCase()}
+        {avatarUrl
+          ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          : name.charAt(0).toUpperCase()
+        }
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{name}</p>
@@ -815,10 +819,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 13, fontWeight: 700,
+                      color: '#fff', fontSize: 13, fontWeight: 700, overflow: 'hidden',
                     }}
                   >
-                    {initials}
+                    {c?.avatarUrl
+                      ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials
+                    }
                   </div>
 
                   {/* Info */}
