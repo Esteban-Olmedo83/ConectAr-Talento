@@ -2074,6 +2074,15 @@ function ProcessDetailModal({
   onAction: (modal: ActiveModal) => void
   onDecide?: (appId: string, action: DecisionAction) => void
 }) {
+  const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const c = app.candidate
   if (!c) return null
