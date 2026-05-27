@@ -1,11 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
+import { useLanguage } from '@/lib/context/language-context'
+import { LANGUAGES } from '@/lib/i18n/translations'
+import type { LangCode } from '@/lib/i18n/translations'
 
 // ─── Palette definitions ──────────────────────────────────────────────────────
 const PALETTES = [
@@ -28,12 +31,7 @@ const THEMES = [
   { id: 'auto', label: 'Auto', icon: Monitor },
 ]
 
-const SETTINGS_TABS = [
-  { id: 'apariencia', label: 'Apariencia' },
-  { id: 'cuenta', label: 'Cuenta' },
-  { id: 'notificaciones', label: 'Notificaciones' },
-  { id: 'ia', label: 'Conexión con IAs' },
-]
+// SETTINGS_TABS is built dynamically in SettingsPage using translations
 
 function applyTheme(theme: string) {
   const html = document.documentElement
@@ -1050,9 +1048,127 @@ function DatosTab() {
   )
 }
 
+// ─── Idioma Tab ───────────────────────────────────────────────────────────────
+function IdiomaTab() {
+  const { lang, setLang, t } = useLanguage()
+  const [search, setSearch] = React.useState('')
+  const [applied, setApplied] = React.useState<LangCode | null>(null)
+
+  const filtered = LANGUAGES.filter(l =>
+    l.name.toLowerCase().includes(search.toLowerCase()) ||
+    l.label.toLowerCase().includes(search.toLowerCase()) ||
+    l.code.toLowerCase().includes(search.toLowerCase())
+  )
+
+  function handleSelect(code: LangCode) {
+    setLang(code)
+    setApplied(code)
+    setTimeout(() => setApplied(null), 2000)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
+          {t.settings.language.title}
+        </h3>
+        <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+          {t.settings.language.subtitle}
+        </p>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t.settings.language.search}
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+            style={{
+              background: 'var(--surface2)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+            }}
+          />
+        </div>
+
+        {/* Language grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {filtered.map(l => {
+            const active = lang === l.code
+            const justApplied = applied === l.code
+            return (
+              <button
+                key={l.code}
+                onClick={() => handleSelect(l.code as LangCode)}
+                className={cn(
+                  'flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer',
+                  active
+                    ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                    : 'border-[var(--border)] hover:border-[var(--border2)] hover:bg-[var(--surface2)]'
+                )}
+                style={{
+                  background: active ? 'var(--accent-soft)' : 'var(--surface2)',
+                }}
+              >
+                <span className="text-xl leading-none shrink-0">{l.flag}</span>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-sm font-semibold truncate"
+                    style={{ color: active ? 'var(--accent-2)' : 'var(--text)' }}
+                  >
+                    {l.name}
+                  </p>
+                  <p
+                    className="text-xs truncate"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    {l.label}
+                  </p>
+                </div>
+                {justApplied ? (
+                  <span
+                    className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: 'var(--accent)', color: '#fff' }}
+                  >
+                    ✓
+                  </span>
+                ) : active ? (
+                  <span
+                    className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    <Check className="h-2.5 w-2.5 text-white" />
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+
+        {filtered.length === 0 && (
+          <p className="text-sm text-center py-8" style={{ color: 'var(--muted)' }}>
+            {t.common.noResults}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = React.useState('apariencia')
+
+  const SETTINGS_TABS = [
+    { id: 'apariencia', label: t.settings.tabs.appearance },
+    { id: 'cuenta', label: t.settings.tabs.account },
+    { id: 'notificaciones', label: t.settings.tabs.notifications },
+    { id: 'ia', label: t.settings.tabs.ai },
+    { id: 'idioma', label: t.settings.tabs.language },
+  ]
 
   return (
     <div className="flex flex-col md:flex-row gap-4 md:gap-6 h-full min-h-0">
@@ -1116,7 +1232,7 @@ export default function SettingsPage() {
             className="text-lg font-bold"
             style={{ fontFamily: 'var(--font-nunito)', color: 'var(--text)' }}
           >
-            {SETTINGS_TABS.find(t => t.id === activeTab)?.label}
+            {SETTINGS_TABS.find(tab => tab.id === activeTab)?.label}
           </h2>
         </div>
 
@@ -1124,6 +1240,7 @@ export default function SettingsPage() {
         {activeTab === 'cuenta' && <CuentaTab />}
         {activeTab === 'notificaciones' && <NotificacionesTab />}
         {activeTab === 'ia' && <ConexionIAsTab />}
+        {activeTab === 'idioma' && <IdiomaTab />}
       </main>
     </div>
   )

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type { Application, Candidate, Interview, Vacancy } from '@/types'
 
 type DateRange = 'month' | 'quarter' | 'year'
@@ -250,6 +251,7 @@ async function exportExecutivePdf({
 
 export default function ReportsPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [range, setRange] = React.useState<DateRange>('month')
   const [selectedSource, setSelectedSource] = React.useState('all')
@@ -579,7 +581,7 @@ export default function ReportsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-[var(--radius)] bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-70"
             >
               <Download className="h-4 w-4" />
-              {exporting ? 'Generando PDF...' : 'Exportar PDF'}
+              {exporting ? 'Generando PDF...' : t.reports.export}
             </button>
           </div>
         </div>
@@ -590,7 +592,7 @@ export default function ReportsPage() {
           <div className="flex items-start gap-3">
             <FileText className="mt-0.5 h-5 w-5 text-warning" />
             <div>
-              <p className="text-sm font-semibold text-text-primary">Sin datos en el periodo seleccionado</p>
+              <p className="text-sm font-semibold text-text-primary">{t.reports.noData}</p>
               <p className="mt-1 text-sm text-text-secondary">
                 Crea vacantes y candidatos para activar los reportes.
               </p>
@@ -627,7 +629,7 @@ export default function ReportsPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard title="Embudo de Contratacion" subtitle="Conversion por etapa">
+        <ChartCard title={t.reports.sections.funnel} subtitle="Conversion por etapa">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart
               data={funnelData}
@@ -654,7 +656,7 @@ export default function ReportsPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Fuentes de Candidatos" subtitle="Distribucion por canal">
+        <ChartCard title={t.reports.sections.sources} subtitle="Distribucion por canal">
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
@@ -688,7 +690,7 @@ export default function ReportsPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard title="Score ATS por Vacante" subtitle="Promedio por posicion activa">
+        <ChartCard title={t.reports.sections.performance} subtitle="Promedio por posicion activa">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart
               data={scoreByVacancy}

@@ -17,6 +17,7 @@ import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Client, Vacancy, VacancyModality, VacancyPriority, Candidate, CustomJobProfile, Interview, VacancyStatus, Application, RejectionReason } from '@/types'
 import { rubros, getProfilesByRubro } from '@/lib/skills'
+import { useLanguage } from '@/lib/context/language-context'
 
 const PRIORITY_CONFIG: Record<VacancyPriority, { label: string; bg: string; color: string }> = {
   Alta: { label: 'Alta', bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
@@ -55,6 +56,7 @@ function VacancyFormDialog({
   onSave: (v: Vacancy) => void
 }) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [clients, setClients] = React.useState<Client[]>([])
   const [customProfiles, setCustomProfiles] = React.useState<CustomJobProfile[]>([])
@@ -208,7 +210,7 @@ function VacancyFormDialog({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <DraggableModal open={open} onClose={onClose} title={vacancy ? 'Editar vacante' : 'Nueva vacante'} maxWidth="42rem">
+    <DraggableModal open={open} onClose={onClose} title={vacancy ? t.vacancies.dialog.editTitle : t.vacancies.dialog.createTitle} maxWidth="42rem">
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* Rubro + Perfil selector */}
           <div
@@ -216,7 +218,7 @@ function VacancyFormDialog({
             style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}
           >
             <div>
-              <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Rubro</label>
+              <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>{t.vacancies.fields.area}</label>
               <select value={form.rubro} onChange={e => setForm(f => ({...f, rubro: e.target.value, perfil: ''}))}
                 className={inputCls}>
                 <option value="">Seleccioná un rubro</option>
@@ -252,7 +254,7 @@ function VacancyFormDialog({
 
           {/* Client selector */}
           <div>
-            <label className={labelCls}>Cliente (empresa)</label>
+            <label className={labelCls}>{t.vacancies.fields.client}</label>
             <select
               value={form.clientId}
               onChange={e => setForm(f => ({...f, clientId: e.target.value}))}
@@ -267,7 +269,7 @@ function VacancyFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Título del puesto *</label>
+              <label className={labelCls}>{t.vacancies.fields.title} *</label>
               <input required value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} className={inputCls} placeholder="Frontend Developer Senior" />
             </div>
             <div>
@@ -278,13 +280,13 @@ function VacancyFormDialog({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className={labelCls}>Modalidad</label>
+              <label className={labelCls}>{t.vacancies.fields.modality}</label>
               <select value={form.modality} onChange={e => setForm(f => ({...f, modality: e.target.value as VacancyModality}))} className={inputCls}>
                 <option>Remoto</option><option>Presencial</option><option>Híbrido</option>
               </select>
             </div>
             <div>
-              <label className={labelCls}>Prioridad</label>
+              <label className={labelCls}>{t.vacancies.fields.priority}</label>
               <select value={form.priority} onChange={e => setForm(f => ({...f, priority: e.target.value as VacancyPriority}))} className={inputCls}>
                 <option>Alta</option><option>Media</option><option>Baja</option>
               </select>
@@ -296,7 +298,7 @@ function VacancyFormDialog({
           </div>
 
           <div>
-            <label className={labelCls}>Ubicación</label>
+            <label className={labelCls}>{t.vacancies.fields.location}</label>
             <input value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} className={inputCls} placeholder="Buenos Aires, Argentina" />
           </div>
 
@@ -318,13 +320,13 @@ function VacancyFormDialog({
           </div>
 
           <div>
-            <label className={labelCls}>Skills requeridas (separadas por coma)</label>
+            <label className={labelCls}>{t.vacancies.fields.requirements}</label>
             <input value={form.requirements} onChange={e => setForm(f => ({...f, requirements: e.target.value}))} className={inputCls} placeholder="React, TypeScript, 3 años de experiencia, inglés intermedio" />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className={labelCls}>Descripción del puesto</label>
+              <label className={labelCls}>{t.vacancies.fields.description}</label>
               <Button type="button" variant="outline" size="sm" onClick={generateDescription} disabled={!form.title || generating}
                 className="text-xs gap-1 h-6 px-2">
                 {generating ? '⏳ Generando...' : '✨ Generar con IA'}
@@ -339,9 +341,9 @@ function VacancyFormDialog({
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? '⏳ Guardando...' : vacancy ? 'Guardar cambios' : 'Crear vacante'}
+              {saving ? '⏳ Guardando...' : vacancy ? t.common.save : t.vacancies.dialog.createTitle}
             </Button>
           </div>
         </form>
@@ -484,7 +486,7 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      
     >
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(680px, 95vw)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
         {/* Header */}
@@ -739,7 +741,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
           ) : (
             <>
               <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
-                Ver pipeline
+                Ver procesos
               </Button>
               <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
                 <UserPlus className="h-3 w-3" /> Asignar

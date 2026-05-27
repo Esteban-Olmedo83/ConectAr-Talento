@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type { Client, Vacancy, Application, Candidate } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function EditClientDialog({ client, onClose, onSave }: {
   onClose: () => void
   onSave: (c: Client) => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
@@ -117,7 +119,7 @@ function EditClientDialog({ client, onClose, onSave }: {
   }
 
   return (
-    <DraggableModal open onClose={onClose} title="Editar cliente" maxWidth="32rem">
+    <DraggableModal open onClose={onClose} title={t.clients.dialog.editTitle} maxWidth="32rem">
       <form onSubmit={handleSubmit} className="space-y-4 mt-2">
         {/* Logo upload */}
         <div className="flex items-center gap-4">
@@ -149,7 +151,7 @@ function EditClientDialog({ client, onClose, onSave }: {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text)' }}>Logo del cliente</p>
+            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text)' }}>{t.clients.fields.logo}</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>PNG, JPG o WebP · máx. 5 MB</p>
             <button type="button" onClick={() => logoInputRef.current?.click()}
               className="text-xs font-semibold mt-1"
@@ -171,7 +173,7 @@ function EditClientDialog({ client, onClose, onSave }: {
         )}
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-            Empresa *
+            {t.clients.fields.company} *
           </label>
           <input
             value={form.name}
@@ -184,7 +186,7 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-            Industria
+            {t.clients.fields.industry}
           </label>
           <select
             value={form.industry}
@@ -198,13 +200,13 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Contacto</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.contact}</label>
             <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Nombre del contacto"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Email</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.email}</label>
             <input type="email" value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="email@empresa.com"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -212,20 +214,20 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Teléfono</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.phone}</label>
             <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="+54 11..."
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Sitio web</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.website}</label>
             <input value={form.website} onChange={e => set('website', e.target.value)} placeholder="www.empresa.com"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Notas internas</label>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.notes}</label>
           <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
             placeholder="Contexto del cliente, preferencias, acuerdos..."
             className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
@@ -237,9 +239,9 @@ function EditClientDialog({ client, onClose, onSave }: {
           </p>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+          <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>{t.common.cancel}</Button>
           <Button type="submit" disabled={saving || !form.name.trim()} style={{ background: 'var(--accent)', color: '#fff' }}>
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? 'Guardando...' : t.common.save}
           </Button>
         </div>
       </form>
@@ -255,16 +257,16 @@ function DeleteConfirmDialog({ name, onConfirm, onClose, deleting }: {
   onClose: () => void
   deleting: boolean
 }) {
+  const { t } = useLanguage()
   return (
-    <DraggableModal open onClose={onClose} title="Eliminar cliente" maxWidth="24rem">
+    <DraggableModal open onClose={onClose} title={t.clients.dialog.editTitle} maxWidth="24rem">
       <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
-        ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? Las vacantes
-        vinculadas quedarán sin cliente asignado.
+        ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? {t.clients.deleteConfirmSub}
       </p>
       <div className="flex justify-end gap-2 mt-4">
-        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>{t.common.cancel}</Button>
         <Button onClick={onConfirm} disabled={deleting} style={{ background: 'var(--coral)', color: '#fff' }}>
-          {deleting ? 'Eliminando...' : 'Eliminar'}
+          {deleting ? 'Eliminando...' : t.common.delete}
         </Button>
       </div>
     </DraggableModal>
@@ -278,6 +280,7 @@ function VacancyRow({ vacancy, applications, clientId }: {
   applications: Application[]
   clientId: string
 }) {
+  const { t } = useLanguage()
   const stageCount = React.useMemo(() => {
     const counts: Record<string, number> = {}
     applications.forEach(a => {
@@ -345,7 +348,7 @@ function VacancyRow({ vacancy, applications, clientId }: {
         style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
       >
         <Briefcase className="h-3.5 w-3.5" />
-        Pipeline
+        {t.clients.detail.pipeline}
         <ChevronRight className="h-3.5 w-3.5" />
       </Link>
     </div>
@@ -367,6 +370,7 @@ function CandidateRow({ application, candidate, vacancyTitle }: {
   const name = resolvedCandidate?.fullName ?? `Candidato ${fallbackId.slice(0, 6)}`
   const email = resolvedCandidate?.email
   const score = resolvedCandidate?.atsScore
+  const avatarUrl = resolvedCandidate?.avatarUrl
 
   return (
     <div
@@ -374,14 +378,17 @@ function CandidateRow({ application, candidate, vacancyTitle }: {
       style={{ border: '1px solid var(--border)' }}
     >
       <div
-        className="shrink-0 flex items-center justify-center rounded-full text-white text-xs font-bold"
+        className="shrink-0 flex items-center justify-center rounded-full text-white text-xs font-bold overflow-hidden"
         style={{
           width: 36,
           height: 36,
           background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
         }}
       >
-        {name.charAt(0).toUpperCase()}
+        {avatarUrl
+          ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          : name.charAt(0).toUpperCase()
+        }
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{name}</p>
@@ -449,6 +456,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params)
   const router = useRouter()
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const [client, setClient] = React.useState<Client | null>(null)
@@ -567,9 +575,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="min-h-full flex flex-col items-center justify-center gap-4 p-8" style={{ background: 'var(--bg)' }}>
         <AlertCircle className="h-12 w-12" style={{ color: 'var(--muted)' }} />
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Cliente no encontrado</h2>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.clients.detail.notFound}</h2>
         <Button onClick={() => router.push('/clients')} style={{ background: 'var(--accent)', color: '#fff' }}>
-          Volver a Clientes
+          {t.clients.detail.backToClients}
         </Button>
       </div>
     )
@@ -586,7 +594,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         style={{ color: 'var(--muted2)' }}
       >
         <ArrowLeft className="h-4 w-4" />
-        Clientes
+        {t.clients.detail.backToClients}
       </Link>
 
       {/* Header card */}
@@ -623,7 +631,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--muted2)' }}
             >
-              <Pencil className="h-4 w-4" /> Editar
+              <Pencil className="h-4 w-4" /> {t.common.edit}
             </Button>
             <Button
               variant="ghost"
@@ -632,7 +640,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--coral)' }}
             >
-              <Trash2 className="h-4 w-4" /> Eliminar
+              <Trash2 className="h-4 w-4" /> {t.common.delete}
             </Button>
           </div>
         </div>
@@ -687,9 +695,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: 'Vacantes', value: vacancies.length, sub: 'en este cliente', icon: Briefcase },
-          { label: 'Candidatos', value: totalCandidates, sub: 'en total', icon: Users },
-          { label: 'En shortlist', value: shortlisted, sub: 'en etapas finales', icon: Building2 },
+          { label: t.clients.stats.vacancies, value: vacancies.length, sub: t.clients.stats.vacanciesSub, icon: Briefcase },
+          { label: t.clients.stats.candidates, value: totalCandidates, sub: t.clients.stats.candidatesSub, icon: Users },
+          { label: t.clients.stats.shortlisted, value: shortlisted, sub: t.clients.stats.shortlistedSub, icon: Building2 },
         ].map(kpi => (
           <div
             key={kpi.label}
@@ -706,20 +714,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       {/* Tabs */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: 'var(--surface)' }}>
         {([
-          { key: 'vacantes', label: `Vacantes (${vacancies.length})` },
-          { key: 'candidatos', label: `Candidatos (${totalCandidates})` },
-          { key: 'historial', label: `Historial (${historialEntries.length})` },
-        ] as const).map(t => (
+          { key: 'vacantes', label: `${t.clients.detail.tabs.vacancies} (${vacancies.length})` },
+          { key: 'candidatos', label: `${t.clients.detail.tabs.candidates} (${totalCandidates})` },
+          { key: 'historial', label: `${t.clients.detail.tabs.history} (${historialEntries.length})` },
+        ] as const).map(tabItem => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={tab === t.key
+            style={tab === tabItem.key
               ? { background: 'var(--accent)', color: '#fff' }
               : { color: 'var(--muted2)' }
             }
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -730,7 +738,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {vacancies.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <Briefcase className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin vacantes asignadas</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noVacancies}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Asigná este cliente al crear o editar una vacante.
               </p>
@@ -759,7 +767,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {uniqueCandidateApps.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <Users className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin candidatos aún</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noCandidates}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Los candidatos aparecerán aquí cuando se los agregue a las vacantes de este cliente.
               </p>
@@ -783,7 +791,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {historialEntries.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <History className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin historial</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noHistory}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Aquí aparecerá el registro de todos los candidatos que participaron en procesos para este cliente.
               </p>
@@ -815,10 +823,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 13, fontWeight: 700,
+                      color: '#fff', fontSize: 13, fontWeight: 700, overflow: 'hidden',
                     }}
                   >
-                    {initials}
+                    {c?.avatarUrl
+                      ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials
+                    }
                   </div>
 
                   {/* Info */}

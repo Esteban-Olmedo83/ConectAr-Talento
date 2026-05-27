@@ -24,24 +24,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
-
-// ─── Nav structure ────────────────────────────────────────────────────────────
-const mainNavItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Clientes', href: '/clients', icon: Building2 },
-  { label: 'Procesos', href: '/pipeline', icon: Columns3 },
-  { label: 'Candidatos', href: '/candidates', icon: Users },
-  { label: 'Banco de Talento', href: '/talent-pool', icon: Archive },
-  { label: 'Vacantes', href: '/vacancies', icon: Briefcase },
-  { label: 'Entrevistas', href: '/interviews', icon: Calendar },
-]
-
-const toolNavItems = [
-  { label: 'Perfiles de Puestos', href: '/job-profiles', icon: BookOpen },
-  { label: 'Plantillas', href: '/templates', icon: FileText },
-  { label: 'Integraciones', href: '/integrations', icon: Plug },
-  { label: 'Informes', href: '/reports', icon: BarChart3 },
-]
+import { useLanguage } from '@/lib/context/language-context'
 
 const planLabels: Record<string, string> = {
   free: 'Free',
@@ -120,6 +103,17 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useLanguage()
+
+  const mainNavItems = [
+    { label: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
+    { label: t.nav.clients, href: '/clients', icon: Building2 },
+    { label: t.nav.pipeline, href: '/pipeline', icon: Columns3 },
+    { label: t.nav.candidates, href: '/candidates', icon: Users },
+    { label: t.nav.talentPool, href: '/talent-pool', icon: Archive },
+    { label: t.nav.vacancies, href: '/vacancies', icon: Briefcase },
+    { label: t.nav.interviews, href: '/interviews', icon: Calendar },
+  ]
 
   function isActive(href: string) {
     return pathname === href || pathname?.startsWith(href + '/')
@@ -202,7 +196,7 @@ export function Sidebar({
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Menú">
           {/* Main section */}
-          <SectionLabel label="Principal" collapsed={isCollapsed} />
+          <SectionLabel label={t.nav.sections.main} collapsed={isCollapsed} />
 
           {mainNavItems.map(item => (
             <NavItem
@@ -217,11 +211,11 @@ export function Sidebar({
           ))}
 
           {/* Tools section */}
-          <SectionLabel label="Herramientas" collapsed={isCollapsed} />
+          <SectionLabel label={t.nav.sections.tools} collapsed={isCollapsed} />
           <NavItem
             href="/job-profiles"
             icon={BookOpen}
-            label="Perfiles de Puestos"
+            label={t.nav.jobProfiles}
             isActive={isActive('/job-profiles')}
             isCollapsed={isCollapsed}
             onClick={onClose}
@@ -229,7 +223,7 @@ export function Sidebar({
           <NavItem
             href="/templates"
             icon={FileText}
-            label="Plantillas"
+            label={t.nav.templates}
             isActive={isActive('/templates')}
             isCollapsed={isCollapsed}
             onClick={onClose}
@@ -237,7 +231,7 @@ export function Sidebar({
           <NavItem
             href="/integrations"
             icon={Plug}
-            label="Integraciones"
+            label={t.nav.integrations}
             isActive={isActive('/integrations')}
             isCollapsed={isCollapsed}
             onClick={onClose}
@@ -245,18 +239,18 @@ export function Sidebar({
           <NavItem
             href="/reports"
             icon={BarChart3}
-            label="Informes"
+            label={t.nav.reports}
             isActive={isActive('/reports')}
             isCollapsed={isCollapsed}
             onClick={onClose}
           />
 
           {/* Account section */}
-          <SectionLabel label="Cuenta" collapsed={isCollapsed} />
+          <SectionLabel label={t.nav.sections.account} collapsed={isCollapsed} />
           <NavItem
             href="/settings"
             icon={Settings}
-            label="Configuración"
+            label={t.nav.settings}
             isActive={isActive('/settings')}
             isCollapsed={isCollapsed}
             onClick={onClose}
@@ -265,11 +259,11 @@ export function Sidebar({
           {/* Admin — only visible to owner */}
           {user?.email === 'conectar.rrhh.ar@gmail.com' && (
             <>
-              <SectionLabel label="Administración" collapsed={isCollapsed} />
+              <SectionLabel label={t.nav.admin} collapsed={isCollapsed} />
               <NavItem
                 href="/admin"
                 icon={ShieldCheck}
-                label="Panel de Admin"
+                label={t.nav.admin}
                 isActive={isActive('/admin')}
                 isCollapsed={isCollapsed}
                 onClick={onClose}
@@ -341,7 +335,7 @@ export function Sidebar({
             }}
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {!isCollapsed && <span>Cerrar sesión</span>}
+            {!isCollapsed && <span>{t.nav.logout}</span>}
           </button>
         </div>
       </aside>
