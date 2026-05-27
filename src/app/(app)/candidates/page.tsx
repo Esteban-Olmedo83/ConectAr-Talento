@@ -382,7 +382,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {/* Client */}
           <div>
             <label className={labelCls} style={{ color: 'var(--muted)' }}>
-              <Briefcase className="inline h-3 w-3 mr-1" />Cliente
+              <Briefcase className="inline h-3 w-3 mr-1" />{t.candidates.clientLabel}
             </label>
             {editMode && clients && clients.length > 0 ? (
               <select
@@ -390,7 +390,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 onChange={e => setEditClientId(e.target.value)}
                 className={inputEditCls}
               >
-                <option value="">Sin cliente asignado</option>
+                <option value="">{t.candidates.noClientAssigned}</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -462,7 +462,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 <div className="flex items-center gap-2 mb-2">
                   <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
                     className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
-                    {candidate.cvFileName ?? 'Ver CV actual'}
+                    {candidate.cvFileName ?? t.candidates.cvViewCurrent}
                   </a>
                 </div>
               )}
@@ -480,7 +480,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 className="w-full px-3 py-2 text-sm rounded-md border border-dashed text-center transition-colors"
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
               >
-                {uploadingCv ? 'Subiendo...' : candidate.cvUrl ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)'}
+                {uploadingCv ? t.candidates.cvUploading : candidate.cvUrl ? t.candidates.cvChangePdf : t.candidates.cvUploadPdf}
               </button>
             </div>
           ) : candidate.cvUrl ? (
@@ -496,7 +496,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
               >
                 <FileText className="h-3.5 w-3.5" />
-                {candidate.cvFileName || 'Ver CV'}
+                {candidate.cvFileName || t.candidates.cvView}
                 <ExternalLink className="h-3 w-3 ml-auto" />
               </a>
             </div>

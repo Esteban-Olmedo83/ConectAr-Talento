@@ -1267,7 +1267,7 @@ function NotesModal({
             ) : (
               <FileText style={{ width: 13, height: 13 }} />
             )}
-            {saved ? 'Guardado' : 'Guardar notas'}
+            {saved ? t.pipeline.notesSaved : t.pipeline.saveNotes}
           </button>
         </div>
       </div>
@@ -2612,6 +2612,15 @@ function RejectReasonDialog({
     borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none',
   }
 
+  const rejectionLabels: Record<string, string> = {
+    no_apto_perfil: t.pipeline.rejectionReasons.doesntMeetProfile,
+    mejor_candidato: t.pipeline.rejectionReasons.betterCandidateSelected,
+    candidato_declino: t.pipeline.rejectionReasons.candidateDeclined,
+    fuera_rango_salarial: t.pipeline.rejectionReasons.salaryMismatch,
+    decision_empresa: t.pipeline.rejectionReasons.companyDecision,
+    otro: t.pipeline.rejectionReasons.other,
+  }
+
   return (
     <div style={overlay}>
       <div style={modal}>
@@ -2643,7 +2652,7 @@ function RejectReasonDialog({
                 style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0 }}
               />
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{r.label}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{rejectionLabels[r.value] ?? r.label}</p>
                 <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>{r.desc}</p>
               </div>
             </label>
@@ -2710,6 +2719,14 @@ function CloseVacancyRemainingDialog({
     'Oferta Enviada': t.stages.offerSent,
     'Contratado': t.stages.hired,
     'Descartado': t.stages.discarded,
+  }
+  const rejectionLabels: Record<string, string> = {
+    no_apto_perfil: t.pipeline.rejectionReasons.doesntMeetProfile,
+    mejor_candidato: t.pipeline.rejectionReasons.betterCandidateSelected,
+    candidato_declino: t.pipeline.rejectionReasons.candidateDeclined,
+    fuera_rango_salarial: t.pipeline.rejectionReasons.salaryMismatch,
+    decision_empresa: t.pipeline.rejectionReasons.companyDecision,
+    otro: t.pipeline.rejectionReasons.other,
   }
   type AppState = { reason: RejectionReason | ''; note: string }
   const [appStates, setAppStates] = React.useState<Record<string, AppState>>(() =>
@@ -2786,7 +2803,7 @@ function CloseVacancyRemainingDialog({
               style={{ ...inputStyle, width: 'auto', flex: 1, minWidth: 180 }}
             >
               <option value="">Seleccioná motivo...</option>
-              {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{rejectionLabels[r.value] ?? r.label}</option>)}
             </select>
             <input
               placeholder="Nota (opcional)"
