@@ -143,6 +143,7 @@ function StagePillsBar({
   activeStage: VacancyStatus | 'all'
   onSelect: (s: VacancyStatus | 'all') => void
 }) {
+  const { t } = useLanguage()
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <button
@@ -160,7 +161,7 @@ function StagePillsBar({
           transition: 'all 0.15s',
         }}
       >
-        Todos
+        {t.pipeline.tabAll}
       </button>
       {stages.map(stage => {
         const isActive = activeStage === stage
@@ -1617,6 +1618,7 @@ interface CardProps {
 function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
+  const { t } = useLanguage()
   const [hovered, setHovered] = React.useState(false)
   const pointerStart = React.useRef<{ x: number; y: number } | null>(null)
   const pointerMoved = React.useRef(false)
@@ -2013,7 +2015,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}
           >
-            <ChevronRight size={11} /> Avanzar
+            <ChevronRight size={11} /> {t.pipeline.actions.moveStage}
           </button>
           <button
             onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }}
@@ -2023,7 +2025,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}
           >
-            <X size={11} /> Rechazar
+            <X size={11} /> {t.pipeline.actions.reject}
           </button>
         </div>
       )}
@@ -2289,6 +2291,7 @@ function ProcessDetailModal({
 function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
+  const { t } = useLanguage()
   const [hovered, setHovered] = React.useState(false)
 
   const stageColor = STAGE_COLORS[app.status]
@@ -2399,14 +2402,14 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
         <div style={{ flexShrink: 0, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
           {app.status === 'Entrevistas' ? (
             <>
-              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}>Contratar</button>
-              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'a_considerar') }} style={decisionBtn('rgba(251,191,36,0.12)', 'rgba(251,191,36,0.3)', '#fbbf24')}>Considerar</button>
-              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}>{t.pipeline.actions.hire}</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'a_considerar') }} style={decisionBtn('rgba(251,191,36,0.12)', 'rgba(251,191,36,0.3)', '#fbbf24')}>{t.pipeline.actions.consider}</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>{t.pipeline.actions.reject}</button>
             </>
           ) : (
             <>
-              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}><ChevronRight size={10} style={{ display: 'inline', marginRight: 2 }} />Avanzar</button>
-              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>Rechazar</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'avanzar_etapa') }} style={decisionBtn('rgba(52,211,153,0.12)', 'rgba(52,211,153,0.3)', '#34d399')}><ChevronRight size={10} style={{ display: 'inline', marginRight: 2 }} />{t.pipeline.actions.moveStage}</button>
+              <button onClick={e => { e.stopPropagation(); onDecide(app.id, 'rechazar') }} style={decisionBtn('rgba(248,113,113,0.12)', 'rgba(248,113,113,0.3)', '#f87171')}>{t.pipeline.actions.reject}</button>
             </>
           )}
         </div>
@@ -3245,7 +3248,7 @@ export default function PipelinePage() {
             onChange={e => setFilterScore(e.target.value)}
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
-            <option value="all">Todos los scores</option>
+            <option value="all">{t.pipeline.allScores}</option>
             <option value="80+">Excelente (80+)</option>
             <option value="60-79">Bueno (60-79)</option>
             <option value="<60">Regular (&lt;60)</option>
@@ -3265,7 +3268,7 @@ export default function PipelinePage() {
           <Link href="/vacancies">
             <Button size="sm" className="gap-1.5">
               <Plus className="h-4 w-4" />
-              Nueva Vacante
+              {t.pipeline.newVacancy}
             </Button>
           </Link>
         </div>

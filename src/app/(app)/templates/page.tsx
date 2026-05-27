@@ -678,7 +678,7 @@ function EditorModal({
       <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold text-foreground">{initial?.id ? 'Editar template' : 'Nuevo template'}</h2>
+          <h2 className="font-semibold text-foreground">{initial?.id ? tLang.templates.dialog.editTitle : tLang.templates.dialog.createTitle}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -688,7 +688,7 @@ function EditorModal({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* name */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Nombre</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">{tLang.templates.fields.name}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -734,7 +734,7 @@ function EditorModal({
           {/* subject (email only) */}
           {channel === 'email' && (
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Asunto</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">{tLang.templates.fields.subject}</label>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -747,7 +747,7 @@ function EditorModal({
           {/* body tabs */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mensaje</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{tLang.templates.fields.body}</label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTab(tab === 'edit' ? 'preview' : 'edit')}
@@ -798,14 +798,14 @@ function EditorModal({
 
         <div className="flex gap-2 justify-end p-5 border-t border-border">
           <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Cancelar
+            {tLang.common.cancel}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim() || !body.trim()}
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
-            Guardar template
+            {tLang.common.save}
           </button>
         </div>
       </div>

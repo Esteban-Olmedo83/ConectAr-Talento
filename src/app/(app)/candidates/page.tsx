@@ -1160,7 +1160,7 @@ function AddCandidateDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Años de experiencia</label>
+              <label className={labelCls}>{t.candidates.profile.experience}</label>
               <input type="number" min="0" max="50" step="1" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: String(Math.round(Number(e.target.value)))}))} className={inputCls} placeholder="3" />
             </div>
             <div>
@@ -1342,6 +1342,7 @@ export default function CandidatesPage() {
   const [deleting, setDeleting] = React.useState(false)
 
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const planLimits = React.useMemo(() => getPlanLimits(user?.plan ?? 'free'), [user])
 
@@ -1457,7 +1458,7 @@ export default function CandidatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Candidatos</h1>
+          <h1 className="text-xl font-bold text-foreground">{t.nav.candidates}</h1>
           <p className="text-sm text-muted-foreground">
             {filterClient !== 'all' || filterScore !== 'all' || filterSource !== 'all' || search
               ? `${kpis.total} candidatos encontrados`
@@ -1465,7 +1466,7 @@ export default function CandidatesPage() {
           </p>
         </div>
         <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
-          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Agregar candidato</span><span className="sm:hidden">Agregar</span>
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">{t.candidates.addCandidate}</span><span className="sm:hidden">{t.candidates.addCandidate}</span>
         </Button>
       </div>
 
@@ -1487,14 +1488,14 @@ export default function CandidatesPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o email..."
+            placeholder={t.candidates.searchPlaceholder}
             className="pl-8 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring w-full"
           />
         </div>
         <div className="relative">
           <select value={filterScore} onChange={e => setFilterScore(e.target.value)}
             className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-            <option value="all">Todos los scores</option>
+            <option value="all">{t.candidates.filters.allScores}</option>
             <option value="80+">Excelente (80+)</option>
             <option value="60-79">Bueno (60-79)</option>
             <option value="40-59">Regular (40-59)</option>
@@ -1505,7 +1506,7 @@ export default function CandidatesPage() {
         <div className="relative">
           <select value={filterSource} onChange={e => setFilterSource(e.target.value)}
             className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-            <option value="all">Todas las fuentes</option>
+            <option value="all">{t.candidates.filters.allSources}</option>
             {['LinkedIn','Portal','Referido','Indeed','Computrabajo','ZonaJobs','WhatsApp','Manual'].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -1515,7 +1516,7 @@ export default function CandidatesPage() {
         {clients.length > 0 && (
           <div className="relative">
             <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-              <option value="all">Todos los clientes</option>
+              <option value="all">{t.candidates.filters.allClients}</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1537,11 +1538,11 @@ export default function CandidatesPage() {
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Users className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-base font-semibold text-foreground mb-1">Sin candidatos</h3>
+          <h3 className="text-base font-semibold text-foreground mb-1">{t.candidates.noResults}</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
             {search || filterScore !== 'all' || filterSource !== 'all'
-              ? 'No hay candidatos que coincidan con los filtros.'
-              : 'Agregá tu primer candidato o arrastrá un CV arriba para analizarlo con IA.'}
+              ? t.candidates.noResultsSub
+              : t.candidates.addFirstSub}
           </p>
         </div>
       )}
@@ -1552,11 +1553,11 @@ export default function CandidatesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Candidato</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Score ATS</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden md:table-cell">Skills</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">Fuente</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">Fecha</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">{t.candidates.columns.name}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">{t.candidates.columns.score}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden md:table-cell">{t.candidates.columns.skills}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.source}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.date}</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Acciones</th>
               </tr>
             </thead>

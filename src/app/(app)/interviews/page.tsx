@@ -819,28 +819,28 @@ function InterviewDetailModal({
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Candidato</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.interviews.form.candidate}</span>
                   <p className="font-semibold" style={{ color: 'var(--text)' }}>{candidateName}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Vacante</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.vacancy}</span>
                   <p className="font-semibold" style={{ color: 'var(--text)' }}>{vacancyTitle}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Fecha y hora</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.date}</span>
                   <p style={{ color: 'var(--text)' }}>{formattedDate} · {formattedTime} hs</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Tipo</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.type}</span>
                   <p style={{ color: 'var(--text)' }}>{interview.type}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Plataforma</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.platform}</span>
                   <p style={{ color: 'var(--text)' }}>{PLATFORM_LABELS[interview.meetingPlatform]}</p>
                 </div>
                 {interview.meetingLink && (
                   <div>
-                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Link de reunión</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.meetingLink}</span>
                     <p>
                       <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer"
                         className="text-blue-500 underline underline-offset-2 break-all hover:opacity-80">
@@ -851,14 +851,14 @@ function InterviewDetailModal({
                 )}
                 {interview.interviewerName && (
                   <div>
-                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Entrevistador</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.interviewer}</span>
                     <p style={{ color: 'var(--text)' }}>{interview.interviewerName}</p>
                   </div>
                 )}
               </div>
               {interview.notes && (
                 <div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Notas</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{t.pipeline.interviewForm.notes}</span>
                   <p className="mt-0.5 text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{interview.notes}</p>
                 </div>
               )}
@@ -1486,10 +1486,10 @@ export default function InterviewsPage() {
   }
 
   const tabList = [
-    { id: 'proximas',   label: 'Próximas',    count: tabs.proximas.length },
-    { id: 'semana',     label: 'Esta semana', count: tabs.semana.length },
-    { id: 'completadas',label: 'Completadas', count: tabs.completadas.length },
-    { id: 'canceladas', label: 'Canceladas',  count: tabs.canceladas.length },
+    { id: 'proximas',   label: t.interviews.filters.scheduled, count: tabs.proximas.length },
+    { id: 'semana',     label: t.interviews.stats.thisWeek,    count: tabs.semana.length },
+    { id: 'completadas',label: t.interviews.filters.completed, count: tabs.completadas.length },
+    { id: 'canceladas', label: t.interviews.filters.cancelled, count: tabs.canceladas.length },
   ]
   const activeList = tabs[activeTab as keyof typeof tabs] ?? []
 
@@ -1505,7 +1505,7 @@ export default function InterviewsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Entrevistas</h1>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{t.pageTitles.interviews}</h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
             {tabs.proximas.length} programada{tabs.proximas.length !== 1 ? 's' : ''} · {filteredInterviews.length} en total
           </p>

@@ -257,16 +257,16 @@ function DeleteConfirmDialog({ name, onConfirm, onClose, deleting }: {
   onClose: () => void
   deleting: boolean
 }) {
+  const { t } = useLanguage()
   return (
-    <DraggableModal open onClose={onClose} title="Eliminar cliente" maxWidth="24rem">
+    <DraggableModal open onClose={onClose} title={t.clients.dialog.editTitle} maxWidth="24rem">
       <p className="text-sm mt-2" style={{ color: 'var(--muted2)' }}>
-        ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? Las vacantes
-        vinculadas quedarán sin cliente asignado.
+        ¿Eliminar <strong style={{ color: 'var(--text)' }}>{name}</strong>? {t.clients.deleteConfirmSub}
       </p>
       <div className="flex justify-end gap-2 mt-4">
-        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>{t.common.cancel}</Button>
         <Button onClick={onConfirm} disabled={deleting} style={{ background: 'var(--coral)', color: '#fff' }}>
-          {deleting ? 'Eliminando...' : 'Eliminar'}
+          {deleting ? 'Eliminando...' : t.common.delete}
         </Button>
       </div>
     </DraggableModal>
@@ -280,6 +280,7 @@ function VacancyRow({ vacancy, applications, clientId }: {
   applications: Application[]
   clientId: string
 }) {
+  const { t } = useLanguage()
   const stageCount = React.useMemo(() => {
     const counts: Record<string, number> = {}
     applications.forEach(a => {
@@ -347,7 +348,7 @@ function VacancyRow({ vacancy, applications, clientId }: {
         style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
       >
         <Briefcase className="h-3.5 w-3.5" />
-        Procesos
+        {t.clients.detail.pipeline}
         <ChevronRight className="h-3.5 w-3.5" />
       </Link>
     </div>
@@ -455,6 +456,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params)
   const router = useRouter()
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const [client, setClient] = React.useState<Client | null>(null)
@@ -629,7 +631,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--muted2)' }}
             >
-              <Pencil className="h-4 w-4" /> Editar
+              <Pencil className="h-4 w-4" /> {t.common.edit}
             </Button>
             <Button
               variant="ghost"
@@ -638,7 +640,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--coral)' }}
             >
-              <Trash2 className="h-4 w-4" /> Eliminar
+              <Trash2 className="h-4 w-4" /> {t.common.delete}
             </Button>
           </div>
         </div>
@@ -712,20 +714,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       {/* Tabs */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: 'var(--surface)' }}>
         {([
-          { key: 'vacantes', label: `Vacantes (${vacancies.length})` },
-          { key: 'candidatos', label: `Candidatos (${totalCandidates})` },
-          { key: 'historial', label: `Historial (${historialEntries.length})` },
-        ] as const).map(t => (
+          { key: 'vacantes', label: `${t.clients.detail.tabs.vacancies} (${vacancies.length})` },
+          { key: 'candidatos', label: `${t.clients.detail.tabs.candidates} (${totalCandidates})` },
+          { key: 'historial', label: `${t.clients.detail.tabs.history} (${historialEntries.length})` },
+        ] as const).map(tabItem => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={tab === t.key
+            style={tab === tabItem.key
               ? { background: 'var(--accent)', color: '#fff' }
               : { color: 'var(--muted2)' }
             }
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -736,7 +738,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {vacancies.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <Briefcase className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin vacantes asignadas</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noVacancies}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Asigná este cliente al crear o editar una vacante.
               </p>
@@ -765,7 +767,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {uniqueCandidateApps.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <Users className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin candidatos aún</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noCandidates}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Los candidatos aparecerán aquí cuando se los agregue a las vacantes de este cliente.
               </p>
@@ -789,7 +791,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           {historialEntries.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <History className="h-10 w-10 mb-3" style={{ color: 'var(--muted)' }} />
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin historial</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.clients.detail.noHistory}</p>
               <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                 Aquí aparecerá el registro de todos los candidatos que participaron en procesos para este cliente.
               </p>

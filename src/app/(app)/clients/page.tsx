@@ -450,6 +450,7 @@ function DeleteClientDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [confirmed, setConfirmed] = React.useState(false)
   const [counts, setCounts] = React.useState<DeleteCounts | null>(null)
@@ -515,14 +516,14 @@ function DeleteClientDialog({
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
-            Cancelar
+            {t.common.cancel}
           </Button>
           <Button
             onClick={onConfirm}
             disabled={!confirmed}
             style={{ background: confirmed ? 'var(--coral)' : 'var(--surface2)', color: confirmed ? '#fff' : 'var(--muted)', cursor: confirmed ? 'pointer' : 'not-allowed' }}
           >
-            Eliminar cliente
+            {t.common.delete}
           </Button>
         </div>
     </DraggableModal>
@@ -538,6 +539,7 @@ function DeactivateClientDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const [loading, setLoading] = React.useState(false)
 
   async function handleConfirm() {
@@ -563,7 +565,7 @@ function DeactivateClientDialog({
       </div>
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
-          Cancelar
+          {t.common.cancel}
         </Button>
         <Button
           onClick={handleConfirm}

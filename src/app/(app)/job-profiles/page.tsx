@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Plus, Pencil, Trash2, Loader2, X, Copy, BookOpen } from 'lucide-react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import { skillsLibrary, rubros as builtinRubros } from '@/lib/skills'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import type { CustomJobProfile, JobRubro, CreateJobProfileInput, SkillProfile } from '@/types'
@@ -334,6 +335,7 @@ function EditRubroModal({
   onClose: () => void
   onSave: (updated: JobRubro) => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [name, setName] = React.useState(rubro.name)
   const [saving, setSaving] = React.useState(false)
@@ -393,7 +395,7 @@ function EditRubroModal({
                 cursor: 'pointer',
               }}
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -414,7 +416,7 @@ function EditRubroModal({
               }}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              Guardar
+              {t.common.save}
             </button>
           </div>
         </form>
@@ -432,8 +434,9 @@ function NuevoRubroModal({
   open: boolean
   onClose: () => void
   onSave: (rubro: JobRubro) => void
-}) {
+) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [name, setName] = React.useState('')
   const [saving, setSaving] = React.useState(false)
@@ -495,7 +498,7 @@ function NuevoRubroModal({
                 cursor: 'pointer',
               }}
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -516,7 +519,7 @@ function NuevoRubroModal({
               }}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              Guardar
+              {t.common.save}
             </button>
           </div>
         </form>
@@ -600,6 +603,7 @@ function ProfileFormModal({
   onSave: (p: CustomJobProfile) => void
   tenantId: string
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState<ProfileFormState>(EMPTY_FORM)
   const [saving, setSaving] = React.useState(false)
@@ -651,7 +655,7 @@ function ProfileFormModal({
   }
 
   return (
-    <DraggableModal open={open} onClose={onClose} title={editProfile ? 'Editar Perfil' : 'Nuevo Perfil'} maxWidth="32rem">
+    <DraggableModal open={open} onClose={onClose} title={editProfile ? t.jobProfiles.dialog.editTitle : t.jobProfiles.dialog.createTitle} maxWidth="32rem">
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
           {/* Rubro */}
@@ -823,7 +827,7 @@ function ProfileFormModal({
                 cursor: 'pointer',
               }}
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -844,7 +848,7 @@ function ProfileFormModal({
               }}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              Guardar
+              {t.common.save}
             </button>
           </div>
         </form>
@@ -856,6 +860,7 @@ function ProfileFormModal({
 
 export default function JobProfilesPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // State
@@ -1073,7 +1078,7 @@ export default function JobProfilesPage() {
             }}
           >
             <Plus size={15} />
-            Nuevo Perfil
+            {t.jobProfiles.new}
           </button>
         </div>
       </div>
@@ -1245,11 +1250,11 @@ export default function JobProfilesPage() {
           <BookOpen size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
           <p style={{ fontSize: '0.95rem', marginBottom: 4 }}>
             {selectedRubro === 'all'
-              ? 'No hay perfiles disponibles'
-              : `No hay perfiles para el rubro "${selectedRubro}"`}
+              ? t.jobProfiles.noProfiles
+              : `${t.jobProfiles.noProfiles} · ${selectedRubro}`}
           </p>
           <p style={{ fontSize: '0.82rem', opacity: 0.7 }}>
-            Crea un nuevo perfil con el botón de arriba.
+            {t.jobProfiles.noProfilesSub}
           </p>
         </div>
       ) : (
@@ -1330,7 +1335,7 @@ export default function JobProfilesPage() {
                   cursor: 'pointer',
                 }}
               >
-                Cancelar
+                {t.common.cancel}
               </button>
               <button
                 onClick={() => handleDeleteRubro(rubroToDelete)}
@@ -1345,7 +1350,7 @@ export default function JobProfilesPage() {
                   cursor: 'pointer',
                 }}
               >
-                Eliminar
+                {t.common.delete}
               </button>
             </div>
           </div>
