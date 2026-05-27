@@ -1161,7 +1161,7 @@ export default function VacanciesPage() {
         {clients.length > 0 && (
           <div className="relative">
             <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-              <option value="all">Todos los clientes</option>
+              <option value="all">{t.vacancies.filters.allClients}</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1169,7 +1169,7 @@ export default function VacanciesPage() {
         )}
         <div className="relative">
           <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-            <option value="all">Todas las prioridades</option>
+            <option value="all">{t.vacancies.filters.allPriorities}</option>
             <option value="Alta">Alta</option>
             <option value="Media">Media</option>
             <option value="Baja">Baja</option>
@@ -1185,12 +1185,12 @@ export default function VacanciesPage() {
             <Briefcase className="h-8 w-8" style={{ color: 'var(--accent-2)' }} />
           </div>
           <h3 className="font-semibold text-foreground mb-1">
-            {search ? 'No se encontraron vacantes' : 'Creá tu primera búsqueda'}
+            {search ? t.vacancies.noResultsAssign : t.vacancies.noVacancies}
           </h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-4">
-            {search ? 'Probá con otros términos.' : 'Publicá una vacante y empezá a recibir candidatos hoy.'}
+            {search ? t.vacancies.noVacanciesSub : t.vacancies.emptyStateSub}
           </p>
-          {!search && <Button onClick={openNewVacancyForm} className="gap-1.5"><Plus className="h-4 w-4" /> Nueva Vacante</Button>}
+          {!search && <Button onClick={openNewVacancyForm} className="gap-1.5"><Plus className="h-4 w-4" /> {t.vacancies.newVacancy}</Button>}
         </div>
       )}
 

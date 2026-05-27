@@ -291,7 +291,39 @@ export interface Translations {
       editProfile: string
       deleteCandidate: string
     }
-    deleteConfirm: { title: string; message: string; cancel: string; delete: string }
+    deleteConfirm: {
+      title: string
+      message: string
+      cancel: string
+      delete: string
+      bulletProfile: string
+      bulletInterviews: string
+      bulletHistory: string
+      bulletFiles: string
+      adminOnly: string
+    }
+    processStatus: string
+    noClientAssigned: string
+    noVacancyAssigned: string
+    noSpecificVacancy: string
+    clientLabel: string
+    vacancyLabel: string
+    addedOn: string
+    candidateLabel: string
+    cvUploading: string
+    cvChangePdf: string
+    cvUploadPdf: string
+    cvViewCurrent: string
+    cvView: string
+    analyzingCV: string
+    cvAnalyzedSuccess: string
+    cvAnalyzeError: string
+    photoLoaded: string
+    removePhoto: string
+    addPhoto: string
+    photoOptional: string
+    photoExtracted: string
+    photoAttached: string
   }
   vacancies: {
     newVacancy: string
@@ -751,7 +783,34 @@ const enFull: Translations = {
       message: 'This action cannot be undone.',
       cancel: 'Cancel',
       delete: 'Delete',
+      bulletProfile: 'The complete candidate profile',
+      bulletInterviews: 'All associated interviews and scorecards',
+      bulletHistory: 'Application history and stage records',
+      bulletFiles: 'Attached files (CV, profile photo)',
+      adminOnly: 'Only administrators can perform this action.',
     },
+    processStatus: 'Process Status',
+    noClientAssigned: 'No client assigned',
+    noVacancyAssigned: 'No vacancy assigned',
+    noSpecificVacancy: 'No specific vacancy',
+    clientLabel: 'Client',
+    vacancyLabel: 'Vacancy',
+    addedOn: 'Added {date}',
+    candidateLabel: 'Candidate',
+    cvUploading: 'Uploading...',
+    cvChangePdf: 'Change CV (PDF)',
+    cvUploadPdf: 'Upload CV (PDF)',
+    cvViewCurrent: 'View current CV',
+    cvView: 'View CV',
+    analyzingCV: 'Uploading and analyzing CV with AI...',
+    cvAnalyzedSuccess: 'CV analyzed! Opening form...',
+    cvAnalyzeError: 'Error analyzing. Please try again.',
+    photoLoaded: '✓ Photo loaded',
+    removePhoto: 'Remove',
+    addPhoto: '+ Add photo',
+    photoOptional: 'Optional · JPG, PNG or WebP',
+    photoExtracted: '✨ Extracted from CV by AI',
+    photoAttached: 'Photo attached to profile',
   },
   vacancies: {
     newVacancy: 'New Vacancy',
