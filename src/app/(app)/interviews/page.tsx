@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type {
   Interview, Candidate, Vacancy, InterviewType, InterviewStatus,
   MeetingPlatform, Scorecard, Recommendation, Application, VacancyStatus, CandidateDisposition, Client
@@ -33,10 +34,10 @@ const TYPE_COLORS: Record<InterviewType, { bg: string; text: string; border: str
   'Cultural':          { bg: 'rgba(52,211,153,0.15)',  text: '#34d399', border: 'rgba(52,211,153,0.4)' },
 }
 
-const STATUS_CONFIG: Record<InterviewStatus, { icon: React.ElementType; bg: string; text: string; label: string }> = {
-  Programada: { icon: Clock,        bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24', label: 'Programada' },
-  Completada: { icon: CheckCircle2, bg: 'rgba(52,211,153,0.15)',  text: '#34d399', label: 'Completada' },
-  Cancelada:  { icon: XCircle,      bg: 'rgba(248,113,113,0.15)', text: '#f87171', label: 'Cancelada'  },
+const STATUS_CONFIG: Record<InterviewStatus, { icon: React.ElementType; bg: string; text: string }> = {
+  Programada: { icon: Clock,        bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24' },
+  Completada: { icon: CheckCircle2, bg: 'rgba(52,211,153,0.15)',  text: '#34d399' },
+  Cancelada:  { icon: XCircle,      bg: 'rgba(248,113,113,0.15)', text: '#f87171' },
 }
 
 const PLATFORM_LABELS: Record<MeetingPlatform, string> = {
@@ -74,6 +75,7 @@ function SchedulerModal({
   onSaved: (i: Interview) => void
   prefill?: { candidateId?: string; vacancyId?: string }
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [form, setForm] = React.useState({
     candidateId: prefill?.candidateId ?? '',
@@ -140,17 +142,17 @@ function SchedulerModal({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <DraggableModal open={open} onClose={onClose} title="Agendar entrevista" maxWidth="32rem">
+    <DraggableModal open={open} onClose={onClose} title={t.pipeline.scheduleInterview} maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
           <div>
-            <label className={labelCls}>Candidato *</label>
+            <label className={labelCls}>{t.interviews.form.candidate} *</label>
             <select required value={form.candidateId} onChange={e => setForm(f => ({...f, candidateId: e.target.value}))} className={inputCls}>
               <option value="">Seleccioná un candidato</option>
               {candidates.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
             </select>
           </div>
           <div>
-            <label className={labelCls}>Vacante</label>
+            <label className={labelCls}>{t.pipeline.interviewForm.vacancy}</label>
             <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
               <option value="">Sin vacante asignada</option>
               {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
@@ -158,13 +160,13 @@ function SchedulerModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Tipo de entrevista</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.type}</label>
               <select value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value as InterviewType}))} className={inputCls}>
                 <option>RRHH</option><option>Técnica</option><option>Con Hiring Manager</option><option>Cultural</option>
               </select>
             </div>
             <div>
-              <label className={labelCls}>Plataforma</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.platform}</label>
               <select value={form.platform} onChange={e => setForm(f => ({...f, platform: e.target.value as MeetingPlatform}))} className={inputCls}>
                 <option value="google_meet">Google Meet</option>
                 <option value="zoom">Zoom</option>
@@ -175,32 +177,32 @@ function SchedulerModal({
           </div>
           {form.platform !== 'presencial' && (
             <div>
-              <label className={labelCls}>Link de reunión (opcional)</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.meetingLink}</label>
               <input type="url" value={form.meetingLink} onChange={e => setForm(f => ({...f, meetingLink: e.target.value}))} className={inputCls} placeholder="https://meet.google.com/..." />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Fecha *</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.date} *</label>
               <input required type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} className={inputCls} min={new Date().toISOString().slice(0,10)} />
             </div>
             <div>
-              <label className={labelCls}>Hora</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.time}</label>
               <input type="time" value={form.time} onChange={e => setForm(f => ({...f, time: e.target.value}))} className={inputCls} />
             </div>
           </div>
           <div>
-            <label className={labelCls}>Entrevistador</label>
+            <label className={labelCls}>{t.pipeline.interviewForm.interviewer}</label>
             <input value={form.interviewerName} onChange={e => setForm(f => ({...f, interviewerName: e.target.value}))} className={inputCls} placeholder="Nombre del entrevistador" />
           </div>
           <div>
-            <label className={labelCls}>Notas previas</label>
+            <label className={labelCls}>{t.pipeline.interviewForm.notes}</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'h-16 resize-none')} placeholder="Temas a cubrir, contexto del candidato..." />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Agendar
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} {t.interviews.schedule}
             </Button>
           </div>
         </form>
@@ -737,6 +739,7 @@ function InterviewDetailModal({
   onUpdated: (i: Interview) => void
   onOpenScorecard?: () => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [editing, setEditing] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
@@ -796,7 +799,7 @@ function InterviewDetailModal({
       onClose={onClose}
       title={
         <div className="flex items-center justify-between w-full">
-          <span>Detalle de entrevista</span>
+          <span>{t.pipeline.editInterview}</span>
           <Button
             type="button"
             variant={editing ? 'default' : 'outline'}
@@ -804,7 +807,7 @@ function InterviewDetailModal({
             className="h-7 text-xs"
             onClick={() => setEditing(e => !e)}
           >
-            {editing ? 'Cancelar edición' : 'Editar'}
+            {editing ? t.common.cancel : t.common.edit}
           </Button>
         </div>
       }
@@ -865,17 +868,17 @@ function InterviewDetailModal({
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Fecha</label>
+                  <label className={labelCls}>{t.pipeline.interviewForm.date}</label>
                   <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Hora</label>
+                  <label className={labelCls}>{t.pipeline.interviewForm.time}</label>
                   <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputCls} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Tipo</label>
+                  <label className={labelCls}>{t.pipeline.interviewForm.type}</label>
                   <select value={type} onChange={e => setType(e.target.value as InterviewType)} className={inputCls}>
                     <option>RRHH</option>
                     <option>Técnica</option>
@@ -884,7 +887,7 @@ function InterviewDetailModal({
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Plataforma</label>
+                  <label className={labelCls}>{t.pipeline.interviewForm.platform}</label>
                   <select value={platform} onChange={e => setPlatform(e.target.value as MeetingPlatform)} className={inputCls}>
                     <option value="google_meet">Google Meet</option>
                     <option value="zoom">Zoom</option>
@@ -894,15 +897,15 @@ function InterviewDetailModal({
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Link de reunión</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.meetingLink}</label>
                 <input type="url" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} className={inputCls} placeholder="https://meet.google.com/..." />
               </div>
               <div>
-                <label className={labelCls}>Entrevistador</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.interviewer}</label>
                 <input type="text" value={interviewerName} onChange={e => setInterviewerName(e.target.value)} className={inputCls} placeholder="Nombre del entrevistador" />
               </div>
               <div>
-                <label className={labelCls}>Notas</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.notes}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} className={cn(inputCls, 'h-20 resize-none')} placeholder="Notas sobre la entrevista..." />
               </div>
             </div>
@@ -917,10 +920,10 @@ function InterviewDetailModal({
             {editing && (
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Guardar
+                {t.common.save}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.close}</Button>
           </div>
         </div>
     </DraggableModal>
@@ -941,12 +944,16 @@ function InterviewCard({
   appStatus?: string
   appDisposition?: CandidateDisposition | null
 }) {
+  const { t } = useLanguage()
   const [showScorecard, setShowScorecard] = React.useState(false)
   const [scorecardReadOnly, setScorecardReadOnly] = React.useState(false)
   const [showDetail, setShowDetail] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
   const vacancy   = vacancyMap.get(interview.vacancyId)
   const StatusIcon = STATUS_CONFIG[interview.status].icon
+  const statusLabel = interview.status === 'Programada' ? t.interviews.statuses.scheduled
+    : interview.status === 'Completada' ? t.interviews.statuses.completed
+    : t.interviews.statuses.cancelled
   const d = new Date(interview.scheduledAt)
   const isUpcoming = d.getTime() - Date.now() < 48 * 3600000 && interview.status === 'Programada' && d > new Date()
   const tc = TYPE_COLORS[interview.type]
@@ -980,7 +987,7 @@ function InterviewCard({
                 </span>
                 <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
                   style={{ background: STATUS_CONFIG[interview.status].bg, color: STATUS_CONFIG[interview.status].text }}>
-                  <StatusIcon className="h-2.5 w-2.5" />{interview.status}
+                  <StatusIcon className="h-2.5 w-2.5" />{statusLabel}
                 </span>
               </div>
             </div>
@@ -1000,10 +1007,10 @@ function InterviewCard({
             {interview.status === 'Programada' && (
               <div className="flex gap-2 mt-3" onClick={e => e.stopPropagation()}>
                 <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setScorecardReadOnly(false); setShowScorecard(true) }}>
-                  <CheckCircle2 className="h-3 w-3" /> Completar
+                  <CheckCircle2 className="h-3 w-3" /> {t.interviews.markComplete}
                 </Button>
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onCancel(interview.id)}>
-                  Cancelar
+                  {t.common.cancel}
                 </Button>
               </div>
             )}
@@ -1094,11 +1101,15 @@ function RoundChip({
   onCancel:   (id: string)   => void | Promise<void>
   onUpdated:  (i: Interview) => void
 }) {
+  const { t } = useLanguage()
   const [showDetail, setShowDetail] = React.useState(false)
   const [showScorecard, setShowScorecard] = React.useState(false)
   const tc = TYPE_COLORS[interview.type]
   const sc = STATUS_CONFIG[interview.status]
   const StatusIcon = sc.icon
+  const statusLabel = interview.status === 'Programada' ? t.interviews.statuses.scheduled
+    : interview.status === 'Completada' ? t.interviews.statuses.completed
+    : t.interviews.statuses.cancelled
   const d = new Date(interview.scheduledAt)
   const dateStr = d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 
@@ -1121,7 +1132,7 @@ function RoundChip({
             {interview.type === 'Con Hiring Manager' ? 'Hiring Mgr' : interview.type}
           </span>
           <span className="flex items-center gap-0.5 text-[9px] font-medium" style={{ color: sc.text }}>
-            <StatusIcon className="h-2.5 w-2.5" />{sc.label}
+            <StatusIcon className="h-2.5 w-2.5" />{statusLabel}
           </span>
           <span className="text-[9px]" style={{ color: 'var(--muted)' }}>{dateStr}</span>
         </button>
@@ -1347,6 +1358,7 @@ export default function InterviewsPage() {
   const [filterClient, setFilterClient] = React.useState('all')
 
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
@@ -1538,8 +1550,8 @@ export default function InterviewsPage() {
 
           <Button onClick={() => { setSchedulePrefill(undefined); setShowScheduler(true) }} className="gap-1.5 shrink-0">
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Agendar entrevista</span>
-            <span className="sm:hidden">Agendar</span>
+            <span className="hidden sm:inline">{t.interviews.schedule}</span>
+            <span className="sm:hidden">{t.interviews.schedule}</span>
           </Button>
         </div>
       </div>
@@ -1588,8 +1600,8 @@ export default function InterviewsPage() {
               <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--surface2)' }}>
                 <Calendar className="h-7 w-7" style={{ color: 'var(--muted)' }} />
               </div>
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin entrevistas</p>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>No hay entrevistas en esta sección.</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.interviews.noInterviews}</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{t.interviews.noInterviewsSub}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1620,12 +1632,12 @@ export default function InterviewsPage() {
               <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--surface2)' }}>
                 <Layers className="h-7 w-7" style={{ color: 'var(--muted)' }} />
               </div>
-              <p className="font-medium" style={{ color: 'var(--text)' }}>Sin entrevistas registradas</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>{t.interviews.noInterviews}</p>
               <p className="text-sm mt-1 mb-4" style={{ color: 'var(--muted)' }}>
-                Agendá entrevistas y aparecerán agrupadas por vacante.
+                {t.interviews.noInterviewsSub}
               </p>
               <Button onClick={() => { setSchedulePrefill(undefined); setShowScheduler(true) }} className="gap-1.5">
-                <Plus className="h-4 w-4" /> Agendar primera entrevista
+                <Plus className="h-4 w-4" /> {t.interviews.schedule}
               </Button>
             </div>
           ) : (

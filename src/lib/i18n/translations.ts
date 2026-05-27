@@ -111,6 +111,316 @@ export interface Translations {
     viewPipeline: string
     goToPipeline: string
   }
+  stages: {
+    newVacancies: string
+    inProcess: string
+    interviews: string
+    offerSent: string
+    hired: string
+    discarded: string
+  }
+  dashboard: {
+    clientFilter: string
+    allClients: string
+    kpiActiveCandidates: string
+    kpiActiveSub: string
+    kpiAiAnalyzed: string
+    kpiAvgScore: string
+    kpiAvgScoreSub: string
+    kpiAvgTime: string
+    kpiAvgTimeSub: string
+    kpiActiveClients: string
+    kpiActiveClientsSub: string
+    kpiInactiveClients: string
+    kpiInactiveClientsSub: string
+    aiInsightTitle: string
+    aiInsightOk: string
+    aiInsightStuck: string
+    funnelTitle: string
+    sourcesTitle: string
+    sourcesNoData: string
+    topCandidatesTitle: string
+    topCandidatesNoData: string
+    recentActivityTitle: string
+    recentActivityNoData: string
+    today: string
+    yesterday: string
+    daysAgo: string
+    inactiveClientsAlert: string
+    viewClients: string
+    total: string
+  }
+  pipeline: {
+    newVacancy: string
+    addCandidate: string
+    searchPlaceholder: string
+    allClients: string
+    allVacancies: string
+    allScores: string
+    tabAll: string
+    views: { kanban: string; list: string; detail: string }
+    kpiTotal: string
+    kpiNew: string
+    kpiInProcess: string
+    kpiInterviews: string
+    kpiOffer: string
+    kpiHired: string
+    noApplications: string
+    noCandidates: string
+    actions: {
+      hire: string
+      consider: string
+      reject: string
+      scheduleInterview: string
+      viewProfile: string
+      moveStage: string
+      addNote: string
+    }
+    scheduleInterview: string
+    editInterview: string
+    interviewForm: {
+      date: string
+      time: string
+      type: string
+      platform: string
+      vacancy: string
+      interviewer: string
+      interviewerEmail: string
+      meetingLink: string
+      notes: string
+      noVacancy: string
+    }
+    interviewTypes: { rrhh: string; technical: string; hiring: string; cultural: string }
+    platforms: { presencial: string; zoom: string; meet: string; teams: string }
+    rejectModal: { title: string; reasonLabel: string; notesLabel: string; skip: string; send: string }
+    closeVacancy: { title: string; confirm: string; cancel: string }
+    candidatesCount: string
+    interviewScheduled: string
+  }
+  candidates: {
+    addCandidate: string
+    searchPlaceholder: string
+    filters: {
+      allSources: string
+      allScores: string
+      allStatuses: string
+      allClients: string
+      allVacancies: string
+    }
+    sortBy: string
+    source: string
+    gridView: string
+    listView: string
+    columns: {
+      name: string
+      email: string
+      skills: string
+      score: string
+      date: string
+      source: string
+      vacancy: string
+      status: string
+    }
+    noResults: string
+    noResultsSub: string
+    addFirst: string
+    addFirstSub: string
+    addDialog: {
+      title: string
+      avatar: string
+      changeAvatar: string
+      uploadCv: string
+      analyzeCv: string
+      fullName: string
+      email: string
+      phone: string
+      source: string
+      vacancy: string
+      skills: string
+      skillsPlaceholder: string
+      notes: string
+      notesPlaceholder: string
+      score: string
+      add: string
+      analyzing: string
+    }
+    profile: {
+      title: string
+      score: string
+      contact: string
+      skills: string
+      education: string
+      experience: string
+      experienceYears: string
+      summary: string
+      strengths: string
+      gaps: string
+      noSummary: string
+      cvFile: string
+      downloadCv: string
+      uploadNewCv: string
+      scheduleInterview: string
+      editProfile: string
+      deleteCandidate: string
+    }
+    deleteConfirm: { title: string; message: string; cancel: string; delete: string }
+  }
+  vacancies: {
+    newVacancy: string
+    searchPlaceholder: string
+    filters: { allClients: string; allPriorities: string }
+    stats: { total: string; open: string; totalCandidates: string; avgDaysOpen: string }
+    priorities: { high: string; medium: string; low: string }
+    fields: {
+      title: string
+      client: string
+      area: string
+      location: string
+      modality: string
+      salary: string
+      priority: string
+      requirements: string
+      description: string
+    }
+    modalities: { hybrid: string; remote: string; presencial: string }
+    actions: { viewPipeline: string; assign: string; edit: string; delete: string }
+    noVacancies: string
+    noVacanciesSub: string
+    dialog: { createTitle: string; editTitle: string; save: string }
+    assigned: string
+    candidates: string
+    created: string
+    daysOpen: string
+  }
+  interviews: {
+    schedule: string
+    searchPlaceholder: string
+    filters: {
+      all: string
+      scheduled: string
+      completed: string
+      cancelled: string
+      allCandidates: string
+      allVacancies: string
+    }
+    stats: { total: string; scheduled: string; today: string; thisWeek: string }
+    form: {
+      date: string
+      time: string
+      type: string
+      platform: string
+      vacancy: string
+      interviewer: string
+      interviewerEmail: string
+      meetingLink: string
+      notes: string
+      candidate: string
+    }
+    types: { rrhh: string; technical: string; hiring: string; cultural: string }
+    platforms: { presencial: string; zoom: string; meet: string; teams: string }
+    statuses: { scheduled: string; completed: string; cancelled: string }
+    noInterviews: string
+    noInterviewsSub: string
+    scheduled: string
+    today: string
+    joinMeeting: string
+    markComplete: string
+    cancel: string
+    deleteConfirm: string
+  }
+  talentPool: {
+    searchPlaceholder: string
+    filters: {
+      all: string
+      active: string
+      reserve: string
+      discarded: string
+      allScores: string
+      allClients: string
+    }
+    stats: { total: string; active: string; reserve: string; discarded: string }
+    actions: {
+      viewProfile: string
+      incorporate: string
+      incorporated: string
+      goToPipeline: string
+    }
+    noResults: string
+    noResultsSub: string
+    incorporatedMsg: string
+    viewPipelineMsg: string
+    card: { vacancy: string; client: string; score: string; status: string }
+  }
+  clients: {
+    addClient: string
+    searchPlaceholder: string
+    tabs: { active: string; inactive: string }
+    fields: {
+      company: string
+      industry: string
+      contact: string
+      email: string
+      phone: string
+      website: string
+      notes: string
+      logo: string
+    }
+    stats: { vacancies: string; candidates: string; shortlisted: string }
+    noClients: string
+    noClientsSub: string
+    dialog: { createTitle: string; editTitle: string }
+    deleteConfirm: string
+    deleteConfirmSub: string
+    detail: {
+      tabs: { vacancies: string; candidates: string; history: string }
+      noVacancies: string
+      noCandidates: string
+      noHistory: string
+      pipeline: string
+    }
+  }
+  reports: {
+    export: string
+    period: string
+    allPeriods: string
+    sections: {
+      overview: string
+      funnel: string
+      sources: string
+      performance: string
+      time: string
+    }
+    noData: string
+    generate: string
+  }
+  integrations: {
+    connected: string
+    disconnected: string
+    configure: string
+    connect: string
+    disconnect: string
+    noIntegrations: string
+    whatsapp: { title: string; description: string }
+    linkedin: { title: string; description: string }
+    calendar: { title: string; description: string }
+  }
+  templates: {
+    new: string
+    searchPlaceholder: string
+    types: { offer: string; rejection: string; interview: string; followup: string }
+    noTemplates: string
+    noTemplatesSub: string
+    dialog: { createTitle: string; editTitle: string }
+    fields: { name: string; type: string; subject: string; body: string }
+  }
+  jobProfiles: {
+    new: string
+    searchPlaceholder: string
+    noProfiles: string
+    noProfilesSub: string
+    dialog: { createTitle: string; editTitle: string }
+    fields: { title: string; area: string; requirements: string; skills: string; description: string }
+  }
 }
 
 // ─── Fallback (English) ───────────────────────────────────────────────────────
@@ -176,6 +486,409 @@ const enFull: Translations = {
     viewPipeline: 'View pipeline',
     goToPipeline: 'Go to pipeline',
   },
+  stages: {
+    newVacancies: 'New Vacancies',
+    inProcess: 'In Process',
+    interviews: 'Interviews',
+    offerSent: 'Offer Sent',
+    hired: 'Hired',
+    discarded: 'Discarded',
+  },
+  dashboard: {
+    clientFilter: 'Client',
+    allClients: 'All',
+    kpiActiveCandidates: 'Active Candidates',
+    kpiActiveSub: 'in database',
+    kpiAiAnalyzed: 'AI-analyzed CVs',
+    kpiAvgScore: 'Average ATS Score',
+    kpiAvgScoreSub: 'out of 100 points',
+    kpiAvgTime: 'Avg. time per stage',
+    kpiAvgTimeSub: 'historical average',
+    kpiActiveClients: 'Active Clients',
+    kpiActiveClientsSub: 'with active processes',
+    kpiInactiveClients: 'Inactive Clients',
+    kpiInactiveClientsSub: 'history saved',
+    aiInsightTitle: 'AI Insight',
+    aiInsightOk: 'All up to date — no candidates stuck at any pipeline stage.',
+    aiInsightStuck: 'candidates have been in "Interviews" for 5+ days without progress. Review their status to speed up the process.',
+    funnelTitle: 'Recruitment Funnel',
+    sourcesTitle: 'Candidate Sources',
+    sourcesNoData: 'No data',
+    topCandidatesTitle: 'Top Candidates by ATS Score',
+    topCandidatesNoData: 'No candidates with AI score.',
+    recentActivityTitle: 'Recent Activity',
+    recentActivityNoData: 'No recent activity.',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    daysAgo: 'days ago',
+    inactiveClientsAlert: 'You have {n} inactive client(s) with saved history.',
+    viewClients: 'View clients',
+    total: 'total',
+  },
+  pipeline: {
+    newVacancy: 'New Vacancy',
+    addCandidate: 'Add Candidate',
+    searchPlaceholder: 'Search candidates...',
+    allClients: 'All clients',
+    allVacancies: 'All vacancies',
+    allScores: 'All scores',
+    tabAll: 'All',
+    views: { kanban: 'Kanban', list: 'List', detail: 'Detail' },
+    kpiTotal: 'Total',
+    kpiNew: 'New',
+    kpiInProcess: 'In Process',
+    kpiInterviews: 'Interviews',
+    kpiOffer: 'Offer',
+    kpiHired: 'Hired',
+    noApplications: 'No applications in this stage.',
+    noCandidates: 'No candidates found.',
+    actions: {
+      hire: 'Hire',
+      consider: 'Consider',
+      reject: 'Reject',
+      scheduleInterview: 'Schedule Interview',
+      viewProfile: 'View Profile',
+      moveStage: 'Move Stage',
+      addNote: 'Add Note',
+    },
+    scheduleInterview: 'Schedule Interview',
+    editInterview: 'Edit Interview',
+    interviewForm: {
+      date: 'Date',
+      time: 'Time',
+      type: 'Interview Type',
+      platform: 'Platform',
+      vacancy: 'Vacancy',
+      interviewer: 'Interviewer',
+      interviewerEmail: 'Interviewer Email',
+      meetingLink: 'Meeting Link (optional)',
+      notes: 'Notes',
+      noVacancy: 'No vacancy assigned',
+    },
+    interviewTypes: {
+      rrhh: 'HR',
+      technical: 'Technical',
+      hiring: 'With Hiring Manager',
+      cultural: 'Cultural',
+    },
+    platforms: {
+      presencial: 'In-person',
+      zoom: 'Zoom',
+      meet: 'Google Meet',
+      teams: 'Teams',
+    },
+    rejectModal: {
+      title: 'Reject Candidate',
+      reasonLabel: 'Reason',
+      notesLabel: 'Notes (optional)',
+      skip: 'Skip',
+      send: 'Send',
+    },
+    closeVacancy: {
+      title: 'Close Vacancy',
+      confirm: 'Confirm',
+      cancel: 'Cancel',
+    },
+    candidatesCount: 'candidates',
+    interviewScheduled: 'Interview scheduled',
+  },
+  candidates: {
+    addCandidate: 'Add Candidate',
+    searchPlaceholder: 'Search by name or email...',
+    filters: {
+      allSources: 'All sources',
+      allScores: 'All scores',
+      allStatuses: 'All statuses',
+      allClients: 'All clients',
+      allVacancies: 'All vacancies',
+    },
+    sortBy: 'Sort by',
+    source: 'Source',
+    gridView: 'Grid view',
+    listView: 'List view',
+    columns: {
+      name: 'Name',
+      email: 'Email',
+      skills: 'Skills',
+      score: 'Score',
+      date: 'Date',
+      source: 'Source',
+      vacancy: 'Vacancy',
+      status: 'Status',
+    },
+    noResults: 'No candidates found',
+    noResultsSub: 'Try different search terms or filters.',
+    addFirst: 'Add your first candidate',
+    addFirstSub: 'Start building your candidate database.',
+    addDialog: {
+      title: 'Add Candidate',
+      avatar: 'Photo',
+      changeAvatar: 'Change photo',
+      uploadCv: 'Upload CV',
+      analyzeCv: 'Analyze with AI',
+      fullName: 'Full Name',
+      email: 'Email',
+      phone: 'Phone',
+      source: 'Source',
+      vacancy: 'Vacancy',
+      skills: 'Skills',
+      skillsPlaceholder: 'React, TypeScript, Python...',
+      notes: 'Notes',
+      notesPlaceholder: 'Additional observations...',
+      score: 'ATS Score',
+      add: 'Add Candidate',
+      analyzing: 'Analyzing...',
+    },
+    profile: {
+      title: 'Candidate Profile',
+      score: 'ATS Score',
+      contact: 'Contact',
+      skills: 'Skills',
+      education: 'Education',
+      experience: 'Experience',
+      experienceYears: 'years',
+      summary: 'AI Summary',
+      strengths: 'Strengths',
+      gaps: 'Gaps',
+      noSummary: 'No AI summary available.',
+      cvFile: 'CV File',
+      downloadCv: 'Download CV',
+      uploadNewCv: 'Upload new CV',
+      scheduleInterview: 'Schedule Interview',
+      editProfile: 'Edit Profile',
+      deleteCandidate: 'Delete Candidate',
+    },
+    deleteConfirm: {
+      title: 'Delete Candidate',
+      message: 'This action cannot be undone.',
+      cancel: 'Cancel',
+      delete: 'Delete',
+    },
+  },
+  vacancies: {
+    newVacancy: 'New Vacancy',
+    searchPlaceholder: 'Search vacancies...',
+    filters: { allClients: 'All clients', allPriorities: 'All priorities' },
+    stats: {
+      total: 'Total Vacancies',
+      open: 'Open',
+      totalCandidates: 'Total Candidates',
+      avgDaysOpen: 'Avg. Days Open',
+    },
+    priorities: { high: 'High', medium: 'Medium', low: 'Low' },
+    fields: {
+      title: 'Job Title',
+      client: 'Client (company)',
+      area: 'Department',
+      location: 'Location',
+      modality: 'Modality',
+      salary: 'Salary',
+      priority: 'Priority',
+      requirements: 'Required Skills (comma-separated)',
+      description: 'Job Description',
+    },
+    modalities: { hybrid: 'Hybrid', remote: 'Remote', presencial: 'On-site' },
+    actions: {
+      viewPipeline: 'View pipeline',
+      assign: 'Assign',
+      edit: 'Edit',
+      delete: 'Delete',
+    },
+    noVacancies: 'Create your first search',
+    noVacanciesSub: 'Post a vacancy and start receiving candidates today.',
+    dialog: { createTitle: 'New Vacancy', editTitle: 'Edit Vacancy', save: 'Save' },
+    assigned: 'assigned',
+    candidates: 'candidates',
+    created: 'Created',
+    daysOpen: 'days open',
+  },
+  interviews: {
+    schedule: 'Schedule Interview',
+    searchPlaceholder: 'Search interviews...',
+    filters: {
+      all: 'All',
+      scheduled: 'Scheduled',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      allCandidates: 'All candidates',
+      allVacancies: 'All vacancies',
+    },
+    stats: {
+      total: 'Total',
+      scheduled: 'Scheduled',
+      today: 'Today',
+      thisWeek: 'This Week',
+    },
+    form: {
+      date: 'Date',
+      time: 'Time',
+      type: 'Interview Type',
+      platform: 'Platform',
+      vacancy: 'Vacancy',
+      interviewer: 'Interviewer',
+      interviewerEmail: 'Interviewer Email',
+      meetingLink: 'Meeting Link (optional)',
+      notes: 'Previous Notes',
+      candidate: 'Candidate',
+    },
+    types: {
+      rrhh: 'HR',
+      technical: 'Technical',
+      hiring: 'With Hiring Manager',
+      cultural: 'Cultural',
+    },
+    platforms: {
+      presencial: 'In-person',
+      zoom: 'Zoom',
+      meet: 'Google Meet',
+      teams: 'Teams',
+    },
+    statuses: {
+      scheduled: 'Scheduled',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    },
+    noInterviews: 'No interviews found',
+    noInterviewsSub: 'Schedule your first interview from the pipeline.',
+    scheduled: 'Scheduled',
+    today: 'Today',
+    joinMeeting: 'Join Meeting',
+    markComplete: 'Mark Complete',
+    cancel: 'Cancel',
+    deleteConfirm: 'Are you sure you want to delete this interview?',
+  },
+  talentPool: {
+    searchPlaceholder: 'Search talent pool...',
+    filters: {
+      all: 'All',
+      active: 'Active',
+      reserve: 'Reserve',
+      discarded: 'Discarded',
+      allScores: 'All scores',
+      allClients: 'All clients',
+    },
+    stats: {
+      total: 'Total',
+      active: 'Active',
+      reserve: 'Reserve',
+      discarded: 'Discarded',
+    },
+    actions: {
+      viewProfile: 'View Profile',
+      incorporate: 'Incorporate',
+      incorporated: 'Incorporated',
+      goToPipeline: 'Go to Pipeline',
+    },
+    noResults: 'No talent found',
+    noResultsSub: 'Add candidates to start building your talent pool.',
+    incorporatedMsg: 'Candidate incorporated to pipeline.',
+    viewPipelineMsg: 'View in pipeline',
+    card: {
+      vacancy: 'Vacancy',
+      client: 'Client',
+      score: 'Score',
+      status: 'Status',
+    },
+  },
+  clients: {
+    addClient: 'Add Client',
+    searchPlaceholder: 'Search clients...',
+    tabs: { active: 'Active', inactive: 'Inactive' },
+    fields: {
+      company: 'Company',
+      industry: 'Industry',
+      contact: 'Contact',
+      email: 'Email',
+      phone: 'Phone',
+      website: 'Website',
+      notes: 'Internal Notes',
+      logo: 'Logo',
+    },
+    stats: {
+      vacancies: 'Vacancies',
+      candidates: 'Candidates',
+      shortlisted: 'Shortlisted',
+    },
+    noClients: 'No clients yet',
+    noClientsSub: 'Add your first client to start managing processes.',
+    dialog: { createTitle: 'New Client', editTitle: 'Edit Client' },
+    deleteConfirm: 'Delete client?',
+    deleteConfirmSub: 'Linked vacancies will be left without an assigned client.',
+    detail: {
+      tabs: { vacancies: 'Vacancies', candidates: 'Candidates', history: 'History' },
+      noVacancies: 'No vacancies for this client.',
+      noCandidates: 'No candidates for this client.',
+      noHistory: 'No history recorded.',
+      pipeline: 'Pipeline',
+    },
+  },
+  reports: {
+    export: 'Export',
+    period: 'Period',
+    allPeriods: 'All periods',
+    sections: {
+      overview: 'Overview',
+      funnel: 'Funnel',
+      sources: 'Sources',
+      performance: 'Performance',
+      time: 'Time',
+    },
+    noData: 'No data available for this period.',
+    generate: 'Generate Report',
+  },
+  integrations: {
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    configure: 'Configure',
+    connect: 'Connect',
+    disconnect: 'Disconnect',
+    noIntegrations: 'No integrations configured.',
+    whatsapp: {
+      title: 'WhatsApp Business',
+      description: 'Send messages and confirmations directly via WhatsApp.',
+    },
+    linkedin: {
+      title: 'LinkedIn',
+      description: 'Post vacancies and search candidates on LinkedIn.',
+    },
+    calendar: {
+      title: 'Google Calendar / Outlook',
+      description: 'Sync interviews with your calendar automatically.',
+    },
+  },
+  templates: {
+    new: 'New Template',
+    searchPlaceholder: 'Search templates...',
+    types: {
+      offer: 'Offer',
+      rejection: 'Rejection',
+      interview: 'Interview',
+      followup: 'Follow-up',
+    },
+    noTemplates: 'No templates found',
+    noTemplatesSub: 'Create your first template to speed up communications.',
+    dialog: { createTitle: 'New Template', editTitle: 'Edit Template' },
+    fields: {
+      name: 'Template Name',
+      type: 'Type',
+      subject: 'Subject',
+      body: 'Body',
+    },
+  },
+  jobProfiles: {
+    new: 'New Profile',
+    searchPlaceholder: 'Search profiles...',
+    noProfiles: 'No profiles found',
+    noProfilesSub: 'Create job profiles to speed up vacancy creation.',
+    dialog: { createTitle: 'New Job Profile', editTitle: 'Edit Job Profile' },
+    fields: {
+      title: 'Profile Title',
+      area: 'Area / Department',
+      requirements: 'Requirements',
+      skills: 'Skills',
+      description: 'Description',
+    },
+  },
 }
 
 // ─── Helper to build a partial translation merged with EN fallback ─────────────
@@ -188,6 +901,18 @@ function withFallback(
     pageTitles,
     settings: enFull.settings,
     common: enFull.common,
+    stages: enFull.stages,
+    dashboard: enFull.dashboard,
+    pipeline: enFull.pipeline,
+    candidates: enFull.candidates,
+    vacancies: enFull.vacancies,
+    interviews: enFull.interviews,
+    talentPool: enFull.talentPool,
+    clients: enFull.clients,
+    reports: enFull.reports,
+    integrations: enFull.integrations,
+    templates: enFull.templates,
+    jobProfiles: enFull.jobProfiles,
   }
 }
 
@@ -253,6 +978,409 @@ const es: Translations = {
     noResults: 'Sin resultados',
     viewPipeline: 'Ver procesos',
     goToPipeline: 'Ir a Procesos',
+  },
+  stages: {
+    newVacancies: 'Nuevas Vacantes',
+    inProcess: 'En Proceso',
+    interviews: 'Entrevistas',
+    offerSent: 'Oferta Enviada',
+    hired: 'Contratado',
+    discarded: 'Descartado',
+  },
+  dashboard: {
+    clientFilter: 'Cliente',
+    allClients: 'Todos',
+    kpiActiveCandidates: 'Candidatos activos',
+    kpiActiveSub: 'en base de datos',
+    kpiAiAnalyzed: 'CVs analizados con IA',
+    kpiAvgScore: 'Score ATS promedio',
+    kpiAvgScoreSub: 'sobre 100 puntos',
+    kpiAvgTime: 'Tiempo prom. por etapa',
+    kpiAvgTimeSub: 'promedio histórico',
+    kpiActiveClients: 'Clientes activos',
+    kpiActiveClientsSub: 'con procesos en curso',
+    kpiInactiveClients: 'Clientes inactivos',
+    kpiInactiveClientsSub: 'historial guardado',
+    aiInsightTitle: 'Insight de IA',
+    aiInsightOk: 'Todo al día — sin candidatos paralizados en ninguna etapa del pipeline.',
+    aiInsightStuck: 'candidatos llevan 5+ días en etapa "Entrevistas" sin avance. Revisá su estado para acelerar el proceso.',
+    funnelTitle: 'Funnel de reclutamiento',
+    sourcesTitle: 'Fuentes de candidatos',
+    sourcesNoData: 'Sin datos',
+    topCandidatesTitle: 'Top candidatos por score ATS',
+    topCandidatesNoData: 'Sin candidatos con score IA.',
+    recentActivityTitle: 'Actividad reciente',
+    recentActivityNoData: 'Sin actividad reciente.',
+    today: 'Hoy',
+    yesterday: 'Ayer',
+    daysAgo: 'Hace {n}d',
+    inactiveClientsAlert: 'Tenés {n} cliente(s) inactivo(s) con historial guardado.',
+    viewClients: 'Ver clientes',
+    total: 'total',
+  },
+  pipeline: {
+    newVacancy: 'Nueva Vacante',
+    addCandidate: 'Agregar Candidato',
+    searchPlaceholder: 'Buscar candidatos...',
+    allClients: 'Todos los clientes',
+    allVacancies: 'Todas las vacantes',
+    allScores: 'Todos los scores',
+    tabAll: 'Todos',
+    views: { kanban: 'Kanban', list: 'Lista', detail: 'Detalle' },
+    kpiTotal: 'Total',
+    kpiNew: 'Nuevos',
+    kpiInProcess: 'En Proceso',
+    kpiInterviews: 'Entrevistas',
+    kpiOffer: 'Oferta',
+    kpiHired: 'Contratados',
+    noApplications: 'Sin candidatos en esta etapa.',
+    noCandidates: 'Sin candidatos encontrados.',
+    actions: {
+      hire: 'Contratar',
+      consider: 'A considerar',
+      reject: 'Rechazar',
+      scheduleInterview: 'Agendar Entrevista',
+      viewProfile: 'Ver Perfil',
+      moveStage: 'Mover etapa',
+      addNote: 'Agregar nota',
+    },
+    scheduleInterview: 'Agendar entrevista',
+    editInterview: 'Editar entrevista',
+    interviewForm: {
+      date: 'Fecha',
+      time: 'Hora',
+      type: 'Tipo de entrevista',
+      platform: 'Plataforma',
+      vacancy: 'Vacante',
+      interviewer: 'Entrevistador',
+      interviewerEmail: 'Email del entrevistador',
+      meetingLink: 'Link de reunión (opcional)',
+      notes: 'Notas previas',
+      noVacancy: 'Sin vacante asignada',
+    },
+    interviewTypes: {
+      rrhh: 'RRHH',
+      technical: 'Técnica',
+      hiring: 'Con Hiring Manager',
+      cultural: 'Cultural',
+    },
+    platforms: {
+      presencial: 'Presencial',
+      zoom: 'Zoom',
+      meet: 'Google Meet',
+      teams: 'Teams',
+    },
+    rejectModal: {
+      title: 'Rechazar candidato',
+      reasonLabel: 'Motivo',
+      notesLabel: 'Notas (opcional)',
+      skip: 'Omitir',
+      send: 'Enviar',
+    },
+    closeVacancy: {
+      title: 'Cerrar vacante',
+      confirm: 'Confirmar',
+      cancel: 'Cancelar',
+    },
+    candidatesCount: 'candidatos',
+    interviewScheduled: 'Entrevista agendada',
+  },
+  candidates: {
+    addCandidate: 'Agregar Candidato',
+    searchPlaceholder: 'Buscar por nombre o email...',
+    filters: {
+      allSources: 'Todas las fuentes',
+      allScores: 'Todos los scores',
+      allStatuses: 'Todos los estados',
+      allClients: 'Todos los clientes',
+      allVacancies: 'Todas las vacantes',
+    },
+    sortBy: 'Ordenar por',
+    source: 'Fuente',
+    gridView: 'Vista grilla',
+    listView: 'Vista lista',
+    columns: {
+      name: 'Nombre',
+      email: 'Email',
+      skills: 'Skills',
+      score: 'Score',
+      date: 'Fecha',
+      source: 'Fuente',
+      vacancy: 'Vacante',
+      status: 'Estado',
+    },
+    noResults: 'Sin candidatos encontrados',
+    noResultsSub: 'Probá con otros términos o filtros.',
+    addFirst: 'Agregá tu primer candidato',
+    addFirstSub: 'Comenzá a construir tu base de candidatos.',
+    addDialog: {
+      title: 'Agregar Candidato',
+      avatar: 'Foto',
+      changeAvatar: 'Cambiar foto',
+      uploadCv: 'Subir CV',
+      analyzeCv: 'Analizar con IA',
+      fullName: 'Nombre completo',
+      email: 'Email',
+      phone: 'Teléfono',
+      source: 'Fuente',
+      vacancy: 'Vacante',
+      skills: 'Skills',
+      skillsPlaceholder: 'React, TypeScript, Python...',
+      notes: 'Notas',
+      notesPlaceholder: 'Observaciones adicionales...',
+      score: 'Score ATS',
+      add: 'Agregar Candidato',
+      analyzing: 'Analizando...',
+    },
+    profile: {
+      title: 'Perfil del candidato',
+      score: 'Score ATS',
+      contact: 'Contacto',
+      skills: 'Skills',
+      education: 'Educación',
+      experience: 'Experiencia',
+      experienceYears: 'años',
+      summary: 'Resumen IA',
+      strengths: 'Fortalezas',
+      gaps: 'Brechas',
+      noSummary: 'Sin resumen IA disponible.',
+      cvFile: 'Archivo CV',
+      downloadCv: 'Descargar CV',
+      uploadNewCv: 'Subir nuevo CV',
+      scheduleInterview: 'Agendar entrevista',
+      editProfile: 'Editar perfil',
+      deleteCandidate: 'Eliminar candidato',
+    },
+    deleteConfirm: {
+      title: 'Eliminar candidato',
+      message: 'Esta acción no se puede deshacer.',
+      cancel: 'Cancelar',
+      delete: 'Eliminar',
+    },
+  },
+  vacancies: {
+    newVacancy: 'Nueva Vacante',
+    searchPlaceholder: 'Buscar vacante...',
+    filters: { allClients: 'Todos los clientes', allPriorities: 'Todas las prioridades' },
+    stats: {
+      total: 'Total Vacantes',
+      open: 'Abiertas',
+      totalCandidates: 'Candidatos Totales',
+      avgDaysOpen: 'Días Promedio Abierta',
+    },
+    priorities: { high: 'Alta', medium: 'Media', low: 'Baja' },
+    fields: {
+      title: 'Título del puesto',
+      client: 'Cliente (empresa)',
+      area: 'Departamento',
+      location: 'Ubicación',
+      modality: 'Modalidad',
+      salary: 'Salario',
+      priority: 'Prioridad',
+      requirements: 'Skills requeridas (separadas por coma)',
+      description: 'Descripción del puesto',
+    },
+    modalities: { hybrid: 'Híbrido', remote: 'Remoto', presencial: 'Presencial' },
+    actions: {
+      viewPipeline: 'Ver procesos',
+      assign: 'Asignar',
+      edit: 'Editar',
+      delete: 'Eliminar',
+    },
+    noVacancies: 'Creá tu primera búsqueda',
+    noVacanciesSub: 'Publicá una vacante y empezá a recibir candidatos hoy.',
+    dialog: { createTitle: 'Nueva vacante', editTitle: 'Editar vacante', save: 'Guardar' },
+    assigned: 'asignados',
+    candidates: 'candidatos',
+    created: 'Creada',
+    daysOpen: 'días abierta',
+  },
+  interviews: {
+    schedule: 'Agendar Entrevista',
+    searchPlaceholder: 'Buscar entrevistas...',
+    filters: {
+      all: 'Todas',
+      scheduled: 'Programadas',
+      completed: 'Completadas',
+      cancelled: 'Canceladas',
+      allCandidates: 'Todos los candidatos',
+      allVacancies: 'Todas las vacantes',
+    },
+    stats: {
+      total: 'Total',
+      scheduled: 'Programadas',
+      today: 'Hoy',
+      thisWeek: 'Esta semana',
+    },
+    form: {
+      date: 'Fecha',
+      time: 'Hora',
+      type: 'Tipo de entrevista',
+      platform: 'Plataforma',
+      vacancy: 'Vacante',
+      interviewer: 'Entrevistador',
+      interviewerEmail: 'Email del entrevistador',
+      meetingLink: 'Link de reunión (opcional)',
+      notes: 'Notas previas',
+      candidate: 'Candidato',
+    },
+    types: {
+      rrhh: 'RRHH',
+      technical: 'Técnica',
+      hiring: 'Con Hiring Manager',
+      cultural: 'Cultural',
+    },
+    platforms: {
+      presencial: 'Presencial',
+      zoom: 'Zoom',
+      meet: 'Google Meet',
+      teams: 'Teams',
+    },
+    statuses: {
+      scheduled: 'Programada',
+      completed: 'Completada',
+      cancelled: 'Cancelada',
+    },
+    noInterviews: 'Sin entrevistas encontradas',
+    noInterviewsSub: 'Agendá tu primera entrevista desde el pipeline.',
+    scheduled: 'Programada',
+    today: 'Hoy',
+    joinMeeting: 'Unirse a la reunión',
+    markComplete: 'Marcar completada',
+    cancel: 'Cancelar',
+    deleteConfirm: '¿Eliminar esta entrevista?',
+  },
+  talentPool: {
+    searchPlaceholder: 'Buscar en el banco de talentos...',
+    filters: {
+      all: 'Todos',
+      active: 'Activos',
+      reserve: 'Reserva',
+      discarded: 'Descartados',
+      allScores: 'Todos los scores',
+      allClients: 'Todos los clientes',
+    },
+    stats: {
+      total: 'Total',
+      active: 'Activos',
+      reserve: 'Reserva',
+      discarded: 'Descartados',
+    },
+    actions: {
+      viewProfile: 'Ver perfil',
+      incorporate: 'Incorporar',
+      incorporated: 'Incorporado',
+      goToPipeline: 'Ir al Pipeline',
+    },
+    noResults: 'Sin talentos encontrados',
+    noResultsSub: 'Agregá candidatos para construir tu banco de talentos.',
+    incorporatedMsg: 'Candidato incorporado al pipeline.',
+    viewPipelineMsg: 'Ver en pipeline',
+    card: {
+      vacancy: 'Vacante',
+      client: 'Cliente',
+      score: 'Score',
+      status: 'Estado',
+    },
+  },
+  clients: {
+    addClient: 'Agregar Cliente',
+    searchPlaceholder: 'Buscar clientes...',
+    tabs: { active: 'Activos', inactive: 'Inactivos' },
+    fields: {
+      company: 'Empresa',
+      industry: 'Industria',
+      contact: 'Contacto',
+      email: 'Email',
+      phone: 'Teléfono',
+      website: 'Sitio web',
+      notes: 'Notas internas',
+      logo: 'Logo',
+    },
+    stats: {
+      vacancies: 'Vacantes',
+      candidates: 'Candidatos',
+      shortlisted: 'Preseleccionados',
+    },
+    noClients: 'Sin clientes aún',
+    noClientsSub: 'Agregá tu primer cliente para empezar a gestionar procesos.',
+    dialog: { createTitle: 'Nuevo Cliente', editTitle: 'Editar cliente' },
+    deleteConfirm: '¿Eliminar cliente?',
+    deleteConfirmSub: 'Las vacantes vinculadas quedarán sin cliente asignado.',
+    detail: {
+      tabs: { vacancies: 'Vacantes', candidates: 'Candidatos', history: 'Historial' },
+      noVacancies: 'Sin vacantes para este cliente.',
+      noCandidates: 'Sin candidatos para este cliente.',
+      noHistory: 'Sin historial registrado.',
+      pipeline: 'Pipeline',
+    },
+  },
+  reports: {
+    export: 'Exportar',
+    period: 'Período',
+    allPeriods: 'Todos los períodos',
+    sections: {
+      overview: 'Resumen',
+      funnel: 'Embudo',
+      sources: 'Fuentes',
+      performance: 'Rendimiento',
+      time: 'Tiempo',
+    },
+    noData: 'Sin datos disponibles para este período.',
+    generate: 'Generar Informe',
+  },
+  integrations: {
+    connected: 'Conectado',
+    disconnected: 'Desconectado',
+    configure: 'Configurar',
+    connect: 'Conectar',
+    disconnect: 'Desconectar',
+    noIntegrations: 'Sin integraciones configuradas.',
+    whatsapp: {
+      title: 'WhatsApp Business',
+      description: 'Enviá mensajes y confirmaciones directo por WhatsApp.',
+    },
+    linkedin: {
+      title: 'LinkedIn',
+      description: 'Publicá vacantes y buscá candidatos en LinkedIn.',
+    },
+    calendar: {
+      title: 'Google Calendar / Outlook',
+      description: 'Sincronizá las entrevistas con tu calendario automáticamente.',
+    },
+  },
+  templates: {
+    new: 'Nueva Plantilla',
+    searchPlaceholder: 'Buscar plantillas...',
+    types: {
+      offer: 'Oferta',
+      rejection: 'Rechazo',
+      interview: 'Entrevista',
+      followup: 'Seguimiento',
+    },
+    noTemplates: 'Sin plantillas encontradas',
+    noTemplatesSub: 'Creá tu primera plantilla para agilizar las comunicaciones.',
+    dialog: { createTitle: 'Nueva Plantilla', editTitle: 'Editar Plantilla' },
+    fields: {
+      name: 'Nombre de la plantilla',
+      type: 'Tipo',
+      subject: 'Asunto',
+      body: 'Cuerpo',
+    },
+  },
+  jobProfiles: {
+    new: 'Nuevo Perfil',
+    searchPlaceholder: 'Buscar perfiles...',
+    noProfiles: 'Sin perfiles encontrados',
+    noProfilesSub: 'Creá perfiles de puestos para agilizar la carga de vacantes.',
+    dialog: { createTitle: 'Nuevo Perfil de Puesto', editTitle: 'Editar Perfil de Puesto' },
+    fields: {
+      title: 'Título del perfil',
+      area: 'Área / Departamento',
+      requirements: 'Requisitos',
+      skills: 'Skills',
+      description: 'Descripción',
+    },
   },
 }
 

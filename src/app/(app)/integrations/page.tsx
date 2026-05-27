@@ -31,15 +31,18 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
 
 /* ─── status config ──────────────────────────────────────────── */
-const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }> = {
-  connected: { label: 'Conectado', icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: 'text-green-600 bg-green-100' },
-  expired: { label: 'Expirado', icon: <AlertCircle className="h-3.5 w-3.5" />, color: 'text-amber-600 bg-amber-100' },
-  error: { label: 'Error', icon: <XCircle className="h-3.5 w-3.5" />, color: 'text-red-600 bg-red-100' },
-  pending: { label: 'Pendiente', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, color: 'text-blue-600 bg-blue-100' },
+function getStatusConfig(connectedLabel: string): Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }> {
+  return {
+    connected: { label: connectedLabel, icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: 'text-green-600 bg-green-100' },
+    expired: { label: 'Expirado', icon: <AlertCircle className="h-3.5 w-3.5" />, color: 'text-amber-600 bg-amber-100' },
+    error: { label: 'Error', icon: <XCircle className="h-3.5 w-3.5" />, color: 'text-red-600 bg-red-100' },
+    pending: { label: 'Pendiente', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, color: 'text-blue-600 bg-blue-100' },
+  }
 }
 
 /* ─── Toast notification ─────────────────────────────────────── */
@@ -74,12 +77,16 @@ function ConnectedAccountRow({
   integration,
   onRemove,
   onReconnect,
+  disconnectLabel,
+  statusConfig,
 }: {
   integration: Integration
   onRemove: (id: string) => void | Promise<void>
   onReconnect: (platform: IntegrationPlatform) => void
+  disconnectLabel: string
+  statusConfig: Record<IntegrationStatus, { label: string; icon: React.ReactNode; color: string }>
 }) {
-  const sc = STATUS_CONFIG[integration.status]
+  const sc = statusConfig[integration.status]
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-muted/50 rounded-lg">
       <div className="flex items-center gap-3 min-w-0">
@@ -110,7 +117,7 @@ function ConnectedAccountRow({
         <button
           onClick={() => onRemove(integration.id)}
           className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          title="Desconectar"
+          title={disconnectLabel}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -241,6 +248,7 @@ function JobBoardModal({
   onConnect: (platform: IntegrationPlatform, data: { accountName: string; accountEmail?: string; apiKey?: string }) => Promise<void>
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const [apiKey, setApiKey] = React.useState('')
   const [accountEmail, setAccountEmail] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -352,7 +360,7 @@ function JobBoardModal({
 
         <div className="flex gap-2 justify-end p-5" style={{ borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} className="px-4 py-2 text-sm transition-colors" style={{ color: 'var(--muted)' }}>
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             onClick={handleSubmit}
@@ -361,7 +369,7 @@ function JobBoardModal({
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Guardar conexión
+            {t.common.save}
           </button>
         </div>
       </div>
@@ -462,6 +470,7 @@ function ErrorBanner({ message, onClose }: { message: string; onClose: () => voi
 
 export default function IntegrationsPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const searchParams = useSearchParams()
   const [integrations, setIntegrations] = React.useState<Integration[]>([])
   const [activeJobBoardModal, setActiveJobBoardModal] = React.useState<IntegrationPlatform | null>(null)
@@ -540,6 +549,7 @@ export default function IntegrationsPage() {
   const plan = user?.plan ?? 'free'
   const planLimits = React.useMemo(() => getPlanLimits(plan), [plan])
   const limit = planLimits.integrations === Infinity ? 999 : planLimits.integrations
+  const statusConfig = React.useMemo(() => getStatusConfig(t.integrations.connected), [t.integrations.connected])
 
   function canConnect(_platform: IntegrationPlatform) {
     // Check total integrations across all platforms
@@ -651,7 +661,7 @@ export default function IntegrationsPage() {
         <Section icon={<LinkedInIcon className="h-5 w-5 text-blue-600" />} title="Redes Profesionales" subtitle={`LinkedIn · hasta ${limit} cuenta${limit > 1 ? 's' : ''}`}>
           <div className="space-y-2">
             {getByPlatform('linkedin').map((i) => (
-              <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+              <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} disconnectLabel={t.integrations.disconnect} statusConfig={statusConfig} />
             ))}
             <OAuthConnectButton platformKey="linkedin" disabled={!canConnect('linkedin')} />
             {!canConnect('linkedin') && (
@@ -678,7 +688,7 @@ export default function IntegrationsPage() {
           <div className="space-y-4">
             {/* Connected accounts */}
             {getByPlatform('gmail').map((i) => (
-              <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+              <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} disconnectLabel={t.integrations.disconnect} statusConfig={statusConfig} />
             ))}
 
             {/* Connect button */}
@@ -722,7 +732,7 @@ export default function IntegrationsPage() {
             <div>
               <p className="text-xs font-medium text-foreground mb-2">Outlook / Microsoft 365</p>
               {getByPlatform('outlook').map((i) => (
-                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} disconnectLabel={t.integrations.disconnect} statusConfig={statusConfig} />
               ))}
               <OAuthConnectButton platformKey="outlook" disabled={!canConnect('outlook')} />
             </div>
@@ -760,7 +770,7 @@ export default function IntegrationsPage() {
             <div>
               <p className="text-xs font-medium text-foreground mb-2">Zoom</p>
               {getByPlatform('zoom').map((i) => (
-                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} />
+                <ConnectedAccountRow key={i.id} integration={i} onRemove={handleRemove} onReconnect={handleReconnect} disconnectLabel={t.integrations.disconnect} statusConfig={statusConfig} />
               ))}
               <OAuthConnectButton platformKey="zoom" disabled={!canConnect('zoom')} />
             </div>

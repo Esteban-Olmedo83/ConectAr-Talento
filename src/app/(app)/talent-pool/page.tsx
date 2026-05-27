@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import { getInitials, formatRelativeDate } from '@/lib/utils'
 import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview, RejectionReason } from '@/types'
 
@@ -1039,6 +1040,7 @@ type ScoreFilter = 'todos' | '80+' | '60-79' | '<60'
 
 export default function TalentPoolPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // Raw data
@@ -1152,10 +1154,10 @@ export default function TalentPoolPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   const classFilterOptions: { value: ClassFilter; label: string }[] = [
-    { value: 'todos', label: 'Todos' },
-    { value: 'activo', label: 'Activos' },
-    { value: 'reserva', label: 'Reserva' },
-    { value: 'descartado', label: 'Descartados' },
+    { value: 'todos', label: t.talentPool.filters.all },
+    { value: 'activo', label: t.talentPool.filters.active },
+    { value: 'reserva', label: t.talentPool.filters.reserve },
+    { value: 'descartado', label: t.talentPool.filters.discarded },
   ]
 
   return (
@@ -1175,7 +1177,7 @@ export default function TalentPoolPage() {
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--accent)' }} />
-            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Total candidatos</p>
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{t.talentPool.stats.total}</p>
             <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{allEntries.length}</p>
           </div>
           {/* Activos */}
@@ -1190,7 +1192,7 @@ export default function TalentPoolPage() {
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#34d399' }} />
-            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Activos en proceso</p>
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{t.talentPool.stats.active}</p>
             <p style={{ fontSize: 24, fontWeight: 900, color: '#34d399', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.activo}</p>
           </div>
           {/* Reserva */}
@@ -1205,7 +1207,7 @@ export default function TalentPoolPage() {
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#fbbf24' }} />
-            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Reserva</p>
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{t.talentPool.stats.reserve}</p>
             <p style={{ fontSize: 24, fontWeight: 900, color: '#fbbf24', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.reserva}</p>
           </div>
           {/* Descartados */}
@@ -1220,7 +1222,7 @@ export default function TalentPoolPage() {
             }}
           >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#6b7280' }} />
-            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Descartados</p>
+            <p style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{t.talentPool.stats.discarded}</p>
             <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--muted)', fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1.1 }}>{stats.descartado}</p>
           </div>
         </div>
@@ -1237,7 +1239,7 @@ export default function TalentPoolPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, email o skill..."
+            placeholder={t.talentPool.searchPlaceholder}
             style={{
               width: '100%',
               paddingLeft: 32,
@@ -1304,7 +1306,7 @@ export default function TalentPoolPage() {
             cursor: 'pointer',
           }}
         >
-          <option value="todos">Todos los scores</option>
+          <option value="todos">{t.talentPool.filters.allScores}</option>
           <option value="80+">ATS 80+</option>
           <option value="60-79">ATS 60-79</option>
           <option value="<60">ATS &lt;60</option>
@@ -1326,7 +1328,7 @@ export default function TalentPoolPage() {
               cursor: 'pointer',
             }}
           >
-            <option value="todos">Todos los clientes</option>
+            <option value="todos">{t.talentPool.filters.allClients}</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}

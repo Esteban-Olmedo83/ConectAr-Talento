@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type { Candidate, Application, VacancyStatus, Interview, Vacancy, Client } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ interface DonutSlice {
   color: string
 }
 
-function DonutChart({ slices }: { slices: DonutSlice[] }) {
+function DonutChart({ slices, totalLabel }: { slices: DonutSlice[]; totalLabel?: string }) {
   const total = slices.reduce((s, sl) => s + sl.count, 0)
   if (total === 0) {
     return (
@@ -216,6 +217,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const [data, setData] = React.useState<DashboardData | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [filterClient, setFilterClient] = React.useState<string>('all')
@@ -443,9 +445,9 @@ export default function DashboardPage() {
 
   const relDays = (dateStr: string) => {
     const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
-    if (d === 0) return 'Hoy'
-    if (d === 1) return 'Ayer'
-    return `Hace ${d}d`
+    if (d === 0) return t.dashboard.today
+    if (d === 1) return t.dashboard.yesterday
+    return t.dashboard.daysAgo.replace('{n}', String(d))
   }
 
   return (
@@ -459,7 +461,7 @@ export default function DashboardPage() {
               htmlFor="client-filter"
               style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}
             >
-              Cliente
+              {t.dashboard.clientFilter}
             </label>
             <select
               id="client-filter"
@@ -477,7 +479,7 @@ export default function DashboardPage() {
                 outline: 'none',
               }}
             >
-              <option value="all">Todos</option>
+              <option value="all">{t.dashboard.allClients}</option>
               {activeClients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -501,9 +503,9 @@ export default function DashboardPage() {
         >
           <span style={{ fontSize: 14 }}>ℹ️</span>
           <p style={{ fontSize: 13, color: 'var(--muted2)', flex: 1 }}>
-            Tenés {inactiveClients.length} cliente{inactiveClients.length > 1 ? 's' : ''} inactivo{inactiveClients.length > 1 ? 's' : ''} con historial guardado.{' '}
+            {t.dashboard.inactiveClientsAlert.replace('{n}', String(inactiveClients.length))}{' '}
             <a href="/clients" style={{ color: 'var(--accent-2)', textDecoration: 'underline', fontWeight: 500 }}>
-              Ver clientes
+              {t.dashboard.viewClients}
             </a>
           </p>
         </div>
@@ -512,27 +514,27 @@ export default function DashboardPage() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Candidatos activos"
+          label={t.dashboard.kpiActiveCandidates}
           value={totalCandidates}
-          sub="en base de datos"
+          sub={t.dashboard.kpiActiveSub}
           accentColor="var(--accent)"
         />
         <KpiCard
-          label="CVs analizados con IA"
+          label={t.dashboard.kpiAiAnalyzed}
           value={aiAnalyzed}
           sub={`${totalCandidates > 0 ? Math.round(aiAnalyzed / totalCandidates * 100) : 0}% del total`}
           accentColor="var(--accent-2)"
         />
         <KpiCard
-          label="Score ATS promedio"
+          label={t.dashboard.kpiAvgScore}
           value={avgScore > 0 ? `${avgScore}` : '—'}
-          sub="sobre 100 puntos"
+          sub={t.dashboard.kpiAvgScoreSub}
           accentColor="var(--emerald)"
         />
         <KpiCard
-          label="Tiempo prom. por etapa"
+          label={t.dashboard.kpiAvgTime}
           value={avgDaysPerStage !== null ? `${avgDaysPerStage.toFixed(1)}d` : '—'}
-          sub="promedio histórico"
+          sub={t.dashboard.kpiAvgTimeSub}
           accentColor="var(--gold)"
         />
       </div>
@@ -541,15 +543,15 @@ export default function DashboardPage() {
       {clients.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
-            label="Clientes activos"
+            label={t.dashboard.kpiActiveClients}
             value={activeClients.length}
-            sub="con procesos en curso"
+            sub={t.dashboard.kpiActiveClientsSub}
             accentColor="var(--accent)"
           />
           <KpiCard
-            label="Clientes inactivos"
+            label={t.dashboard.kpiInactiveClients}
             value={inactiveClients.length}
-            sub="historial guardado"
+            sub={t.dashboard.kpiInactiveClientsSub}
             accentColor="#6b7280"
           />
         </div>
@@ -583,11 +585,11 @@ export default function DashboardPage() {
           ✦
         </div>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Insight de IA</p>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{t.dashboard.aiInsightTitle}</p>
           <p style={{ fontSize: 13, color: 'var(--muted2)' }}>
             {stuckCount > 0
-              ? `${stuckCount} candidato${stuckCount > 1 ? 's' : ''} llevan 5+ días en etapa "Entrevistas" sin avance. Revisá su estado para acelerar el proceso.`
-              : 'Todo al día — sin candidatos paralizados en ninguna etapa del pipeline.'}
+              ? `${stuckCount} ${t.dashboard.aiInsightStuck}`
+              : t.dashboard.aiInsightOk}
           </p>
         </div>
       </div>
@@ -598,7 +600,7 @@ export default function DashboardPage() {
         {/* Funnel */}
         <Card className="lg:col-span-2">
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
-            Funnel de reclutamiento
+            {t.dashboard.funnelTitle}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {FUNNEL_STAGES.map(stage => {
@@ -648,7 +650,7 @@ export default function DashboardPage() {
         {/* Donut */}
         <Card>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
-            Fuentes de candidatos
+            {t.dashboard.sourcesTitle}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <DonutChart slices={donutSlices} />
@@ -661,7 +663,7 @@ export default function DashboardPage() {
                 </div>
               ))}
               {donutSlices.length === 0 && (
-                <p style={{ fontSize: 11, color: 'var(--muted)' }}>Sin datos</p>
+                <p style={{ fontSize: 11, color: 'var(--muted)' }}>{t.dashboard.sourcesNoData}</p>
               )}
             </div>
           </div>
@@ -674,10 +676,10 @@ export default function DashboardPage() {
         {/* Top candidates */}
         <Card>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
-            Top candidatos por score ATS
+            {t.dashboard.topCandidatesTitle}
           </p>
           {topCandidates.length === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin candidatos con score IA.</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)' }}>{t.dashboard.topCandidatesNoData}</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {topCandidates.map(c => {
@@ -749,10 +751,10 @@ export default function DashboardPage() {
         {/* Recent activity */}
         <Card>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
-            Actividad reciente
+            {t.dashboard.recentActivityTitle}
           </p>
           {recentApps.length === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin actividad reciente.</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)' }}>{t.dashboard.recentActivityNoData}</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {recentApps.map(a => {

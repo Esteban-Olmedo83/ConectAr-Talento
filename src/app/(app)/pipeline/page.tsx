@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type {
   Application,
   Candidate,
@@ -852,6 +853,7 @@ function ScheduleInterviewModal({
 }) {
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const { user } = useUser()
+  const { t } = useLanguage()
   const [form, setForm] = React.useState({
     date: '',
     time: '',
@@ -948,7 +950,7 @@ function ScheduleInterviewModal({
               <Calendar style={{ width: 15, height: 15, color: '#a78bfa' }} />
             </div>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Agendar entrevista</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{t.pipeline.scheduleInterview}</p>
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
             </div>
           </div>
@@ -968,7 +970,7 @@ function ScheduleInterviewModal({
             <form id="schedule-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={labelStyle}>Fecha *</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.date} *</label>
                   <input
                     required
                     type="date"
@@ -979,7 +981,7 @@ function ScheduleInterviewModal({
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Hora *</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.time} *</label>
                   <input
                     required
                     type="time"
@@ -991,48 +993,48 @@ function ScheduleInterviewModal({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={labelStyle}>Tipo *</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.type} *</label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value as InterviewType }))}
                     style={{ ...inputStyle, appearance: 'none' as const }}
                   >
-                    <option value="RRHH">RRHH</option>
-                    <option value="Técnica">Técnica</option>
-                    <option value="Con Hiring Manager">Con Hiring Manager</option>
-                    <option value="Cultural">Cultural</option>
+                    <option value="RRHH">{t.pipeline.interviewTypes.rrhh}</option>
+                    <option value="Técnica">{t.pipeline.interviewTypes.technical}</option>
+                    <option value="Con Hiring Manager">{t.pipeline.interviewTypes.hiring}</option>
+                    <option value="Cultural">{t.pipeline.interviewTypes.cultural}</option>
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Modalidad *</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.platform} *</label>
                   <select
                     value={form.meetingPlatform}
                     onChange={e => setForm(f => ({ ...f, meetingPlatform: e.target.value as MeetingPlatform }))}
                     style={{ ...inputStyle, appearance: 'none' as const }}
                   >
-                    <option value="presencial">Presencial</option>
-                    <option value="zoom">Zoom</option>
-                    <option value="google_meet">Google Meet</option>
-                    <option value="teams">Teams</option>
+                    <option value="presencial">{t.pipeline.platforms.presencial}</option>
+                    <option value="zoom">{t.pipeline.platforms.zoom}</option>
+                    <option value="google_meet">{t.pipeline.platforms.meet}</option>
+                    <option value="teams">{t.pipeline.platforms.teams}</option>
                   </select>
                 </div>
               </div>
               {vacancies.length > 0 && (
                 <div>
-                  <label style={labelStyle}>Vacante</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.vacancy}</label>
                   <select
                     value={form.vacancyId}
                     onChange={e => setForm(f => ({ ...f, vacancyId: e.target.value }))}
                     style={{ ...inputStyle, appearance: 'none' as const }}
                   >
-                    <option value="">Sin vacante específica</option>
+                    <option value="">{t.pipeline.interviewForm.noVacancy}</option>
                     {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
                   </select>
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={labelStyle}>Entrevistador *</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.interviewer} *</label>
                   <input
                     required
                     value={form.interviewerName}
@@ -1042,7 +1044,7 @@ function ScheduleInterviewModal({
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Email entrevistador</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.interviewerEmail}</label>
                   <input
                     type="email"
                     value={form.interviewerEmail}
@@ -1054,7 +1056,7 @@ function ScheduleInterviewModal({
               </div>
               {(form.meetingPlatform === 'zoom' || form.meetingPlatform === 'google_meet' || form.meetingPlatform === 'teams') && (
                 <div>
-                  <label style={labelStyle}>Link de la reunión</label>
+                  <label style={labelStyle}>{t.pipeline.interviewForm.meetingLink}</label>
                   <input
                     value={form.meetingLink}
                     onChange={e => setForm(f => ({ ...f, meetingLink: e.target.value }))}
@@ -1064,7 +1066,7 @@ function ScheduleInterviewModal({
                 </div>
               )}
               <div>
-                <label style={labelStyle}>Notas</label>
+                <label style={labelStyle}>{t.pipeline.interviewForm.notes}</label>
                 <textarea
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -1090,7 +1092,7 @@ function ScheduleInterviewModal({
               onClick={onClose}
               style={{ padding: '8px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -1112,7 +1114,7 @@ function ScheduleInterviewModal({
               }}
             >
               {saving ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" /> : <Calendar style={{ width: 13, height: 13 }} />}
-              Agendar
+              {t.common.save}
             </button>
           </div>
         )}
@@ -2529,6 +2531,7 @@ function RejectReasonDialog({
   onClose: () => void
   onDone: () => void
 }) {
+  const { t } = useLanguage()
   const [reason, setReason] = React.useState<RejectionReason | ''>('')
   const [note, setNote] = React.useState('')
   const [saving, setSaving] = React.useState(false)
@@ -2567,7 +2570,7 @@ function RejectReasonDialog({
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Motivo de descarte</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{t.pipeline.rejectModal.title}</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{candidateName}</p>
           </div>
           <button onClick={handleSkip} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>✕</button>
@@ -2601,7 +2604,7 @@ function RejectReasonDialog({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Nota adicional (opcional)</label>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>{t.pipeline.rejectModal.notesLabel}</label>
           <textarea
             value={note}
             onChange={e => setNote(e.target.value)}
@@ -2616,7 +2619,7 @@ function RejectReasonDialog({
             onClick={handleSkip}
             style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}
           >
-            Omitir
+            {t.pipeline.rejectModal.skip}
           </button>
           <button
             onClick={handleConfirm}
@@ -2628,7 +2631,7 @@ function RejectReasonDialog({
               fontSize: 13, fontWeight: 600, cursor: reason ? 'pointer' : 'not-allowed',
             }}
           >
-            {saving ? 'Guardando…' : 'Confirmar descarte'}
+            {saving ? 'Guardando…' : t.pipeline.rejectModal.send}
           </button>
         </div>
       </div>
@@ -2926,6 +2929,7 @@ export default function PipelinePage() {
   const [stagePrompt, setStagePrompt] = React.useState<{ candidateName: string; currentStage: VacancyStatus; appId: string } | null>(null)
 
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const pathname = usePathname()
 
@@ -3204,7 +3208,7 @@ export default function PipelinePage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: 'var(--muted)' }} />
           <input
             type="text"
-            placeholder="Buscar candidato..."
+            placeholder={t.pipeline.searchPlaceholder}
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             style={{ ...inputStyle, paddingLeft: 32 }}
@@ -3217,7 +3221,7 @@ export default function PipelinePage() {
             onChange={e => { setFilterClient(e.target.value); setFilterVacancy('all') }}
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
-            <option value="all">Todos los clientes</option>
+            <option value="all">{t.pipeline.allClients}</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
@@ -3228,7 +3232,7 @@ export default function PipelinePage() {
             onChange={e => setFilterVacancy(e.target.value)}
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
-            <option value="all">Todas las vacantes</option>
+            <option value="all">{t.pipeline.allVacancies}</option>
             {(filterClient === 'all' ? vacancies : vacancies.filter(v => v.clientId === filterClient)).map(v => (
               <option key={v.id} value={v.id}>{v.title}</option>
             ))}
@@ -3269,14 +3273,14 @@ export default function PipelinePage() {
 
       {/* KPI strip */}
       <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
-        {([
-          { label: 'Total', value: filtered.length, color: 'var(--text)' },
-          { label: 'Nuevas', value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
-          { label: 'En Proceso', value: stageCounts['En Proceso'], color: STAGE_COLORS['En Proceso'] },
-          { label: 'Entrevistas', value: stageCounts['Entrevistas'], color: STAGE_COLORS['Entrevistas'] },
-          { label: 'Oferta', value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
-          { label: 'Contratados', value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
-        ] as const).map(kpi => (
+        {[
+          { label: t.pipeline.kpiTotal, value: filtered.length, color: 'var(--text)' },
+          { label: t.pipeline.kpiNew, value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
+          { label: t.pipeline.kpiInProcess, value: stageCounts['En Proceso'], color: STAGE_COLORS['En Proceso'] },
+          { label: t.pipeline.kpiInterviews, value: stageCounts['Entrevistas'], color: STAGE_COLORS['Entrevistas'] },
+          { label: t.pipeline.kpiOffer, value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
+          { label: t.pipeline.kpiHired, value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
+        ].map(kpi => (
           <div key={kpi.label} style={{ flex: '1 1 80px', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: kpi.color, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1 }}>{kpi.value}</div>
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>{kpi.label}</div>

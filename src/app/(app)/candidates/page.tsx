@@ -16,6 +16,7 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
+import { useLanguage } from '@/lib/context/language-context'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
@@ -90,6 +91,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
+  const { t } = useLanguage()
 
   // Process info state
   const [applications, setApplications] = React.useState<Application[]>([])
@@ -235,7 +237,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       onClose={onClose}
       title={
         <div className="flex items-center justify-between w-full">
-          <span>Perfil del candidato</span>
+          <span>{t.candidates.profile.title}</span>
           <Button
             type="button"
             variant="outline"
@@ -243,7 +245,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
             onClick={() => { setEditMode(e => !e); setSaveError('') }}
             className="ml-4"
           >
-            {editMode ? 'Cancelar' : 'Editar'}
+            {editMode ? t.common.cancel : t.common.edit}
           </Button>
         </div>
       }
@@ -326,7 +328,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
-                <Phone className="inline h-3 w-3 mr-1" />Teléfono
+                <Phone className="inline h-3 w-3 mr-1" />{t.candidates.addDialog.phone}
               </label>
               {editMode ? (
                 <input
@@ -346,7 +348,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
-                <Briefcase className="inline h-3 w-3 mr-1" />Experiencia
+                <Briefcase className="inline h-3 w-3 mr-1" />{t.candidates.profile.experience}
               </label>
               {editMode ? (
                 <input
@@ -360,13 +362,13 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 />
               ) : (
                 <p className={inputCls} style={{ color: 'var(--text)' }}>
-                  {candidate.experienceYears != null ? `${candidate.experienceYears} año${candidate.experienceYears !== 1 ? 's' : ''}` : '—'}
+                  {candidate.experienceYears != null ? `${candidate.experienceYears} ${t.candidates.profile.experienceYears}` : '—'}
                 </p>
               )}
             </div>
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
-                <Award className="inline h-3 w-3 mr-1" />Fuente
+                <Award className="inline h-3 w-3 mr-1" />{t.candidates.addDialog.source}
               </label>
               <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.source}</p>
             </div>
@@ -399,7 +401,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {(editMode || candidate.education) && (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
-                <BookOpen className="inline h-3 w-3 mr-1" />Educación
+                <BookOpen className="inline h-3 w-3 mr-1" />{t.candidates.profile.education}
               </label>
               {editMode ? (
                 <input
@@ -418,18 +420,18 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {/* Skills */}
           {editMode ? (
             <div>
-              <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills (separadas por coma)</label>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>{t.candidates.addDialog.skills}</label>
               <textarea
                 value={editSkills}
                 onChange={e => setEditSkills(e.target.value)}
                 className={cn(inputEditCls, 'resize-none h-16')}
-                placeholder="React, TypeScript, Node.js"
+                placeholder={t.candidates.addDialog.skillsPlaceholder}
               />
             </div>
           ) : (
             candidate.skills.length > 0 && (
               <div>
-                <label className={labelCls} style={{ color: 'var(--muted)' }}>Skills</label>
+                <label className={labelCls} style={{ color: 'var(--muted)' }}>{t.candidates.profile.skills}</label>
                 <div className="flex gap-1.5 flex-wrap mt-1">
                   {candidate.skills.map(s => (
                     <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{s}</span>
@@ -442,7 +444,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {/* Notes */}
           {candidate.notes && (
             <div>
-              <label className={labelCls} style={{ color: 'var(--muted)' }}>Notas</label>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>{t.candidates.addDialog.notes}</label>
               <p className="text-sm px-3 py-2 rounded-md border border-input bg-background whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{candidate.notes}</p>
             </div>
           )}
@@ -450,7 +452,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {/* CV */}
           {editMode ? (
             <div>
-              <label className={labelCls} style={{ color: 'var(--muted)' }}>CV adjunto</label>
+              <label className={labelCls} style={{ color: 'var(--muted)' }}>{t.candidates.profile.cvFile}</label>
               {candidate.cvUrl && (
                 <div className="flex items-center gap-2 mb-2">
                   <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
@@ -479,7 +481,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           ) : candidate.cvUrl ? (
             <div>
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
-                <FileText className="inline h-3 w-3 mr-1" />CV adjunto
+                <FileText className="inline h-3 w-3 mr-1" />{t.candidates.profile.cvFile}
               </label>
               <a
                 href={candidate.cvUrl}
@@ -605,11 +607,11 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
               onClick={handleSave}
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Guardar cambios
+              {t.common.save}
             </Button>
           ) : (
             <div className="flex justify-end pt-1">
-              <Button variant="outline" onClick={onClose}>Cerrar</Button>
+              <Button variant="outline" onClick={onClose}>{t.common.close}</Button>
             </div>
           )}
         </div>
@@ -626,6 +628,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   provider: SupabaseProvider
 }) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const [form, setForm] = React.useState({
     date: '',
     time: '',
@@ -699,7 +702,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <DraggableModal open={open} onClose={onClose} title="Agendar entrevista" maxWidth="28rem">
+    <DraggableModal open={open} onClose={onClose} title={t.pipeline.scheduleInterview} maxWidth="28rem">
         <p className="text-sm text-muted-foreground -mt-1">
           Candidato: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
         </p>
@@ -712,7 +715,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
           <form onSubmit={handleSubmit} className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Fecha *</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.date} *</label>
                 <input
                   required
                   type="date"
@@ -723,7 +726,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
                 />
               </div>
               <div>
-                <label className={labelCls}>Hora *</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.time} *</label>
                 <input
                   required
                   type="time"
@@ -735,29 +738,29 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Tipo de entrevista *</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.type} *</label>
                 <select
                   value={form.type}
                   onChange={e => setForm(f => ({ ...f, type: e.target.value as InterviewType }))}
                   className={inputCls}
                 >
-                  <option value="RRHH">RRHH</option>
-                  <option value="Técnica">Técnica</option>
-                  <option value="Con Hiring Manager">Con Hiring Manager</option>
-                  <option value="Cultural">Cultural</option>
+                  <option value="RRHH">{t.pipeline.interviewTypes.rrhh}</option>
+                  <option value="Técnica">{t.pipeline.interviewTypes.technical}</option>
+                  <option value="Con Hiring Manager">{t.pipeline.interviewTypes.hiring}</option>
+                  <option value="Cultural">{t.pipeline.interviewTypes.cultural}</option>
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Modalidad *</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.platform} *</label>
                 <select
                   value={form.meetingPlatform}
                   onChange={e => setForm(f => ({ ...f, meetingPlatform: e.target.value as MeetingPlatform }))}
                   className={inputCls}
                 >
-                  <option value="presencial">Presencial</option>
-                  <option value="zoom">Zoom</option>
-                  <option value="google_meet">Google Meet</option>
-                  <option value="teams">Teams</option>
+                  <option value="presencial">{t.pipeline.platforms.presencial}</option>
+                  <option value="zoom">{t.pipeline.platforms.zoom}</option>
+                  <option value="google_meet">{t.pipeline.platforms.meet}</option>
+                  <option value="teams">{t.pipeline.platforms.teams}</option>
                 </select>
               </div>
             </div>
@@ -776,7 +779,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Entrevistador *</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.interviewer} *</label>
                 <input
                   required
                   value={form.interviewerName}
@@ -786,7 +789,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
                 />
               </div>
               <div>
-                <label className={labelCls}>Email entrevistador</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.interviewerEmail}</label>
                 <input
                   type="email"
                   value={form.interviewerEmail}
@@ -798,7 +801,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             </div>
             {(form.meetingPlatform === 'zoom' || form.meetingPlatform === 'google_meet' || form.meetingPlatform === 'teams') && (
               <div>
-                <label className={labelCls}>Link de la reunión</label>
+                <label className={labelCls}>{t.pipeline.interviewForm.meetingLink}</label>
                 <input
                   value={form.meetingLink}
                   onChange={e => setForm(f => ({ ...f, meetingLink: e.target.value }))}
@@ -808,7 +811,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
               </div>
             )}
             <div>
-              <label className={labelCls}>Notas</label>
+              <label className={labelCls}>{t.pipeline.interviewForm.notes}</label>
               <textarea
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -822,10 +825,10 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
               </p>
             )}
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
               <Button type="submit" disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Calendar className="h-4 w-4 mr-2" />}
-                Agendar
+                {t.pipeline.scheduleInterview}
               </Button>
             </div>
           </form>
@@ -842,17 +845,18 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
   onConfirm: () => void
   deleting: boolean
 }) {
+  const { t } = useLanguage()
   if (!candidate) return null
   return (
     <DraggableModal
       open={open}
       onClose={onClose}
-      title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />Eliminar candidato</span>}
+      title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" style={{ color: '#ef4444' }} />{t.candidates.deleteConfirm.title}</span>}
       maxWidth="24rem"
     >
         <div className="space-y-3">
           <p className="text-sm" style={{ color: 'var(--text)' }}>
-            Estás a punto de eliminar definitivamente a <strong>{candidate.fullName}</strong> del sistema.
+            {t.candidates.deleteConfirm.message}
           </p>
           <div className="px-3 py-2.5 rounded-lg text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
             <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
@@ -868,14 +872,14 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
           </p>
         </div>
         <div className="flex justify-end gap-2 mt-2">
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{t.candidates.deleteConfirm.cancel}</Button>
           <Button
             onClick={onConfirm}
             disabled={deleting}
             className="bg-red-600 hover:bg-red-700 text-white border-0"
           >
             {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-            Eliminar
+            {t.candidates.deleteConfirm.delete}
           </Button>
         </div>
     </DraggableModal>
@@ -945,6 +949,7 @@ function AddCandidateDialog({
   onSave: (c: Candidate) => void
 }) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
@@ -1051,7 +1056,7 @@ function AddCandidateDialog({
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
   return (
-    <DraggableModal open={open} onClose={onClose} title="Agregar candidato" maxWidth="32rem">
+    <DraggableModal open={open} onClose={onClose} title={t.candidates.addDialog.title} maxWidth="32rem">
         <form onSubmit={handleSubmit} className="space-y-3 mt-2">
           {/* Avatar upload */}
           <div className="flex items-center gap-3">
@@ -1098,21 +1103,21 @@ function AddCandidateDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Nombre completo *</label>
+              <label className={labelCls}>{t.candidates.addDialog.fullName} *</label>
               <input required value={form.fullName} onChange={e => setForm(f => ({...f, fullName: e.target.value}))} className={inputCls} placeholder="Valentina Rodríguez" />
             </div>
             <div>
-              <label className={labelCls}>Email *</label>
+              <label className={labelCls}>{t.candidates.addDialog.email} *</label>
               <input required type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} className={inputCls} placeholder="email@ejemplo.com" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Teléfono</label>
+              <label className={labelCls}>{t.candidates.addDialog.phone}</label>
               <input value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} className={inputCls} placeholder="+54 11 1234-5678" />
             </div>
             <div>
-              <label className={labelCls}>Fuente</label>
+              <label className={labelCls}>{t.candidates.addDialog.source}</label>
               <select value={form.source} onChange={e => setForm(f => ({...f, source: e.target.value as CandidateSource}))} className={inputCls}>
                 {['LinkedIn','Portal','Referido','Indeed','Computrabajo','ZonaJobs','Bumeran','WhatsApp','Manual'].map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -1139,7 +1144,7 @@ function AddCandidateDialog({
               </select>
             </div>
             <div>
-              <label className={labelCls}>Vacante</label>
+              <label className={labelCls}>{t.candidates.addDialog.vacancy}</label>
               <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
                 <option value="">Sin vacante asignada</option>
                 {(form.clientId
@@ -1150,8 +1155,8 @@ function AddCandidateDialog({
             </div>
           </div>
           <div>
-            <label className={labelCls}>Skills (separadas por coma)</label>
-            <input value={form.skills} onChange={e => setForm(f => ({...f, skills: e.target.value}))} className={inputCls} placeholder="React, TypeScript, Node.js" />
+            <label className={labelCls}>{t.candidates.addDialog.skills}</label>
+            <input value={form.skills} onChange={e => setForm(f => ({...f, skills: e.target.value}))} className={inputCls} placeholder={t.candidates.addDialog.skillsPlaceholder} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1159,17 +1164,17 @@ function AddCandidateDialog({
               <input type="number" min="0" max="50" step="1" value={form.experienceYears} onChange={e => setForm(f => ({...f, experienceYears: String(Math.round(Number(e.target.value)))}))} className={inputCls} placeholder="3" />
             </div>
             <div>
-              <label className={labelCls}>Score ATS (0-100)</label>
+              <label className={labelCls}>{t.candidates.addDialog.score}</label>
               <input type="number" min="0" max="100" value={form.atsScore} onChange={e => setForm(f => ({...f, atsScore: e.target.value}))} className={inputCls} placeholder="Auto si analizás CV" />
             </div>
           </div>
           <div>
-            <label className={labelCls}>Educación</label>
+            <label className={labelCls}>{t.candidates.profile.education}</label>
             <input value={form.education} onChange={e => setForm(f => ({...f, education: e.target.value}))} className={inputCls} placeholder="Lic. en Ciencias de la Computación" />
           </div>
           <div>
-            <label className={labelCls}>Notas</label>
-            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'resize-none h-16')} placeholder="Notas internas sobre el candidato..." />
+            <label className={labelCls}>{t.candidates.addDialog.notes}</label>
+            <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'resize-none h-16')} placeholder={t.candidates.addDialog.notesPlaceholder} />
           </div>
           {form.cvFileName && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid var(--accent)' }}>
@@ -1179,10 +1184,10 @@ function AddCandidateDialog({
             </div>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
             <Button type="submit" disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Guardar candidato
+              {t.candidates.addDialog.add}
             </Button>
           </div>
         </form>

@@ -13,6 +13,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import { getPlanLimits } from '@/lib/plan-limits'
 import type { Client, ClientEvent, Vacancy } from '@/types'
 
@@ -33,6 +34,7 @@ function ClientFormDialog({
   onSave: (c: Client) => void
 }) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
@@ -165,7 +167,7 @@ function ClientFormDialog({
           }}
         >
           <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-            {client ? 'Editar cliente' : 'Nuevo cliente'}
+            {client ? t.clients.dialog.editTitle : t.clients.dialog.createTitle}
           </h2>
           <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
@@ -203,7 +205,7 @@ function ClientFormDialog({
               </div>
             </div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Logo del cliente</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{t.clients.fields.logo}</p>
               <p style={{ fontSize: 11, color: 'var(--muted)' }}>PNG, JPG o WebP · Se muestra en tarjetas y reportes</p>
               <button type="button" onClick={() => logoInputRef.current?.click()}
                 style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
@@ -224,7 +226,7 @@ function ClientFormDialog({
           {/* Name */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-              Empresa *
+              {t.clients.fields.company} *
             </label>
             <input
               value={form.name}
@@ -243,7 +245,7 @@ function ClientFormDialog({
           {/* Industry */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-              Industria
+              {t.clients.fields.industry}
             </label>
             <select
               value={form.industry}
@@ -266,7 +268,7 @@ function ClientFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-                Contacto
+                {t.clients.fields.contact}
               </label>
               <input
                 value={form.contactName}
@@ -282,7 +284,7 @@ function ClientFormDialog({
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-                Email
+                {t.clients.fields.email}
               </label>
               <input
                 type="email"
@@ -302,7 +304,7 @@ function ClientFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-                Teléfono
+                {t.clients.fields.phone}
               </label>
               <input
                 value={form.contactPhone}
@@ -318,7 +320,7 @@ function ClientFormDialog({
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-                Sitio web
+                {t.clients.fields.website}
               </label>
               <input
                 value={form.website}
@@ -392,7 +394,7 @@ function ClientFormDialog({
           {/* Notes */}
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-              Notas internas
+              {t.clients.fields.notes}
             </label>
             <textarea
               value={form.notes}
@@ -416,14 +418,14 @@ function ClientFormDialog({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>
-              Cancelar
+              {t.common.cancel}
             </Button>
             <button
               type="submit"
               disabled={saving || !form.name.trim()}
               style={{ padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving || !form.name.trim() ? 0.6 : 1 }}
             >
-              {saving ? 'Guardando...' : client ? 'Guardar cambios' : 'Crear cliente'}
+              {saving ? 'Guardando...' : client ? t.common.save : 'Crear cliente'}
             </button>
           </div>
         </form>
@@ -969,6 +971,7 @@ type PageTab = 'active' | 'history'
 
 export default function ClientsPage() {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const [clients, setClients] = React.useState<Client[]>([])
@@ -1124,7 +1127,7 @@ export default function ClientsPage() {
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nuevo cliente</span>
+            <span className="hidden sm:inline">{t.clients.addClient}</span>
           </Button>
         )}
       </div>
@@ -1132,8 +1135,8 @@ export default function ClientsPage() {
       {/* Tab switcher */}
       <div className="flex items-center gap-2 mb-6">
         {([
-          { key: 'active', label: 'Clientes Activos', count: activeClients.length },
-          { key: 'history', label: 'Historial de Clientes', count: inactiveClients.length },
+          { key: 'active', label: t.clients.tabs.active, count: activeClients.length },
+          { key: 'history', label: t.clients.tabs.inactive, count: inactiveClients.length },
         ] as { key: PageTab; label: string; count: number }[]).map(tab => (
           <button
             key={tab.key}
@@ -1212,7 +1215,7 @@ export default function ClientsPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por empresa, industria o contacto..."
+          placeholder={t.clients.searchPlaceholder}
           className="flex-1 bg-transparent text-sm outline-none"
           style={{ color: 'var(--text)' }}
         />
@@ -1239,12 +1242,12 @@ export default function ClientsPage() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Building2 className="h-12 w-12 mb-4" style={{ color: 'var(--muted)' }} />
             <h3 className="font-semibold text-lg mb-1" style={{ color: 'var(--text)' }}>
-              {search ? 'Sin resultados' : 'Todavía no tenés clientes activos'}
+              {search ? t.common.noResults : t.clients.noClients}
             </h3>
             <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
               {search
                 ? 'Probá con otro término de búsqueda.'
-                : 'Creá tu primer cliente para asociarle vacantes y generar informes por empresa.'}
+                : t.clients.noClientsSub}
             </p>
             {!search && !atLimit && (
               <Button

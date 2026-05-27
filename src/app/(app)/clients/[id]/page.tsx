@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
+import { useLanguage } from '@/lib/context/language-context'
 import type { Client, Vacancy, Application, Candidate } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function EditClientDialog({ client, onClose, onSave }: {
   onClose: () => void
   onSave: (c: Client) => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
@@ -117,7 +119,7 @@ function EditClientDialog({ client, onClose, onSave }: {
   }
 
   return (
-    <DraggableModal open onClose={onClose} title="Editar cliente" maxWidth="32rem">
+    <DraggableModal open onClose={onClose} title={t.clients.dialog.editTitle} maxWidth="32rem">
       <form onSubmit={handleSubmit} className="space-y-4 mt-2">
         {/* Logo upload */}
         <div className="flex items-center gap-4">
@@ -149,7 +151,7 @@ function EditClientDialog({ client, onClose, onSave }: {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text)' }}>Logo del cliente</p>
+            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--text)' }}>{t.clients.fields.logo}</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>PNG, JPG o WebP · máx. 5 MB</p>
             <button type="button" onClick={() => logoInputRef.current?.click()}
               className="text-xs font-semibold mt-1"
@@ -171,7 +173,7 @@ function EditClientDialog({ client, onClose, onSave }: {
         )}
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-            Empresa *
+            {t.clients.fields.company} *
           </label>
           <input
             value={form.name}
@@ -184,7 +186,7 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>
-            Industria
+            {t.clients.fields.industry}
           </label>
           <select
             value={form.industry}
@@ -198,13 +200,13 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Contacto</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.contact}</label>
             <input value={form.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Nombre del contacto"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Email</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.email}</label>
             <input type="email" value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="email@empresa.com"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -212,20 +214,20 @@ function EditClientDialog({ client, onClose, onSave }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Teléfono</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.phone}</label>
             <input value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="+54 11..."
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Sitio web</label>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.website}</label>
             <input value={form.website} onChange={e => set('website', e.target.value)} placeholder="www.empresa.com"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>Notas internas</label>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted2)' }}>{t.clients.fields.notes}</label>
           <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
             placeholder="Contexto del cliente, preferencias, acuerdos..."
             className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
@@ -237,9 +239,9 @@ function EditClientDialog({ client, onClose, onSave }: {
           </p>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>Cancelar</Button>
+          <Button type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--muted2)' }}>{t.common.cancel}</Button>
           <Button type="submit" disabled={saving || !form.name.trim()} style={{ background: 'var(--accent)', color: '#fff' }}>
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? 'Guardando...' : t.common.save}
           </Button>
         </div>
       </form>
