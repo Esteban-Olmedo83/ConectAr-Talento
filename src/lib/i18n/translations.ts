@@ -333,6 +333,8 @@ export interface Translations {
     placeholderInterviewNotes: string
     placeholderInterviewerName: string
     placeholderEducation: string
+    planLimitReached: string
+    planLimitReachedSub: string
   }
   vacancies: {
     newVacancy: string
@@ -829,6 +831,8 @@ const enFull: Translations = {
     placeholderInterviewNotes: 'Topics to cover, required preparation...',
     placeholderInterviewerName: 'Name',
     placeholderEducation: 'B.Sc. in Computer Science',
+    planLimitReached: 'Plan limit reached.',
+    planLimitReachedSub: 'Plan limit reached ({limit}). Upgrade to add more candidates.',
   },
   vacancies: {
     newVacancy: 'New Vacancy',
@@ -1414,6 +1418,8 @@ const es: Translations = {
     placeholderInterviewNotes: 'Temas a tratar, preparación necesaria...',
     placeholderInterviewerName: 'Nombre',
     placeholderEducation: 'Lic. en Ciencias de la Computación',
+    planLimitReached: 'Límite alcanzado.',
+    planLimitReachedSub: 'Límite de tu plan alcanzado ({limit}). Actualizá para agregar más candidatos.',
   },
   vacancies: {
     newVacancy: 'Nueva Vacante',

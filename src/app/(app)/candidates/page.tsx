@@ -1422,11 +1422,11 @@ export default function CandidatesPage() {
 
   function checkCandidateLimit(): boolean {
     if (candidates.length >= planLimits.candidates) {
-      const limit = planLimits.candidates === Infinity ? '' : `(${planLimits.candidates} candidatos)`
+      const limitStr = planLimits.candidates === Infinity ? '' : String(planLimits.candidates)
       setLimitToast(
         planLimits.candidates === Infinity
-          ? 'Límite alcanzado.'
-          : `Límite de tu plan alcanzado ${limit}. Actualizá para agregar más candidatos.`
+          ? t.candidates.planLimitReached
+          : t.candidates.planLimitReachedSub.replace('{limit}', limitStr)
       )
       return true
     }
