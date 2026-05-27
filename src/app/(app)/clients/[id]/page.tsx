@@ -575,9 +575,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="min-h-full flex flex-col items-center justify-center gap-4 p-8" style={{ background: 'var(--bg)' }}>
         <AlertCircle className="h-12 w-12" style={{ color: 'var(--muted)' }} />
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Cliente no encontrado</h2>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.clients.detail.notFound}</h2>
         <Button onClick={() => router.push('/clients')} style={{ background: 'var(--accent)', color: '#fff' }}>
-          Volver a Clientes
+          {t.clients.detail.backToClients}
         </Button>
       </div>
     )
@@ -594,7 +594,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         style={{ color: 'var(--muted2)' }}
       >
         <ArrowLeft className="h-4 w-4" />
-        Clientes
+        {t.clients.detail.backToClients}
       </Link>
 
       {/* Header card */}
@@ -695,9 +695,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: 'Vacantes', value: vacancies.length, sub: 'en este cliente', icon: Briefcase },
-          { label: 'Candidatos', value: totalCandidates, sub: 'en total', icon: Users },
-          { label: 'En shortlist', value: shortlisted, sub: 'en etapas finales', icon: Building2 },
+          { label: t.clients.stats.vacancies, value: vacancies.length, sub: t.clients.stats.vacanciesSub, icon: Briefcase },
+          { label: t.clients.stats.candidates, value: totalCandidates, sub: t.clients.stats.candidatesSub, icon: Users },
+          { label: t.clients.stats.shortlisted, value: shortlisted, sub: t.clients.stats.shortlistedSub, icon: Building2 },
         ].map(kpi => (
           <div
             key={kpi.label}

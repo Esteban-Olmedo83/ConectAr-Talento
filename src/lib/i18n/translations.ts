@@ -365,7 +365,14 @@ export interface Translations {
       notes: string
       logo: string
     }
-    stats: { vacancies: string; candidates: string; shortlisted: string }
+    stats: {
+      vacancies: string
+      vacanciesSub: string
+      candidates: string
+      candidatesSub: string
+      shortlisted: string
+      shortlistedSub: string
+    }
     noClients: string
     noClientsSub: string
     dialog: { createTitle: string; editTitle: string }
@@ -377,6 +384,8 @@ export interface Translations {
       noCandidates: string
       noHistory: string
       pipeline: string
+      backToClients: string
+      notFound: string
     }
   }
   reports: {
@@ -806,8 +815,11 @@ const enFull: Translations = {
     },
     stats: {
       vacancies: 'Vacancies',
+      vacanciesSub: 'for this client',
       candidates: 'Candidates',
+      candidatesSub: 'total',
       shortlisted: 'Shortlisted',
+      shortlistedSub: 'in final stages',
     },
     noClients: 'No clients yet',
     noClientsSub: 'Add your first client to start managing processes.',
@@ -820,6 +832,8 @@ const enFull: Translations = {
       noCandidates: 'No candidates for this client.',
       noHistory: 'No history recorded.',
       pipeline: 'Pipeline',
+      backToClients: 'Back to Clients',
+      notFound: 'Client not found',
     },
   },
   reports: {
@@ -1299,8 +1313,11 @@ const es: Translations = {
     },
     stats: {
       vacancies: 'Vacantes',
+      vacanciesSub: 'en este cliente',
       candidates: 'Candidatos',
-      shortlisted: 'Preseleccionados',
+      candidatesSub: 'en total',
+      shortlisted: 'En shortlist',
+      shortlistedSub: 'en etapas finales',
     },
     noClients: 'Sin clientes aún',
     noClientsSub: 'Agregá tu primer cliente para empezar a gestionar procesos.',
@@ -1313,6 +1330,8 @@ const es: Translations = {
       noCandidates: 'Sin candidatos para este cliente.',
       noHistory: 'Sin historial registrado.',
       pipeline: 'Pipeline',
+      backToClients: 'Volver a Clientes',
+      notFound: 'Cliente no encontrado',
     },
   },
   reports: {

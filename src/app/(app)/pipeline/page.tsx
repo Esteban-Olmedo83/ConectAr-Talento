@@ -144,6 +144,14 @@ function StagePillsBar({
   onSelect: (s: VacancyStatus | 'all') => void
 }) {
   const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <button
@@ -186,7 +194,7 @@ function StagePillsBar({
               transition: 'all 0.15s',
             }}
           >
-            {stage}
+            {stageLabels[stage] ?? stage}
             <span
               style={{
                 display: 'inline-flex',
@@ -1288,6 +1296,15 @@ function ProcessHistoryModal({
   vacancies: Vacancy[]
   onClose: () => void
 }) {
+  const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [apps, setApps] = React.useState<Application[]>([])
   const [interviews, setInterviews] = React.useState<Interview[]>([])
@@ -1478,7 +1495,7 @@ function ProcessHistoryModal({
                               </p>
                             </div>
                             <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, background: `${stageColor}22`, color: stageColor, border: `1px solid ${stageColor}44` }}>
-                              {app.status}
+                              {stageLabels[app.status] ?? app.status}
                             </span>
                           </div>
                           {appInterviews.length > 0 && (
@@ -1619,6 +1636,14 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
   const c = app.candidate
   if (!c) return null
   const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   const [hovered, setHovered] = React.useState(false)
   const pointerStart = React.useRef<{ x: number; y: number } | null>(null)
   const pointerMoved = React.useRef(false)
@@ -2190,7 +2215,7 @@ function ProcessDetailModal({
               }}
             >
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
-              {app.status}
+              {stageLabels[app.status] ?? app.status}
             </span>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>
               {daysSince === 0 ? 'Ingresó hoy' : `Hace ${daysSince} día${daysSince !== 1 ? 's' : ''}`}
@@ -2292,6 +2317,14 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
   const c = app.candidate
   if (!c) return null
   const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   const [hovered, setHovered] = React.useState(false)
 
   const stageColor = STAGE_COLORS[app.status]
@@ -2352,7 +2385,7 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
       {/* Stage pill */}
       <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: `${stageColor}18`, color: stageColor, border: `1px solid ${stageColor}30`, whiteSpace: 'nowrap' }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: stageColor, display: 'inline-block' }} />
-        {app.status}
+        {stageLabels[app.status] ?? app.status}
       </span>
 
       {/* Interview date */}
@@ -2433,6 +2466,7 @@ function ClientSection({
   onDecide: (appId: string, action: DecisionAction) => void
   interviewsByCandidate: Map<string, string>
 }) {
+  const { t } = useLanguage()
   const [collapsed, setCollapsed] = React.useState(false)
 
   const counts = React.useMemo(() => {
@@ -2442,12 +2476,12 @@ function ClientSection({
   }, [apps])
 
   const STAGE_SHORT: Record<VacancyStatus, string> = {
-    'Nuevas Vacantes': 'Nuevas',
-    'En Proceso': 'En Proceso',
-    'Entrevistas': 'Entrevistas',
-    'Oferta Enviada': 'Oferta',
-    'Contratado': 'Contratado',
-    'Descartado': 'Descartado',
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
   }
 
   return (
@@ -2658,6 +2692,15 @@ function CloseVacancyRemainingDialog({
   onClose: () => void
   onDone: () => void
 }) {
+  const { t } = useLanguage()
+  const stageLabels: Record<string, string> = {
+    'Nuevas Vacantes': t.stages.newVacancies,
+    'En Proceso': t.stages.inProcess,
+    'Entrevistas': t.stages.interviews,
+    'Oferta Enviada': t.stages.offerSent,
+    'Contratado': t.stages.hired,
+    'Descartado': t.stages.discarded,
+  }
   type AppState = { reason: RejectionReason | ''; note: string }
   const [appStates, setAppStates] = React.useState<Record<string, AppState>>(() =>
     Object.fromEntries(remainingApps.map(a => [a.id, { reason: '', note: '' }]))
@@ -2768,7 +2811,7 @@ function CloseVacancyRemainingDialog({
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.fullName ?? '—'}</p>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${sc}22`, color: sc, border: `1px solid ${sc}44` }}>{app.status}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 99, background: `${sc}22`, color: sc, border: `1px solid ${sc}44` }}>{stageLabels[app.status] ?? app.status}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
