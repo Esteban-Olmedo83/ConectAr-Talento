@@ -324,6 +324,15 @@ export interface Translations {
     photoOptional: string
     photoExtracted: string
     photoAttached: string
+    photoUploadError: string
+    photoNetworkError: string
+    cvNetworkError: string
+    placeholderFullName: string
+    placeholderYears: string
+    placeholderScoreAuto: string
+    placeholderInterviewNotes: string
+    placeholderInterviewerName: string
+    placeholderEducation: string
   }
   vacancies: {
     newVacancy: string
@@ -811,6 +820,15 @@ const enFull: Translations = {
     photoOptional: 'Optional · JPG, PNG or WebP',
     photoExtracted: '✨ Extracted from CV by AI',
     photoAttached: 'Photo attached to profile',
+    photoUploadError: 'Error uploading photo',
+    photoNetworkError: 'Network error uploading photo.',
+    cvNetworkError: 'Network error. Check your connection and try again.',
+    placeholderFullName: 'Full name',
+    placeholderYears: 'Years',
+    placeholderScoreAuto: 'Auto if CV analyzed',
+    placeholderInterviewNotes: 'Topics to cover, required preparation...',
+    placeholderInterviewerName: 'Name',
+    placeholderEducation: 'B.Sc. in Computer Science',
   },
   vacancies: {
     newVacancy: 'New Vacancy',
@@ -1387,6 +1405,15 @@ const es: Translations = {
     photoOptional: 'Opcional · JPG, PNG o WebP',
     photoExtracted: '✨ Extraída del CV por IA',
     photoAttached: 'Foto adjunta al perfil',
+    photoUploadError: 'Error al subir la foto',
+    photoNetworkError: 'Error de red al subir la foto.',
+    cvNetworkError: 'Error de red. Verificá tu conexión e intentá de nuevo.',
+    placeholderFullName: 'Nombre completo',
+    placeholderYears: 'Años',
+    placeholderScoreAuto: 'Auto si analizás CV',
+    placeholderInterviewNotes: 'Temas a tratar, preparación necesaria...',
+    placeholderInterviewerName: 'Nombre',
+    placeholderEducation: 'Lic. en Ciencias de la Computación',
   },
   vacancies: {
     newVacancy: 'Nueva Vacante',

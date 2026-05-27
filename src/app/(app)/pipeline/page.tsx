@@ -2687,7 +2687,7 @@ function RejectReasonDialog({
               fontSize: 13, fontWeight: 600, cursor: reason ? 'pointer' : 'not-allowed',
             }}
           >
-            {saving ? 'Guardando…' : t.pipeline.rejectModal.send}
+            {saving ? t.common.loading : t.pipeline.rejectModal.send}
           </button>
         </div>
       </div>
@@ -2824,7 +2824,7 @@ function CloseVacancyRemainingDialog({
         {/* Candidate list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {remainingApps.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>No hay otros candidatos en este proceso.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>{t.pipeline.noOtherCandidates}</p>
           ) : (
             remainingApps.map(app => {
               const c = app.candidate
@@ -2848,7 +2848,7 @@ function CloseVacancyRemainingDialog({
                       style={{ ...inputStyle, flex: 1, minWidth: 160 }}
                     >
                       <option value="">Sin cambio de estado</option>
-                      {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      {REJECTION_REASONS.map(r => <option key={r.value} value={r.value}>{rejectionLabels[r.value] ?? r.label}</option>)}
                     </select>
                     <input
                       placeholder="Nota (opcional)"
