@@ -590,6 +590,7 @@ function ActiveClientCard({
   onDelete: () => void
   onDeactivate: () => void
 }) {
+  const { t } = useLanguage()
   const [menuOpen, setMenuOpen] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -696,7 +697,7 @@ function ActiveClientCard({
             {vacancyCount}
           </span>
           <span className="text-xs" style={{ color: 'var(--muted)' }}>
-            {vacancyCount === 1 ? 'vacante activa' : 'vacantes activas'}
+            {vacancyCount === 1 ? t.clients.vacancyBadgeSingular : t.clients.vacancyBadgePlural}
           </span>
         </div>
 
@@ -1109,10 +1110,10 @@ export default function ClientsPage() {
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-            Clientes
+            {t.pageTitles.clients}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
-            Empresas para las que gestionás procesos de selección
+            {t.clients.pageSubtitle}
           </p>
         </div>
         {activeTab === 'active' && (
@@ -1190,10 +1191,10 @@ export default function ClientsPage() {
       {activeTab === 'active' && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Clientes activos', value: totalActive, sub: `de ${limits.clients === Infinity ? '∞' : limits.clients} en tu plan` },
-            { label: 'Con vacantes abiertas', value: clientsWithVacancy, sub: 'tienen procesos activos' },
-            { label: 'Vacantes asignadas', value: totalActiveVacancies, sub: 'vinculadas a un cliente' },
-            { label: 'Con candidatos en proceso', value: clientsWithCandidates, sub: 'con postulantes activos' },
+            { label: t.clients.kpis.active, value: totalActive, sub: t.clients.kpis.activeSub.replace('{n}', limits.clients === Infinity ? '∞' : String(limits.clients)) },
+            { label: t.clients.kpis.withVacancies, value: clientsWithVacancy, sub: t.clients.kpis.withVacanciesSub },
+            { label: t.clients.kpis.assignedVacancies, value: totalActiveVacancies, sub: t.clients.kpis.assignedVacanciesSub },
+            { label: t.clients.kpis.withCandidates, value: clientsWithCandidates, sub: t.clients.kpis.withCandidatesSub },
           ].map(kpi => (
             <div
               key={kpi.label}
@@ -1248,7 +1249,7 @@ export default function ClientsPage() {
             </h3>
             <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
               {search
-                ? 'Probá con otro término de búsqueda.'
+                ? t.clients.noClientsSearch
                 : t.clients.noClientsSub}
             </p>
             {!search && !atLimit && (
@@ -1281,12 +1282,12 @@ export default function ClientsPage() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Clock className="h-12 w-12 mb-4" style={{ color: 'var(--muted)' }} />
             <h3 className="font-semibold text-lg mb-1" style={{ color: 'var(--text)' }}>
-              {search ? 'Sin resultados' : 'No hay clientes inactivos en el historial'}
+              {search ? t.common.noResults : t.clients.noInactiveClients}
             </h3>
             <p className="text-sm max-w-xs" style={{ color: 'var(--muted)' }}>
               {search
-                ? 'Probá con otro término de búsqueda.'
-                : 'Los clientes desactivados aparecerán aquí con su historial de eventos.'}
+                ? t.clients.noClientsSearch
+                : t.clients.noInactiveClientsSub}
             </p>
           </div>
         ) : (

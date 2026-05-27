@@ -1144,6 +1144,7 @@ function NotesModal({
   onClose: () => void
   onSaved?: (notes: string) => void
 }) {
+  const { t } = useLanguage()
   const { style: dragStyle, headerStyle, onMouseDown } = useDraggable()
   const [notes, setNotes] = React.useState(candidate.notes ?? '')
   const [saving, setSaving] = React.useState(false)

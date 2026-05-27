@@ -196,6 +196,17 @@ export interface Translations {
     closeVacancy: { title: string; confirm: string; cancel: string }
     candidatesCount: string
     interviewScheduled: string
+    rejectionReasons: {
+      doesntMeetProfile: string
+      betterCandidateSelected: string
+      candidateDeclined: string
+      salaryMismatch: string
+      companyDecision: string
+      other: string
+    }
+    noOtherCandidates: string
+    saveNotes: string
+    notesSaved: string
   }
   candidates: {
     addCandidate: string
@@ -221,6 +232,23 @@ export interface Translations {
       vacancy: string
       status: string
     }
+    kpis: {
+      total: string
+      withAI: string
+      aiSub: string
+      avgScore: string
+      avgScoreSub: string
+      thisWeek: string
+    }
+    pageSubtitle: string
+    pageSubtitleFiltered: string
+    dragCV: string
+    dragCVSub: string
+    scoreLabels: { excellent: string; good: string; fair: string; low: string }
+    scoreFilter: { excellent: string; good: string; fair: string }
+    actionsColumn: string
+    hoursAgo: string
+    daysAgoShort: string
     noResults: string
     noResultsSub: string
     addFirst: string
@@ -284,6 +312,13 @@ export interface Translations {
     }
     modalities: { hybrid: string; remote: string; presencial: string }
     actions: { viewPipeline: string; assign: string; edit: string; delete: string }
+    pageSub: string
+    createdToday: string
+    openFor: string
+    assignCandidatesTitle: string
+    noResultsAssign: string
+    noCandidatesDB: string
+    emptyStateSub: string
     noVacancies: string
     noVacanciesSub: string
     dialog: { createTitle: string; editTitle: string; save: string }
@@ -354,6 +389,22 @@ export interface Translations {
   clients: {
     addClient: string
     searchPlaceholder: string
+    pageSubtitle: string
+    kpis: {
+      active: string
+      activeSub: string
+      withVacancies: string
+      withVacanciesSub: string
+      assignedVacancies: string
+      assignedVacanciesSub: string
+      withCandidates: string
+      withCandidatesSub: string
+    }
+    vacancyBadgeSingular: string
+    vacancyBadgePlural: string
+    noClientsSearch: string
+    noInactiveClients: string
+    noInactiveClientsSub: string
     tabs: { active: string; inactive: string }
     fields: {
       company: string
@@ -600,10 +651,38 @@ const enFull: Translations = {
     },
     candidatesCount: 'candidates',
     interviewScheduled: 'Interview scheduled',
+    rejectionReasons: {
+      doesntMeetProfile: "Doesn't meet the profile",
+      betterCandidateSelected: 'Better candidate selected',
+      candidateDeclined: 'Candidate declined',
+      salaryMismatch: 'Salary mismatch',
+      companyDecision: 'Company decision',
+      other: 'Other reason',
+    },
+    noOtherCandidates: 'No other candidates in this process.',
+    saveNotes: 'Save notes',
+    notesSaved: 'Saved',
   },
   candidates: {
     addCandidate: 'Add Candidate',
     searchPlaceholder: 'Search by name or email...',
+    kpis: {
+      total: 'Total Candidates',
+      withAI: 'AI-analyzed CVs',
+      aiSub: '{n}% of total',
+      avgScore: 'Average Score',
+      avgScoreSub: 'out of 100',
+      thisWeek: 'This Week',
+    },
+    pageSubtitle: '{n} candidates in the database',
+    pageSubtitleFiltered: '{n} candidates found',
+    dragCV: 'Drag a CV here or click to select',
+    dragCVSub: 'PDF or TXT · AI extracts name, skills and calculates ATS score · File attached to the record',
+    scoreLabels: { excellent: 'Excellent', good: 'Good', fair: 'Fair', low: 'Low' },
+    scoreFilter: { excellent: 'Excellent (80+)', good: 'Good (60-79)', fair: 'Fair (40-59)' },
+    actionsColumn: 'Actions',
+    hoursAgo: '{n}h ago',
+    daysAgoShort: '{n}d ago',
     filters: {
       allSources: 'All sources',
       allScores: 'All scores',
@@ -703,6 +782,13 @@ const enFull: Translations = {
       edit: 'Edit',
       delete: 'Delete',
     },
+    pageSub: '{n} open vacancies',
+    createdToday: 'Created today',
+    openFor: 'Open for {n} day(s)',
+    assignCandidatesTitle: 'Assign candidates',
+    noResultsAssign: 'No results',
+    noCandidatesDB: 'No candidates in the database',
+    emptyStateSub: 'Post a vacancy and start receiving candidates today.',
     noVacancies: 'Create your first search',
     noVacanciesSub: 'Post a vacancy and start receiving candidates today.',
     dialog: { createTitle: 'New Vacancy', editTitle: 'Edit Vacancy', save: 'Save' },
@@ -802,6 +888,22 @@ const enFull: Translations = {
   clients: {
     addClient: 'Add Client',
     searchPlaceholder: 'Search clients...',
+    pageSubtitle: 'Companies for which you manage selection processes',
+    kpis: {
+      active: 'Active Clients',
+      activeSub: 'of {n} in your plan',
+      withVacancies: 'With open vacancies',
+      withVacanciesSub: 'with active processes',
+      assignedVacancies: 'Assigned vacancies',
+      assignedVacanciesSub: 'linked to a client',
+      withCandidates: 'With candidates in process',
+      withCandidatesSub: 'with active applicants',
+    },
+    vacancyBadgeSingular: 'active vacancy',
+    vacancyBadgePlural: 'active vacancies',
+    noClientsSearch: 'Try a different search term.',
+    noInactiveClients: 'No inactive clients in history',
+    noInactiveClientsSub: 'Deactivated clients will appear here with their event history.',
     tabs: { active: 'Active', inactive: 'Inactive' },
     fields: {
       company: 'Company',
@@ -1098,10 +1200,38 @@ const es: Translations = {
     },
     candidatesCount: 'candidatos',
     interviewScheduled: 'Entrevista agendada',
+    rejectionReasons: {
+      doesntMeetProfile: 'No cumple el perfil',
+      betterCandidateSelected: 'Mejor candidato seleccionado',
+      candidateDeclined: 'Candidato declinó',
+      salaryMismatch: 'Fuera de rango salarial',
+      companyDecision: 'Decisión empresarial',
+      other: 'Otro motivo',
+    },
+    noOtherCandidates: 'No hay otros candidatos en este proceso.',
+    saveNotes: 'Guardar notas',
+    notesSaved: 'Guardado',
   },
   candidates: {
     addCandidate: 'Agregar Candidato',
     searchPlaceholder: 'Buscar por nombre o email...',
+    kpis: {
+      total: 'Total Candidatos',
+      withAI: 'CVs con IA',
+      aiSub: '{n}% del total',
+      avgScore: 'Score Promedio',
+      avgScoreSub: 'sobre 100',
+      thisWeek: 'Esta Semana',
+    },
+    pageSubtitle: '{n} candidatos en la base de datos',
+    pageSubtitleFiltered: '{n} candidatos encontrados',
+    dragCV: 'Arrastrá un CV aquí o hacé clic para seleccionar',
+    dragCVSub: 'PDF o TXT · La IA extrae nombre, skills y calcula score ATS · El archivo queda adjunto en la ficha',
+    scoreLabels: { excellent: 'Excelente', good: 'Bueno', fair: 'Regular', low: 'Bajo' },
+    scoreFilter: { excellent: 'Excelente (80+)', good: 'Bueno (60-79)', fair: 'Regular (40-59)' },
+    actionsColumn: 'Acciones',
+    hoursAgo: 'hace {n}h',
+    daysAgoShort: 'hace {n}d',
     filters: {
       allSources: 'Todas las fuentes',
       allScores: 'Todos los scores',
@@ -1201,6 +1331,13 @@ const es: Translations = {
       edit: 'Editar',
       delete: 'Eliminar',
     },
+    pageSub: '{n} vacantes abiertas',
+    createdToday: 'Creada hoy',
+    openFor: 'Abierta hace {n} día(s)',
+    assignCandidatesTitle: 'Asignar candidatos',
+    noResultsAssign: 'Sin resultados',
+    noCandidatesDB: 'No hay candidatos en la base de datos',
+    emptyStateSub: 'Publicá una vacante y empezá a recibir candidatos hoy.',
     noVacancies: 'Creá tu primera búsqueda',
     noVacanciesSub: 'Publicá una vacante y empezá a recibir candidatos hoy.',
     dialog: { createTitle: 'Nueva vacante', editTitle: 'Editar vacante', save: 'Guardar' },
@@ -1300,6 +1437,22 @@ const es: Translations = {
   clients: {
     addClient: 'Agregar Cliente',
     searchPlaceholder: 'Buscar clientes...',
+    pageSubtitle: 'Empresas para las que gestionás procesos de selección',
+    kpis: {
+      active: 'Clientes activos',
+      activeSub: 'de {n} en tu plan',
+      withVacancies: 'Con vacantes abiertas',
+      withVacanciesSub: 'tienen procesos activos',
+      assignedVacancies: 'Vacantes asignadas',
+      assignedVacanciesSub: 'vinculadas a un cliente',
+      withCandidates: 'Con candidatos en proceso',
+      withCandidatesSub: 'con postulantes activos',
+    },
+    vacancyBadgeSingular: 'vacante activa',
+    vacancyBadgePlural: 'vacantes activas',
+    noClientsSearch: 'Probá con otro término de búsqueda.',
+    noInactiveClients: 'Sin clientes inactivos en el historial',
+    noInactiveClientsSub: 'Los clientes desactivados aparecerán aquí con su historial de eventos.',
     tabs: { active: 'Activos', inactive: 'Inactivos' },
     fields: {
       company: 'Empresa',

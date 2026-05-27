@@ -20,6 +20,7 @@ import { useLanguage } from '@/lib/context/language-context'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
+  const { t } = useLanguage()
   if (score === undefined) return <span className="text-xs" style={{ color: 'var(--muted)' }}>—</span>
   const bg =
     score >= 85 ? 'rgba(52,211,153,0.15)' :
@@ -31,7 +32,11 @@ function ScoreBadge({ score }: { score?: number }) {
     score >= 70 ? '#34d399' :
     score >= 50 ? '#fbbf24' :
     '#ef4444'
-  const label = score >= 85 ? 'Excelente' : score >= 70 ? 'Bueno' : score >= 50 ? 'Regular' : 'Bajo'
+  const label =
+    score >= 85 ? t.candidates.scoreLabels.excellent :
+    score >= 70 ? t.candidates.scoreLabels.good :
+    score >= 50 ? t.candidates.scoreLabels.fair :
+    t.candidates.scoreLabels.low
   return (
     <div
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -1197,6 +1202,7 @@ function AddCandidateDialog({
 
 // ─── CV Analyzer Drop Zone ────────────────────────────────────────────────────
 function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; clients: import('@/types').Client[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
+  const { t } = useLanguage()
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -1290,9 +1296,9 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
             {status === 'analyzing' ? 'Subiendo y analizando CV con IA...' :
              status === 'done' ? '¡CV analizado! Abriendo formulario...' :
              status === 'error' ? (errorMsg || 'Error al analizar. Intentá de nuevo.') :
-             'Arrastrá un CV aquí o hacé clic para seleccionar'}
+             t.candidates.dragCV}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>PDF o TXT · La IA extrae nombre, skills y calcula score ATS · El archivo queda adjunto en la ficha</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{t.candidates.dragCVSub}</p>
         </div>
         <div className="ml-auto">
           <span
@@ -1461,8 +1467,8 @@ export default function CandidatesPage() {
           <h1 className="text-xl font-bold text-foreground">{t.nav.candidates}</h1>
           <p className="text-sm text-muted-foreground">
             {filterClient !== 'all' || filterScore !== 'all' || filterSource !== 'all' || search
-              ? `${kpis.total} candidatos encontrados`
-              : `${kpis.total} candidatos en la base de datos`}
+              ? t.candidates.pageSubtitleFiltered.replace('{n}', String(kpis.total))
+              : t.candidates.pageSubtitle.replace('{n}', String(kpis.total))}
           </p>
         </div>
         <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
@@ -1472,10 +1478,10 @@ export default function CandidatesPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={Users} label="Total Candidatos" value={kpis.total} accentColor="var(--accent)" />
-        <KpiCard icon={Brain} label="CVs con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} accentColor="var(--accent-2)" />
-        <KpiCard icon={TrendingUp} label="Score Promedio" value={kpis.avgScore} sub="sobre 100" accentColor="#34d399" />
-        <KpiCard icon={Clock} label="Esta Semana" value={kpis.newThisWeek} accentColor="#fbbf24" />
+        <KpiCard icon={Users} label={t.candidates.kpis.total} value={kpis.total} accentColor="var(--accent)" />
+        <KpiCard icon={Brain} label={t.candidates.kpis.withAI} value={kpis.withScore} sub={t.candidates.kpis.aiSub.replace('{n}', String(kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0))} accentColor="var(--accent-2)" />
+        <KpiCard icon={TrendingUp} label={t.candidates.kpis.avgScore} value={kpis.avgScore} sub={t.candidates.kpis.avgScoreSub} accentColor="#34d399" />
+        <KpiCard icon={Clock} label={t.candidates.kpis.thisWeek} value={kpis.newThisWeek} accentColor="#fbbf24" />
       </div>
 
       {/* CV Drop Zone */}
@@ -1496,10 +1502,10 @@ export default function CandidatesPage() {
           <select value={filterScore} onChange={e => setFilterScore(e.target.value)}
             className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
             <option value="all">{t.candidates.filters.allScores}</option>
-            <option value="80+">Excelente (80+)</option>
-            <option value="60-79">Bueno (60-79)</option>
-            <option value="40-59">Regular (40-59)</option>
-            <option value="<40">Bajo (&lt;40)</option>
+            <option value="80+">{t.candidates.scoreFilter.excellent}</option>
+            <option value="60-79">{t.candidates.scoreFilter.good}</option>
+            <option value="40-59">{t.candidates.scoreFilter.fair}</option>
+            <option value="<40">{t.candidates.scoreLabels.low} (&lt;40)</option>
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         </div>
@@ -1558,7 +1564,7 @@ export default function CandidatesPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden md:table-cell">{t.candidates.columns.skills}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.source}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.date}</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Acciones</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">{t.candidates.actionsColumn}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
