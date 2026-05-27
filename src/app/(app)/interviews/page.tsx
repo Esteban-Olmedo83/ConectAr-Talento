@@ -147,14 +147,14 @@ function SchedulerModal({
           <div>
             <label className={labelCls}>{t.interviews.form.candidate} *</label>
             <select required value={form.candidateId} onChange={e => setForm(f => ({...f, candidateId: e.target.value}))} className={inputCls}>
-              <option value="">Seleccioná un candidato</option>
+              <option value="">{t.interviews.form.candidate}</option>
               {candidates.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
             </select>
           </div>
           <div>
             <label className={labelCls}>{t.pipeline.interviewForm.vacancy}</label>
             <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
-              <option value="">Sin vacante asignada</option>
+              <option value="">{t.pipeline.interviewForm.noVacancy}</option>
               {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
             </select>
           </div>
@@ -162,16 +162,19 @@ function SchedulerModal({
             <div>
               <label className={labelCls}>{t.pipeline.interviewForm.type}</label>
               <select value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value as InterviewType}))} className={inputCls}>
-                <option>RRHH</option><option>Técnica</option><option>Con Hiring Manager</option><option>Cultural</option>
+                <option value="RRHH">{t.interviews.types.rrhh}</option>
+                <option value="Técnica">{t.interviews.types.technical}</option>
+                <option value="Con Hiring Manager">{t.interviews.types.hiring}</option>
+                <option value="Cultural">{t.interviews.types.cultural}</option>
               </select>
             </div>
             <div>
               <label className={labelCls}>{t.pipeline.interviewForm.platform}</label>
               <select value={form.platform} onChange={e => setForm(f => ({...f, platform: e.target.value as MeetingPlatform}))} className={inputCls}>
-                <option value="google_meet">Google Meet</option>
-                <option value="zoom">Zoom</option>
-                <option value="teams">Teams</option>
-                <option value="presencial">Presencial</option>
+                <option value="google_meet">{t.interviews.platforms.meet}</option>
+                <option value="zoom">{t.interviews.platforms.zoom}</option>
+                <option value="teams">{t.interviews.platforms.teams}</option>
+                <option value="presencial">{t.interviews.platforms.presencial}</option>
               </select>
             </div>
           </div>
@@ -880,19 +883,19 @@ function InterviewDetailModal({
                 <div>
                   <label className={labelCls}>{t.pipeline.interviewForm.type}</label>
                   <select value={type} onChange={e => setType(e.target.value as InterviewType)} className={inputCls}>
-                    <option>RRHH</option>
-                    <option>Técnica</option>
-                    <option>Con Hiring Manager</option>
-                    <option>Cultural</option>
+                    <option value="RRHH">{t.interviews.types.rrhh}</option>
+                    <option value="Técnica">{t.interviews.types.technical}</option>
+                    <option value="Con Hiring Manager">{t.interviews.types.hiring}</option>
+                    <option value="Cultural">{t.interviews.types.cultural}</option>
                   </select>
                 </div>
                 <div>
                   <label className={labelCls}>{t.pipeline.interviewForm.platform}</label>
                   <select value={platform} onChange={e => setPlatform(e.target.value as MeetingPlatform)} className={inputCls}>
-                    <option value="google_meet">Google Meet</option>
-                    <option value="zoom">Zoom</option>
-                    <option value="teams">Teams</option>
-                    <option value="presencial">Presencial</option>
+                    <option value="google_meet">{t.interviews.platforms.meet}</option>
+                    <option value="zoom">{t.interviews.platforms.zoom}</option>
+                    <option value="teams">{t.interviews.platforms.teams}</option>
+                    <option value="presencial">{t.interviews.platforms.presencial}</option>
                   </select>
                 </div>
               </div>
@@ -978,7 +981,7 @@ function InterviewCard({
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div>
                 <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{candidate?.fullName ?? 'Candidato'}</p>
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>{vacancy?.title ?? 'Sin vacante'}</p>
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>{vacancy?.title ?? t.pipeline.interviewForm.noVacancy}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium border"
@@ -1081,7 +1084,7 @@ function InterviewCard({
         onClose={() => setShowDetail(false)}
         interview={interview}
         candidateName={candidate?.fullName ?? 'Candidato'}
-        vacancyTitle={vacancy?.title ?? 'Sin vacante'}
+        vacancyTitle={vacancy?.title ?? t.pipeline.interviewForm.noVacancy}
         onUpdated={i => { onComplete(i); setShowDetail(false) }}
         onOpenScorecard={candidate ? () => { setShowDetail(false); setScorecardReadOnly(false); setShowScorecard(true) } : undefined}
       />
@@ -1292,6 +1295,7 @@ function VacancyInterviewGroup({
   onDecide: (candidateId: string, vacancyId: string, action: DecisionAction) => void
   appByCandidateVacancy: Map<string, Application>
 }) {
+  const { t } = useLanguage()
   const totalInterviews = Array.from(candidateGroups.values()).reduce((s, a) => s + a.length, 0)
   const pending = Array.from(candidateGroups.values()).flat().filter(i => i.status === 'Programada').length
 
@@ -1305,7 +1309,7 @@ function VacancyInterviewGroup({
             <Users className="h-4 w-4" style={{ color: 'var(--accent-2)' }} />
           </div>
           <div>
-            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{vacancy?.title ?? 'Sin vacante'}</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{vacancy?.title ?? t.pipeline.interviewForm.noVacancy}</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
               {candidateGroups.size} candidato{candidateGroups.size !== 1 ? 's' : ''}
               {' · '}{totalInterviews} entrevista{totalInterviews !== 1 ? 's' : ''}

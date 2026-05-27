@@ -622,6 +622,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
   onAssign: () => void
   onViewSummary: () => void
 }) {
+  const { t } = useLanguage()
   const isClosed = vacancy.status === 'Contratado'
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
@@ -718,11 +719,11 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
             <Clock className="h-3 w-3" />
             {isClosed && vacancy.closingDate
               ? `Cerrada: ${new Date(vacancy.closingDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })}`
-              : days === 0 ? 'Creada hoy' : `Abierta hace ${days} día${days !== 1 ? 's' : ''}`}
+              : days === 0 ? t.vacancies.createdToday : t.vacancies.openFor.replace('{n}', String(days))}
           </span>
           <span className="flex items-center gap-1">
             <Users className="h-3 w-3" />
-            {vacancy.applications.length} candidato{vacancy.applications.length !== 1 ? 's' : ''}
+            {vacancy.applications.length} {t.vacancies.candidates}
           </span>
         </div>
 
@@ -741,10 +742,10 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
           ) : (
             <>
               <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
-                Ver procesos
+                {t.vacancies.actions.viewPipeline}
               </Button>
               <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
-                <UserPlus className="h-3 w-3" /> Asignar
+                <UserPlus className="h-3 w-3" /> {t.vacancies.actions.assign}
               </Button>
             </>
           )}
@@ -786,6 +787,7 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
   onAssigned: (vacancyId: string, newCount: number) => void
 }) {
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const [candidates, setCandidates] = React.useState<Candidate[]>([])
@@ -849,7 +851,7 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>Asignar candidatos</p>
+            <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{t.vacancies.assignCandidatesTitle}</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{vacancy.title}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface2)] transition-colors" style={{ color: 'var(--muted)' }}>
@@ -882,7 +884,7 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <Users className="h-8 w-8 mb-2" style={{ color: 'var(--muted)' }} />
               <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                {search ? 'Sin resultados' : 'No hay candidatos en la base de datos'}
+                {search ? t.vacancies.noResultsAssign : t.vacancies.noCandidatesDB}
               </p>
             </div>
           ) : (
@@ -945,7 +947,7 @@ function AssignCandidatesModal({ vacancy, onClose, onAssigned }: {
                       style={{ background: 'var(--accent)', color: '#fff' }}
                     >
                       {isAssigning ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                      Asignar
+                      {t.vacancies.actions.assign}
                     </button>
                   )}
                 </div>
@@ -996,6 +998,7 @@ export default function VacanciesPage() {
   const [summaryVacancy, setSummaryVacancy] = React.useState<Vacancy | undefined>()
 
   const { user } = useUser()
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   const load = React.useCallback(async () => {
@@ -1110,21 +1113,21 @@ export default function VacanciesPage() {
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Gestión de Vacantes</h1>
-          <p className="text-sm text-muted-foreground">{kpis.open} vacantes abiertas</p>
+          <h1 className="text-xl font-bold text-foreground">{t.pageTitles.vacancies}</h1>
+          <p className="text-sm text-muted-foreground">{t.vacancies.pageSub.replace('{n}', String(kpis.open))}</p>
         </div>
         <Button onClick={openNewVacancyForm} className="gap-1.5 shrink-0">
-          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Vacante</span><span className="sm:hidden">Nueva</span>
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">{t.vacancies.newVacancy}</span><span className="sm:hidden">{t.vacancies.newVacancy}</span>
         </Button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { icon: Briefcase, label: 'Total Vacantes', value: kpis.total, accentColor: 'var(--accent)' },
-          { icon: Globe, label: 'Abiertas', value: kpis.open, accentColor: '#34d399' },
-          { icon: Users, label: 'Candidatos Totales', value: kpis.totalCandidates, accentColor: 'var(--accent-2)' },
-          { icon: Clock, label: 'Días Promedio Abierta', value: `${kpis.avgDays}d`, accentColor: '#fbbf24' },
+          { icon: Briefcase, label: t.vacancies.stats.total, value: kpis.total, accentColor: 'var(--accent)' },
+          { icon: Globe, label: t.vacancies.stats.open, value: kpis.open, accentColor: '#34d399' },
+          { icon: Users, label: t.vacancies.stats.totalCandidates, value: kpis.totalCandidates, accentColor: 'var(--accent-2)' },
+          { icon: Clock, label: t.vacancies.stats.avgDaysOpen, value: `${kpis.avgDays}d`, accentColor: '#fbbf24' },
         ].map(k => (
           <div
             key={k.label}
@@ -1153,12 +1156,12 @@ export default function VacanciesPage() {
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar vacante..." className="pl-8 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring w-full" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.vacancies.searchPlaceholder} className="pl-8 pr-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring w-full" />
         </div>
         {clients.length > 0 && (
           <div className="relative">
             <select value={filterClient} onChange={e => setFilterClient(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-              <option value="all">Todos los clientes</option>
+              <option value="all">{t.vacancies.filters.allClients}</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1166,7 +1169,7 @@ export default function VacanciesPage() {
         )}
         <div className="relative">
           <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
-            <option value="all">Todas las prioridades</option>
+            <option value="all">{t.vacancies.filters.allPriorities}</option>
             <option value="Alta">Alta</option>
             <option value="Media">Media</option>
             <option value="Baja">Baja</option>
@@ -1182,12 +1185,12 @@ export default function VacanciesPage() {
             <Briefcase className="h-8 w-8" style={{ color: 'var(--accent-2)' }} />
           </div>
           <h3 className="font-semibold text-foreground mb-1">
-            {search ? 'No se encontraron vacantes' : 'Creá tu primera búsqueda'}
+            {search ? t.vacancies.noResultsAssign : t.vacancies.noVacancies}
           </h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-4">
-            {search ? 'Probá con otros términos.' : 'Publicá una vacante y empezá a recibir candidatos hoy.'}
+            {search ? t.vacancies.noVacanciesSub : t.vacancies.emptyStateSub}
           </p>
-          {!search && <Button onClick={openNewVacancyForm} className="gap-1.5"><Plus className="h-4 w-4" /> Nueva Vacante</Button>}
+          {!search && <Button onClick={openNewVacancyForm} className="gap-1.5"><Plus className="h-4 w-4" /> {t.vacancies.newVacancy}</Button>}
         </div>
       )}
 

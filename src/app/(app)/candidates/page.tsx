@@ -20,6 +20,7 @@ import { useLanguage } from '@/lib/context/language-context'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score?: number }) {
+  const { t } = useLanguage()
   if (score === undefined) return <span className="text-xs" style={{ color: 'var(--muted)' }}>—</span>
   const bg =
     score >= 85 ? 'rgba(52,211,153,0.15)' :
@@ -31,7 +32,11 @@ function ScoreBadge({ score }: { score?: number }) {
     score >= 70 ? '#34d399' :
     score >= 50 ? '#fbbf24' :
     '#ef4444'
-  const label = score >= 85 ? 'Excelente' : score >= 70 ? 'Bueno' : score >= 50 ? 'Regular' : 'Bajo'
+  const label =
+    score >= 85 ? t.candidates.scoreLabels.excellent :
+    score >= 70 ? t.candidates.scoreLabels.good :
+    score >= 50 ? t.candidates.scoreLabels.fair :
+    t.candidates.scoreLabels.low
   return (
     <div
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -281,7 +286,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={uploadingAvatar}
                   className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  title="Cambiar foto"
+                  title={t.candidates.addDialog.changeAvatar}
                 >
                   {uploadingAvatar
                     ? <span className="text-white text-xs">...</span>
@@ -296,7 +301,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   className={cn(inputEditCls, 'text-base font-bold')}
-                  placeholder="Nombre completo"
+                  placeholder={t.candidates.placeholderFullName}
                 />
               ) : (
                 <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{candidate.fullName}</p>
@@ -358,7 +363,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                   value={editExperience}
                   onChange={e => setEditExperience(e.target.value)}
                   className={inputEditCls}
-                  placeholder="Años"
+                  placeholder={t.candidates.placeholderYears}
                 />
               ) : (
                 <p className={inputCls} style={{ color: 'var(--text)' }}>
@@ -377,7 +382,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {/* Client */}
           <div>
             <label className={labelCls} style={{ color: 'var(--muted)' }}>
-              <Briefcase className="inline h-3 w-3 mr-1" />Cliente
+              <Briefcase className="inline h-3 w-3 mr-1" />{t.candidates.clientLabel}
             </label>
             {editMode && clients && clients.length > 0 ? (
               <select
@@ -385,7 +390,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 onChange={e => setEditClientId(e.target.value)}
                 className={inputEditCls}
               >
-                <option value="">Sin cliente asignado</option>
+                <option value="">{t.candidates.noClientAssigned}</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -409,7 +414,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                   value={editEducation}
                   onChange={e => setEditEducation(e.target.value)}
                   className={inputEditCls}
-                  placeholder="Lic. en Ciencias de la Computación"
+                  placeholder={t.candidates.placeholderEducation}
                 />
               ) : (
                 <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.education}</p>
@@ -457,7 +462,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 <div className="flex items-center gap-2 mb-2">
                   <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
                     className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
-                    {candidate.cvFileName ?? 'Ver CV actual'}
+                    {candidate.cvFileName ?? t.candidates.cvViewCurrent}
                   </a>
                 </div>
               )}
@@ -475,7 +480,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 className="w-full px-3 py-2 text-sm rounded-md border border-dashed text-center transition-colors"
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
               >
-                {uploadingCv ? 'Subiendo...' : candidate.cvUrl ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)'}
+                {uploadingCv ? t.candidates.cvUploading : candidate.cvUrl ? t.candidates.cvChangePdf : t.candidates.cvUploadPdf}
               </button>
             </div>
           ) : candidate.cvUrl ? (
@@ -491,7 +496,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
               >
                 <FileText className="h-3.5 w-3.5" />
-                {candidate.cvFileName || 'Ver CV'}
+                {candidate.cvFileName || t.candidates.cvView}
                 <ExternalLink className="h-3 w-3 ml-auto" />
               </a>
             </div>
@@ -501,11 +506,11 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
           {(loadingProcess || applications.length > 0 || interviews.length > 0) && (
             <div>
               <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Estado del proceso
+                {t.candidates.processStatus}
               </p>
               {loadingProcess ? (
                 <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                  <Loader2 className="h-3 w-3 animate-spin" /> Cargando...
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t.common.loading}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -590,7 +595,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
 
           {/* Dates */}
           <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Agregado {formatRelativeDate(candidate.createdAt)}
+            {t.candidates.addedOn.replace('{date}', formatRelativeDate(candidate.createdAt))}
           </p>
 
           {/* Save error */}
@@ -704,7 +709,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
   return (
     <DraggableModal open={open} onClose={onClose} title={t.pipeline.scheduleInterview} maxWidth="28rem">
         <p className="text-sm text-muted-foreground -mt-1">
-          Candidato: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
+          {t.candidates.candidateLabel}: <strong style={{ color: 'var(--text)' }}>{candidate.fullName}</strong>
         </p>
         {saved ? (
           <div className="flex flex-col items-center gap-3 py-8">
@@ -766,13 +771,13 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
             </div>
             {vacancies.length > 0 && (
               <div>
-                <label className={labelCls}>Vacante</label>
+                <label className={labelCls}>{t.candidates.vacancyLabel}</label>
                 <select
                   value={form.vacancyId}
                   onChange={e => setForm(f => ({ ...f, vacancyId: e.target.value }))}
                   className={inputCls}
                 >
-                  <option value="">Sin vacante específica</option>
+                  <option value="">{t.candidates.noSpecificVacancy}</option>
                   {vacancies.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}
                 </select>
               </div>
@@ -785,7 +790,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
                   value={form.interviewerName}
                   onChange={e => setForm(f => ({ ...f, interviewerName: e.target.value }))}
                   className={inputCls}
-                  placeholder="Nombre"
+                  placeholder={t.candidates.placeholderInterviewerName}
                 />
               </div>
               <div>
@@ -816,7 +821,7 @@ function ScheduleInterviewDialog({ candidate, vacancies, open, onClose, provider
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 className={cn(inputCls, 'resize-none h-16')}
-                placeholder="Temas a tratar, preparación necesaria..."
+                placeholder={t.candidates.placeholderInterviewNotes}
               />
             </div>
             {error && (
@@ -859,16 +864,16 @@ function DeleteConfirmDialog({ candidate, open, onClose, onConfirm, deleting }: 
             {t.candidates.deleteConfirm.message}
           </p>
           <div className="px-3 py-2.5 rounded-lg text-xs space-y-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-            <p className="font-semibold">⚠ Esta acción no se puede deshacer. Se perderán permanentemente:</p>
+            <p className="font-semibold">⚠ {t.candidates.deleteConfirm.message}</p>
             <ul className="ml-3 space-y-0.5 list-disc" style={{ color: 'var(--muted)' }}>
-              <li>El perfil completo del candidato</li>
-              <li>Todas las entrevistas y scorecards asociadas</li>
-              <li>El historial de postulaciones y etapas del proceso</li>
-              <li>Archivos adjuntos (CV, foto de perfil)</li>
+              <li>{t.candidates.deleteConfirm.bulletProfile}</li>
+              <li>{t.candidates.deleteConfirm.bulletInterviews}</li>
+              <li>{t.candidates.deleteConfirm.bulletHistory}</li>
+              <li>{t.candidates.deleteConfirm.bulletFiles}</li>
             </ul>
           </div>
           <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Solo los administradores pueden realizar esta acción.
+            {t.candidates.deleteConfirm.adminOnly}
           </p>
         </div>
         <div className="flex justify-end gap-2 mt-2">
@@ -1005,10 +1010,10 @@ function AddCandidateDialog({
       if (data.ok && data.url) {
         setForm(f => ({ ...f, avatarUrl: data.url! }))
       } else {
-        setAvatarError(data.error ?? 'Error al subir la foto')
+        setAvatarError(data.error ?? t.candidates.photoUploadError)
       }
     } catch {
-      setAvatarError('Error de red al subir la foto.')
+      setAvatarError(t.candidates.photoNetworkError)
     } finally {
       setUploadingAvatar(false)
       e.target.value = ''
@@ -1072,7 +1077,7 @@ function AddCandidateDialog({
               )}
               <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar}
                 className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                title="Subir foto">
+                title={t.candidates.addDialog.changeAvatar}>
                 {uploadingAvatar
                   ? <Loader2 className="h-4 w-4 text-white animate-spin" />
                   : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -1082,20 +1087,20 @@ function AddCandidateDialog({
             <div className="flex-1">
               {form.avatarUrl ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium" style={{ color: '#34d399' }}>✓ Foto cargada</span>
+                  <span className="text-xs font-medium" style={{ color: '#34d399' }}>{t.candidates.photoLoaded}</span>
                   <button type="button" onClick={() => setForm(f => ({ ...f, avatarUrl: '' }))}
                     className="text-xs" style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Quitar
+                    {t.candidates.removePhoto}
                   </button>
                 </div>
               ) : (
                 <button type="button" onClick={() => avatarInputRef.current?.click()}
                   className="text-xs font-medium" style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  + Agregar foto
+                  {t.candidates.addPhoto}
                 </button>
               )}
               <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                {form.avatarUrl && prefill?.avatarUrl === form.avatarUrl ? '✨ Extraída del CV por IA' : form.avatarUrl ? 'Foto adjunta al perfil' : 'Opcional · JPG, PNG o WebP'}
+                {form.avatarUrl && prefill?.avatarUrl === form.avatarUrl ? t.candidates.photoExtracted : form.avatarUrl ? t.candidates.photoAttached : t.candidates.photoOptional}
               </p>
               {avatarError && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{avatarError}</p>}
             </div>
@@ -1127,7 +1132,7 @@ function AddCandidateDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Cliente</label>
+              <label className={labelCls}>{t.candidates.clientLabel}</label>
               <select value={form.clientId} onChange={e => {
                 const newClientId = e.target.value
                 setForm(f => ({
@@ -1139,14 +1144,14 @@ function AddCandidateDialog({
                     : '',
                 }))
               }} className={inputCls}>
-                <option value="">Sin cliente asignado</option>
+                <option value="">{t.candidates.noClientAssigned}</option>
                 {(clients ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <label className={labelCls}>{t.candidates.addDialog.vacancy}</label>
               <select value={form.vacancyId} onChange={e => setForm(f => ({...f, vacancyId: e.target.value}))} className={inputCls}>
-                <option value="">Sin vacante asignada</option>
+                <option value="">{t.candidates.noVacancyAssigned}</option>
                 {(form.clientId
                   ? vacancies.filter(v => v.clientId === form.clientId)
                   : vacancies
@@ -1165,12 +1170,12 @@ function AddCandidateDialog({
             </div>
             <div>
               <label className={labelCls}>{t.candidates.addDialog.score}</label>
-              <input type="number" min="0" max="100" value={form.atsScore} onChange={e => setForm(f => ({...f, atsScore: e.target.value}))} className={inputCls} placeholder="Auto si analizás CV" />
+              <input type="number" min="0" max="100" value={form.atsScore} onChange={e => setForm(f => ({...f, atsScore: e.target.value}))} className={inputCls} placeholder={t.candidates.placeholderScoreAuto} />
             </div>
           </div>
           <div>
             <label className={labelCls}>{t.candidates.profile.education}</label>
-            <input value={form.education} onChange={e => setForm(f => ({...f, education: e.target.value}))} className={inputCls} placeholder="Lic. en Ciencias de la Computación" />
+            <input value={form.education} onChange={e => setForm(f => ({...f, education: e.target.value}))} className={inputCls} placeholder={t.candidates.placeholderEducation} />
           </div>
           <div>
             <label className={labelCls}>{t.candidates.addDialog.notes}</label>
@@ -1197,6 +1202,7 @@ function AddCandidateDialog({
 
 // ─── CV Analyzer Drop Zone ────────────────────────────────────────────────────
 function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { vacancies: Vacancy[]; clients: import('@/types').Client[]; onCandidateAdded: (c: Candidate) => void; onLimitReached: () => boolean }) {
+  const { t } = useLanguage()
   const [isDragging, setIsDragging] = React.useState(false)
   const [status, setStatus] = React.useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
@@ -1226,7 +1232,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
       const data = await res.json()
 
       if (!res.ok || !data.ok) {
-        setErrorMsg(data.error ?? 'Error al analizar el CV')
+        setErrorMsg(data.error ?? t.candidates.cvAnalyzeError)
         setStatus('error')
         setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
         return
@@ -1248,7 +1254,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
       setStatus('done')
       setShowAdd(true)
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Error de red. Verificá tu conexión e intentá de nuevo.')
+      setErrorMsg(error instanceof Error ? error.message : t.candidates.cvNetworkError)
       setStatus('error')
       setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
     }
@@ -1287,12 +1293,12 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
         </div>
         <div>
           <p className="text-sm font-medium" style={{ color: status === 'error' ? 'var(--coral)' : 'var(--text)' }}>
-            {status === 'analyzing' ? 'Subiendo y analizando CV con IA...' :
-             status === 'done' ? '¡CV analizado! Abriendo formulario...' :
-             status === 'error' ? (errorMsg || 'Error al analizar. Intentá de nuevo.') :
-             'Arrastrá un CV aquí o hacé clic para seleccionar'}
+            {status === 'analyzing' ? t.candidates.analyzingCV :
+             status === 'done' ? t.candidates.cvAnalyzedSuccess :
+             status === 'error' ? (errorMsg || t.candidates.cvAnalyzeError) :
+             t.candidates.dragCV}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>PDF o TXT · La IA extrae nombre, skills y calcula score ATS · El archivo queda adjunto en la ficha</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{t.candidates.dragCVSub}</p>
         </div>
         <div className="ml-auto">
           <span
@@ -1416,11 +1422,11 @@ export default function CandidatesPage() {
 
   function checkCandidateLimit(): boolean {
     if (candidates.length >= planLimits.candidates) {
-      const limit = planLimits.candidates === Infinity ? '' : `(${planLimits.candidates} candidatos)`
+      const limitStr = planLimits.candidates === Infinity ? '' : String(planLimits.candidates)
       setLimitToast(
         planLimits.candidates === Infinity
-          ? 'Límite alcanzado.'
-          : `Límite de tu plan alcanzado ${limit}. Actualizá para agregar más candidatos.`
+          ? t.candidates.planLimitReached
+          : t.candidates.planLimitReachedSub.replace('{limit}', limitStr)
       )
       return true
     }
@@ -1461,8 +1467,8 @@ export default function CandidatesPage() {
           <h1 className="text-xl font-bold text-foreground">{t.nav.candidates}</h1>
           <p className="text-sm text-muted-foreground">
             {filterClient !== 'all' || filterScore !== 'all' || filterSource !== 'all' || search
-              ? `${kpis.total} candidatos encontrados`
-              : `${kpis.total} candidatos en la base de datos`}
+              ? t.candidates.pageSubtitleFiltered.replace('{n}', String(kpis.total))
+              : t.candidates.pageSubtitle.replace('{n}', String(kpis.total))}
           </p>
         </div>
         <Button onClick={handleOpenAddCandidate} className="gap-1.5 shrink-0">
@@ -1472,10 +1478,10 @@ export default function CandidatesPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={Users} label="Total Candidatos" value={kpis.total} accentColor="var(--accent)" />
-        <KpiCard icon={Brain} label="CVs con IA" value={kpis.withScore} sub={`${kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0}% del total`} accentColor="var(--accent-2)" />
-        <KpiCard icon={TrendingUp} label="Score Promedio" value={kpis.avgScore} sub="sobre 100" accentColor="#34d399" />
-        <KpiCard icon={Clock} label="Esta Semana" value={kpis.newThisWeek} accentColor="#fbbf24" />
+        <KpiCard icon={Users} label={t.candidates.kpis.total} value={kpis.total} accentColor="var(--accent)" />
+        <KpiCard icon={Brain} label={t.candidates.kpis.withAI} value={kpis.withScore} sub={t.candidates.kpis.aiSub.replace('{n}', String(kpis.total > 0 ? Math.round(kpis.withScore/kpis.total*100) : 0))} accentColor="var(--accent-2)" />
+        <KpiCard icon={TrendingUp} label={t.candidates.kpis.avgScore} value={kpis.avgScore} sub={t.candidates.kpis.avgScoreSub} accentColor="#34d399" />
+        <KpiCard icon={Clock} label={t.candidates.kpis.thisWeek} value={kpis.newThisWeek} accentColor="#fbbf24" />
       </div>
 
       {/* CV Drop Zone */}
@@ -1496,10 +1502,10 @@ export default function CandidatesPage() {
           <select value={filterScore} onChange={e => setFilterScore(e.target.value)}
             className="pl-3 pr-8 py-2 text-sm rounded-md border border-input bg-background focus:outline-none appearance-none">
             <option value="all">{t.candidates.filters.allScores}</option>
-            <option value="80+">Excelente (80+)</option>
-            <option value="60-79">Bueno (60-79)</option>
-            <option value="40-59">Regular (40-59)</option>
-            <option value="<40">Bajo (&lt;40)</option>
+            <option value="80+">{t.candidates.scoreFilter.excellent}</option>
+            <option value="60-79">{t.candidates.scoreFilter.good}</option>
+            <option value="40-59">{t.candidates.scoreFilter.fair}</option>
+            <option value="<40">{t.candidates.scoreLabels.low} (&lt;40)</option>
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         </div>
@@ -1558,7 +1564,7 @@ export default function CandidatesPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden md:table-cell">{t.candidates.columns.skills}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.source}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground hidden lg:table-cell">{t.candidates.columns.date}</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Acciones</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">{t.candidates.actionsColumn}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -1604,13 +1610,13 @@ export default function CandidatesPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{formatRelativeDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={e => { e.stopPropagation(); setViewCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Ver perfil">
+                      <button onClick={e => { e.stopPropagation(); setViewCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title={t.pipeline.actions.viewProfile}>
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={e => { e.stopPropagation(); setScheduleCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Agendar entrevista">
+                      <button onClick={e => { e.stopPropagation(); setScheduleCandidate(c) }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title={t.pipeline.scheduleInterview}>
                         <Calendar className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Eliminar">
+                      <button onClick={e => { e.stopPropagation(); setDeleteCandidate(c) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title={t.common.delete}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

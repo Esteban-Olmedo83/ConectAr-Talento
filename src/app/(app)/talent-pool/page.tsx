@@ -447,6 +447,7 @@ function ProfileDrawer({
   onUpdate?: (updated: Candidate) => void
   onVerProceso?: (entry: TalentEntry) => void
 }) {
+  const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [editMode, setEditMode] = React.useState(false)
   const [editName, setEditName] = React.useState('')
@@ -457,6 +458,14 @@ function ProfileDrawer({
   const [editClientId, setEditClientId] = React.useState('')
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState('')
+  const rejectionLabels: Record<string, string> = {
+    no_apto_perfil: t.pipeline.rejectionReasons.doesntMeetProfile,
+    mejor_candidato: t.pipeline.rejectionReasons.betterCandidateSelected,
+    candidato_declino: t.pipeline.rejectionReasons.candidateDeclined,
+    fuera_rango_salarial: t.pipeline.rejectionReasons.salaryMismatch,
+    decision_empresa: t.pipeline.rejectionReasons.companyDecision,
+    otro: t.pipeline.rejectionReasons.other,
+  }
 
   React.useEffect(() => {
     if (entry) {
@@ -532,7 +541,7 @@ function ProfileDrawer({
               }}
             >
               <Pencil className="h-3 w-3" />
-              {editMode ? 'Cancelar' : 'Editar'}
+              {editMode ? t.common.cancel : t.common.edit}
             </button>
             <button onClick={onClose} className="p-1 rounded-md" style={{ color: 'var(--muted)' }}>
               <X className="h-4 w-4" />
@@ -619,7 +628,7 @@ function ProfileDrawer({
                 style={{ background: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {saving ? 'Guardando...' : 'Guardar cambios'}
+                {saving ? t.common.loading : t.common.save}
               </button>
             </div>
           ) : (
@@ -710,7 +719,7 @@ function ProfileDrawer({
                             </p>
                             {app.status === 'Descartado' && (app as Application & { rejectionReason?: RejectionReason }).rejectionReason && (
                               <p className="text-xs mt-1" style={{ color: '#f87171' }}>
-                                Motivo: {REJECTION_REASON_LABELS[(app as Application & { rejectionReason?: RejectionReason }).rejectionReason as string] ?? (app as Application & { rejectionReason?: RejectionReason }).rejectionReason}
+                                Motivo: {rejectionLabels[(app as Application & { rejectionReason?: RejectionReason }).rejectionReason as string] ?? REJECTION_REASON_LABELS[(app as Application & { rejectionReason?: RejectionReason }).rejectionReason as string] ?? (app as Application & { rejectionReason?: RejectionReason }).rejectionReason}
                                 {(app as Application & { rejectionNote?: string }).rejectionNote && ` · "${(app as Application & { rejectionNote?: string }).rejectionNote}"`}
                               </p>
                             )}
@@ -761,6 +770,7 @@ function IncorporarModal({
   provider: SupabaseProvider
   onClose: () => void
 }) {
+  const { t } = useLanguage()
   const activeVacancies = React.useMemo(
     () => vacancies.filter(v => v.status !== 'Contratado'),
     [vacancies]
@@ -817,7 +827,7 @@ function IncorporarModal({
       footer={
         success ? undefined : (
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
             <Button
               type="button"
               disabled={saving || !selectedVacancyId}
@@ -1356,8 +1366,8 @@ export default function TalentPoolPage() {
           </h3>
           <p className="text-sm max-w-sm" style={{ color: 'var(--muted)' }}>
             {search || classFilter !== 'todos' || scoreFilter !== 'todos' || clientFilter !== 'todos'
-              ? 'No hay candidatos que coincidan con los filtros activos.'
-              : 'Cargá CVs en Candidatos para comenzar a construir tu banco de talento.'}
+              ? t.talentPool.noResults
+              : t.talentPool.noResultsSub}
           </p>
         </div>
       ) : (
