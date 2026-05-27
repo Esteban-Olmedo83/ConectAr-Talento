@@ -434,7 +434,7 @@ function NuevoRubroModal({
   open: boolean
   onClose: () => void
   onSave: (rubro: JobRubro) => void
-) {
+}) {
   const { user } = useUser()
   const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
