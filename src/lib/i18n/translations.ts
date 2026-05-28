@@ -405,6 +405,16 @@ export interface Translations {
     markComplete: string
     cancel: string
     deleteConfirm: string
+    reminder: {
+      title: string
+      messageNeutral: string
+      messageFriendly: string
+      messageUrgent: string
+      complete: string
+      remindLater: string
+      hoursAgo: string
+      minutesAgo: string
+    }
   }
   talentPool: {
     searchPlaceholder: string
@@ -932,6 +942,16 @@ const enFull: Translations = {
     markComplete: 'Mark Complete',
     cancel: 'Cancel',
     deleteConfirm: 'Are you sure you want to delete this interview?',
+    reminder: {
+      title: 'Interview pending completion',
+      messageNeutral: 'The interview with {candidate} for {vacancy} has ended. Do you want to register the result?',
+      messageFriendly: "Don't forget! You had an interview with {candidate} for {vacancy}. Register the result to keep the pipeline updated.",
+      messageUrgent: 'Action required: The interview with {candidate} for {vacancy} was {elapsed} ago and still has no result registered.',
+      complete: 'Complete interview',
+      remindLater: 'Remind me later',
+      hoursAgo: '{n}h ago',
+      minutesAgo: '{n}min ago',
+    },
   },
   talentPool: {
     searchPlaceholder: 'Search talent pool...',
@@ -1519,6 +1539,16 @@ const es: Translations = {
     markComplete: 'Marcar completada',
     cancel: 'Cancelar',
     deleteConfirm: '¿Eliminar esta entrevista?',
+    reminder: {
+      title: 'Entrevista pendiente de completar',
+      messageNeutral: 'La entrevista con {candidate} para {vacancy} ya finalizó. ¿Querés registrar el resultado?',
+      messageFriendly: '¡Acordate! Tuviste una entrevista con {candidate} para {vacancy}. Registrá el resultado para mantener el pipeline actualizado.',
+      messageUrgent: 'Atención: La entrevista con {candidate} para {vacancy} fue hace {elapsed} y aún no tiene resultado registrado.',
+      complete: 'Completar entrevista',
+      remindLater: 'Recordarme más tarde',
+      hoursAgo: 'hace {n}h',
+      minutesAgo: 'hace {n}min',
+    },
   },
   talentPool: {
     searchPlaceholder: 'Buscar en el banco de talentos...',
