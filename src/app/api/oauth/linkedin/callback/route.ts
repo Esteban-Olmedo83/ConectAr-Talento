@@ -80,8 +80,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     accountEmail = emailData.elements?.[0]?.['handle~']?.emailAddress
   }
 
-  // Get tenant_id from user metadata
-  const tenantId = (user.user_metadata?.tenant_id as string) ?? user.id
+  // Get tenant_id from profile lookup
+  const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const tenantId = tenantProfile?.tenant_id ?? user.id
 
   // Upsert integration
   const tokenExpiresAt = tokens.expires_in

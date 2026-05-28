@@ -238,14 +238,11 @@ export class SupabaseProvider implements DataProvider {
 
   // ── Clients ──────────────────────────────────────────────────────────────
 
-  async getClients(_tenantId: string): Promise<DataResult<Client[]>> {
-    // Rely on RLS for tenant scoping — the tenant_id stored in the clients table
-    // may differ from the profile's tenant_id (e.g. when the row was seeded with
-    // auth.uid() instead of profile.tenant_id), so an explicit eq filter can
-    // silently return empty results.
+  async getClients(tenantId: string): Promise<DataResult<Client[]>> {
     const { data, error } = await this.sb
       .from('clients')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('name', { ascending: true })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapClient))
@@ -646,7 +643,7 @@ export class SupabaseProvider implements DataProvider {
       .from('applications')
       .select('candidate_id')
       .in('candidate_id', candidateIds)
-      .not('vacancy_id', 'in', `(${clientVacancyIds.map(id => `"${id}"`).join(',')})`)
+      .not('vacancy_id', 'in', `(${clientVacancyIds.join(',')})`)
       .not('vacancy_id', 'is', null)
     const stillActiveIds = new Set((otherApps ?? []).map(a => a.candidate_id as string))
     // Also keep candidates who have a direct clientId pointing to another existing client
@@ -759,10 +756,11 @@ export class SupabaseProvider implements DataProvider {
     return ok(mapScorecard(data as Record<string, unknown>))
   }
 
-  async getTemplates(_tenantId: string): Promise<DataResult<MessageTemplate[]>> {
+  async getTemplates(tenantId: string): Promise<DataResult<MessageTemplate[]>> {
     const { data, error } = await this.sb
       .from('message_templates')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapTemplate))
@@ -812,10 +810,11 @@ export class SupabaseProvider implements DataProvider {
     return ok(undefined)
   }
 
-  async getIntegrations(_tenantId: string): Promise<DataResult<Integration[]>> {
+  async getIntegrations(tenantId: string): Promise<DataResult<Integration[]>> {
     const { data, error } = await this.sb
       .from('integrations')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapIntegration))
@@ -870,10 +869,11 @@ export class SupabaseProvider implements DataProvider {
   }
 
   // ── Job Rubros ──
-  async getJobRubros(_tenantId: string): Promise<DataResult<JobRubro[]>> {
+  async getJobRubros(tenantId: string): Promise<DataResult<JobRubro[]>> {
     const { data, error } = await this.sb
       .from('job_rubros')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true })
     if (error) return err(error.message)
     return ok((data ?? []).map(mapJobRubro))
@@ -907,8 +907,8 @@ export class SupabaseProvider implements DataProvider {
   }
 
   // ── Job Profiles ──
-  async getJobProfiles(_tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
-    let q = this.sb.from('job_profiles').select('*')
+  async getJobProfiles(tenantId: string, rubro?: string): Promise<DataResult<CustomJobProfile[]>> {
+    let q = this.sb.from('job_profiles').select('*').eq('tenant_id', tenantId)
     if (rubro) q = q.eq('rubro', rubro)
     const { data, error } = await q.order('perfil', { ascending: true })
     if (error) return err(error.message)

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const ADMIN_EMAIL = 'conectar.rrhh.ar@gmail.com'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'conectar.rrhh.ar@gmail.com'
 
 export async function requireAdmin() {
   const supabase = await createClient()

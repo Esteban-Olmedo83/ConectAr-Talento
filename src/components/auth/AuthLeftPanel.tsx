@@ -55,13 +55,26 @@ export function AuthLeftPanel({ headline, subtitle, features }: AuthLeftPanelPro
           <h2
             className="text-3xl xl:text-4xl font-bold leading-tight"
             style={{ color: '#ffffff' }}
-            dangerouslySetInnerHTML={{
-              __html: headline.replace(
-                /<em>(.*?)<\/em>/g,
-                '<em style="font-style:normal;background:linear-gradient(135deg,#9B90FF,#60BFFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">$1</em>'
-              ),
-            }}
-          />
+          >
+            {headline.split(/<em>(.*?)<\/em>/).map((part, i) =>
+              i % 2 === 1 ? (
+                <em
+                  key={i}
+                  style={{
+                    fontStyle: 'normal',
+                    background: 'linear-gradient(135deg,#9B90FF,#60BFFF)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  {part}
+                </em>
+              ) : (
+                part
+              )
+            )}
+          </h2>
           <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {subtitle}
           </p>
