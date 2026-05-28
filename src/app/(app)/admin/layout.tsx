@@ -7,6 +7,7 @@ import { useUser } from '@/lib/context/user-context'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
+// UI-only guard — real protection enforced server-side in /api/admin/guard.ts
 const ADMIN_EMAIL = 'conectar.rrhh.ar@gmail.com'
 
 const adminNavItems = [

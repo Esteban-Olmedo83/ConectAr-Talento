@@ -46,6 +46,7 @@ function extractJpegFromPdf(buffer: Buffer): Buffer | null {
 }
 
 function buildPrompt(cvText: string, vacancyRequirements: string[]): string {
+  const safeCvText = cvText.slice(0, 12000) // prevent prompt injection via oversized CVs
   const reqSection = vacancyRequirements.length > 0
     ? `\n\nREQUISITOS DE LA VACANTE (usá estos para calcular el ATS score):\n${vacancyRequirements.map(r => `- ${r}`).join('\n')}`
     : ''
@@ -58,7 +59,7 @@ Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicio
 
 CV:
 ---
-${cvText.slice(0, 8000)}
+${safeCvText}
 ---
 
 INSTRUCCIONES:
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get plan and tenant
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan, tenant_id')
+      .select('plan, tenant_id, groq_api_key')
       .eq('id', user.id)
       .single()
     const plan: string = (profile?.plan as string) ?? 'free'
@@ -149,6 +150,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!file) {
       return NextResponse.json({ error: 'No se recibió ningún archivo.' }, { status: 400 })
+    }
+
+    const ALLOWED_CV_TYPES = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'application/rtf',
+      'text/rtf',
+    ]
+    const fileExt = (file.name ?? '').split('.').pop()?.toLowerCase() ?? ''
+    const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'rtf']
+    if (!ALLOWED_CV_TYPES.includes(file.type) || !ALLOWED_EXTENSIONS.includes(fileExt)) {
+      return NextResponse.json({ error: 'Tipo de archivo no permitido. Usá PDF, DOC, DOCX, TXT o RTF.' }, { status: 400 })
     }
 
     const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
@@ -220,7 +235,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Analyze with Groq
-    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
+    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada en el servidor.' }, { status: 500 })
     }

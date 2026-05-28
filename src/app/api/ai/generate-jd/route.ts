@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 interface GenerateJdRequest {
   title: string
@@ -66,6 +67,17 @@ FORMATO JSON REQUERIDO:
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('groq_api_key')
+      .eq('id', user.id)
+      .single()
+
     const body = (await request.json()) as GenerateJdRequest
 
     if (!body.title || !body.department || !body.modality) {
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Se requiere al menos un requisito.' }, { status: 400 })
     }
 
-    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
+    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada.' }, { status: 500 })
     }

@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('groq_api_key')
+      .eq('id', user.id)
+      .single()
+
     const { context, type } = (await request.json()) as { context?: string; type?: string }
 
-    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
+    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
     if (!apiKey || !context) {
       return NextResponse.json({ message: '' }, { status: 400 })
     }

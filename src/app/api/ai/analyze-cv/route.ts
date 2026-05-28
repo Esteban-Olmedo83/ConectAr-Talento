@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { extractCvText } from '@/lib/cv/extract-text'
 
 export const runtime = 'nodejs'
@@ -263,6 +264,7 @@ function buildFallbackAnalysis(cvText: string, vacancyRequirements?: string[], f
 }
 
 function buildPrompt(cvText: string, vacancyRequirements?: string[]): string {
+  const safeCvText = cvText.slice(0, 12000) // prevent prompt injection via oversized CVs
   const requirementsSection =
     vacancyRequirements && vacancyRequirements.length > 0
       ? `\n\nREQUISITOS DE LA VACANTE (para calcular el ATS score):\n${vacancyRequirements.map((r) => `- ${r}`).join('\n')}`
@@ -274,7 +276,7 @@ Analiza el siguiente CV y extrae la información estructurada. Responde ÚNICAME
 
 CV A ANALIZAR:
 ---
-${cvText}
+${safeCvText}
 ---
 
 INSTRUCCIONES:
@@ -309,6 +311,17 @@ FORMATO JSON REQUERIDO:
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('groq_api_key')
+      .eq('id', user.id)
+      .single()
+
     const contentType = request.headers.get('content-type') ?? ''
     let cvText = ''
     let vacancyRequirements: string[] | undefined
@@ -355,7 +368,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'El texto del CV es demasiado corto o está vacío.' }, { status: 400 })
     }
 
-    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
+    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }

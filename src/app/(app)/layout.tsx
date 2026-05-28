@@ -44,8 +44,8 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
 
     async function loadUser() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
+        const { data: { user: sessionUser }, error: getUserError } = await supabase.auth.getUser()
+        if (getUserError || !sessionUser) {
           router.replace('/login')
           return
         }
@@ -53,20 +53,20 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
         let { data: profile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', sessionUser.id)
           .single()
 
         // Si no existe el perfil (el trigger no disparó), lo creamos ahora
         if (!profile) {
-          const meta = session.user.user_metadata ?? {}
+          const meta = sessionUser.user_metadata ?? {}
           const { data: newProfile } = await supabase
             .from('profiles')
             .insert({
-              id: session.user.id,
+              id: sessionUser.id,
               full_name: meta.full_name ?? meta.name ?? '',
               company_name: meta.company_name ?? '',
               plan: meta.plan ?? 'free',
-              tenant_id: session.user.id,
+              tenant_id: sessionUser.id,
             })
             .select()
             .single()
@@ -81,12 +81,12 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
         }
 
         setUser({
-          id: session.user.id,
-          email: session.user.email ?? '',
+          id: sessionUser.id,
+          email: sessionUser.email ?? '',
           fullName: profile.full_name,
           companyName: profile.company_name,
           plan: profile.plan,
-          tenantId: profile.tenant_id ?? session.user.id,
+          tenantId: profile.tenant_id ?? sessionUser.id,
           avatarUrl: profile.avatar_url ?? undefined,
           googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
           googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
@@ -94,13 +94,6 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
           groqApiKey: profile.groq_api_key ?? undefined,
           aiProvider: profile.ai_provider ?? 'groq',
         })
-
-        if (profile.groq_api_key) {
-          localStorage.setItem('ct_ai_config', JSON.stringify({
-            provider: profile.ai_provider ?? 'groq',
-            apiKey: profile.groq_api_key,
-          }))
-        }
       } catch {
         router.replace('/login')
       } finally {

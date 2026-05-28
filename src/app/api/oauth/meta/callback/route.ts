@@ -69,7 +69,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     accountEmail = profile.email
   }
 
-  const tenantId = (user.user_metadata?.tenant_id as string) ?? user.id
+  const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const tenantId = tenantProfile?.tenant_id ?? user.id
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : undefined
