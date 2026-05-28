@@ -71,8 +71,10 @@ export function InterviewReminderModal() {
 
     if (!data) return
 
-    const pending = (data as Array<{ id: string; scheduled_at: string; candidate: { full_name: string; tenant_id: string } | null; vacancy: { title: string } | null }>).find(row => {
-      if (!row.candidate || row.candidate.tenant_id !== user.tenantId) return false
+    type Row = { id: string; scheduled_at: string; candidate: { full_name: string; tenant_id: string }[]; vacancy: { title: string }[] }
+    const pending = (data as unknown as Row[]).find(row => {
+      const cand = row.candidate?.[0]
+      if (!cand || cand.tenant_id !== user.tenantId) return false
       return !isDismissed(row.id)
     })
 
@@ -84,8 +86,8 @@ export function InterviewReminderModal() {
     setInterview({
       id: pending.id,
       scheduledAt: pending.scheduled_at,
-      candidateName: pending.candidate!.full_name,
-      vacancyTitle: pending.vacancy?.title ?? '',
+      candidateName: pending.candidate[0]?.full_name ?? '',
+      vacancyTitle: pending.vacancy[0]?.title ?? '',
     })
   }, [user?.tenantId])
 
