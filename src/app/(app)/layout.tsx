@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useSessionTimeout } from '@/lib/hooks/useSessionTimeout'
 import { UserContext } from '@/lib/context/user-context'
 import { LanguageProvider, useLanguage } from '@/lib/context/language-context'
+import { InterviewReminderModal } from '@/components/interviews/interview-reminder-modal'
 import type { User } from '@/types'
 
 function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
@@ -140,6 +141,7 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
         <AppLayout user={user} pageTitle={pageTitle}>
           {children}
         </AppLayout>
+        <InterviewReminderModal />
       </UserContext.Provider>
     </ToastProvider>
   )
