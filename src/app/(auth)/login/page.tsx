@@ -50,25 +50,22 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('error') === 'auth_callback_failed') {
-      setError('Error al iniciar sesión con Google. Por favor intentá de nuevo.')
+    const err = params.get('error')
+    const GOOGLE_ERRORS: Record<string, string> = {
+      auth_callback_failed: 'Error al iniciar sesión. Por favor intentá de nuevo.',
+      google_denied: 'Cancelaste el acceso con Google.',
+      google_not_configured: 'Google OAuth no está configurado.',
+      google_token_failed: 'Error al obtener tokens de Google. Intentá de nuevo.',
+      google_no_email: 'No se pudo obtener el email de tu cuenta Google.',
+      google_link_failed: 'Error al generar el acceso. Intentá de nuevo.',
+      google_state_mismatch: 'Error de seguridad en el flujo OAuth. Intentá de nuevo.',
     }
+    if (err && GOOGLE_ERRORS[err]) setError(GOOGLE_ERRORS[err])
   }, [])
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setError('')
-    setIsLoading(true)
-    const supabase = createClient()
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (oauthError) {
-      setError('Error al conectar con Google. Intentá de nuevo.')
-      setIsLoading(false)
-    }
+    window.location.href = '/api/auth/google'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
