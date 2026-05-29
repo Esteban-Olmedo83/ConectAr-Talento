@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!
-  const { searchParams } = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin
+  const { searchParams } = requestUrl
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const errorParam = searchParams.get('error')
