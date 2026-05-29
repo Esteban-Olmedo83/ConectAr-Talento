@@ -1,17 +1,22 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
-export async function GET(): Promise<NextResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!
+// Uses the same redirect_uri as the integration flow (/api/oauth/google/callback)
+// so no extra Google Cloud Console configuration is needed.
+// The state prefix "auth:" tells the shared callback to use the auth path.
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const origin = new URL(request.url).origin
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin
   const clientId = process.env.GOOGLE_CLIENT_ID
 
   if (!clientId) {
     return NextResponse.redirect(new URL('/login?error=google_not_configured', appUrl))
   }
 
-  const state = crypto.randomUUID()
-  const redirectUri = `${appUrl}/api/auth/google/callback`
+  const state = `auth:${crypto.randomUUID()}`
+  // Reuse the same redirect_uri already registered in Google Cloud Console
+  const redirectUri = `${appUrl}/api/oauth/google/callback`
 
   const params = new URLSearchParams({
     response_type: 'code',
