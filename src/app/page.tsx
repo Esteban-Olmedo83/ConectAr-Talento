@@ -1,4 +1,22 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: {
+    absolute: 'ConectAr Talento — ATS para LATAM',
+  },
+  description:
+    'La plataforma ATS con IA para reclutadores latinoamericanos. Analizá CVs con Gemini, gestioná tu pipeline Kanban y publicá en todos los job boards de LATAM.',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'ConectAr Talento — ATS para LATAM',
+    description:
+      'La plataforma ATS con IA para reclutadores latinoamericanos. Analizá CVs con Gemini, gestioná tu pipeline Kanban y publicá en todos los job boards de LATAM.',
+    url: '/',
+  },
+}
 import {
   BrainCircuit,
   BarChart3,
