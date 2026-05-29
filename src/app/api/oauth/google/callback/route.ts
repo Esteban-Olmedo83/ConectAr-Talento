@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+async function createDriveFolder(accessToken: string, name: string): Promise<string | null> {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name,
+      mimeType: 'application/vnd.google-apps.folder',
+    }),
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { id?: string }
+  return data.id ?? null
+}
+
+async function createSheetsFile(accessToken: string, name: string, folderId: string): Promise<string | null> {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name,
+      mimeType: 'application/vnd.google-apps.spreadsheet',
+      parents: [folderId],
+    }),
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { id?: string }
+  return data.id ?? null
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!
   const { searchParams } = new URL(request.url)
@@ -32,7 +67,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
   const redirectUri = `${appUrl}/api/oauth/google/callback`
 
-  // Exchange code for tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -55,7 +89,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user profile
   const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
@@ -64,15 +97,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let accountEmail: string | undefined
 
   if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      name?: string
-      email?: string
-    }
+    const profile = await profileRes.json() as { name?: string; email?: string }
     accountName = profile.name ?? accountName
     accountEmail = profile.email
   }
 
-  const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const { data: tenantProfile } = await supabase
+    .from('profiles')
+    .select('tenant_id, company_name, google_drive_folder_id')
+    .eq('id', user.id)
+    .single()
   const tenantId = tenantProfile?.tenant_id ?? user.id
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
@@ -91,6 +125,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     },
     { onConflict: 'tenant_id,platform' }
   )
+
+  // Create Drive folder + Sheets file if not already set up
+  if (!tenantProfile?.google_drive_folder_id) {
+    const companyName = (tenantProfile?.company_name as string | null) ?? 'Mi Empresa'
+    const folderName = `ConectAr Talento - ${companyName}`
+    const folderId = await createDriveFolder(tokens.access_token, folderName)
+    if (folderId) {
+      const sheetsId = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId)
+      await supabase.from('profiles').update({
+        google_drive_folder_id: folderId,
+        google_sheets_db_id: sheetsId ?? null,
+      }).eq('id', user.id)
+    }
+  }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))
   response.cookies.delete('oauth_state_google')

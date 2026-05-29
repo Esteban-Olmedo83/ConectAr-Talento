@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
@@ -1157,6 +1157,204 @@ function IdiomaTab() {
   )
 }
 
+// ─── Google Drive Tab ─────────────────────────────────────────────────────────
+function DriveTab() {
+  const { user } = useUser()
+  const [syncing, setSyncing] = React.useState(false)
+  const [syncResult, setSyncResult] = React.useState<{ ok: boolean; message: string } | null>(null)
+
+  const isConnected = Boolean(user?.googleDriveFolderId)
+  const driveUrl = user?.googleDriveFolderId
+    ? `https://drive.google.com/drive/folders/${user.googleDriveFolderId}`
+    : null
+  const sheetsUrl = user?.googleSheetsDbId
+    ? `https://docs.google.com/spreadsheets/d/${user.googleSheetsDbId}`
+    : null
+
+  async function handleSync() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/google/sync', { method: 'POST' })
+      const data = await res.json() as { ok?: boolean; error?: string; synced?: { candidates: number; vacancies: number; applications: number } }
+      if (res.ok && data.ok) {
+        setSyncResult({ ok: true, message: `Sincronización completa. ${data.synced?.candidates ?? 0} candidatos, ${data.synced?.vacancies ?? 0} vacantes, ${data.synced?.applications ?? 0} aplicaciones exportadas.` })
+      } else {
+        setSyncResult({ ok: false, message: data.error ?? 'Error al sincronizar.' })
+      }
+    } catch {
+      setSyncResult({ ok: false, message: 'Error de red al sincronizar.' })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-xl">
+      <div>
+        <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Google Drive</h3>
+        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+          Almacená y sincronizá tus datos de reclutamiento en Google Drive y Google Sheets.
+        </p>
+      </div>
+
+      {/* Status card */}
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: isConnected ? 'rgba(52,211,153,0.12)' : 'rgba(107,114,128,0.12)',
+            border: `1px solid ${isConnected ? 'rgba(52,211,153,0.25)' : 'rgba(107,114,128,0.2)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill={isConnected ? '#34d399' : '#9ca3af'}/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill={isConnected ? '#60a5fa' : '#9ca3af'}/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill={isConnected ? '#fbbf24' : '#9ca3af'}/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill={isConnected ? '#60a5fa' : '#9ca3af'}/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill={isConnected ? '#34d399' : '#9ca3af'}/>
+            <path d="m73.4 26.95-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill={isConnected ? '#fbbf24' : '#9ca3af'}/>
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            {isConnected ? 'Google Drive conectado' : 'Google Drive no conectado'}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+            {isConnected
+              ? 'Tu carpeta y hoja de cálculo están listas.'
+              : 'Conectá tu cuenta de Google en la pestaña Integraciones.'}
+          </p>
+        </div>
+        {isConnected && (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 6,
+              background: 'rgba(52,211,153,0.12)',
+              color: '#34d399',
+              border: '1px solid rgba(52,211,153,0.25)',
+            }}
+          >
+            Activo
+          </span>
+        )}
+      </div>
+
+      {isConnected && (
+        <>
+          {/* Links */}
+          <div className="grid grid-cols-2 gap-3">
+            {driveUrl && (
+              <a
+                href={driveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                  textDecoration: 'none',
+                }}
+              >
+                <HardDrive className="h-4 w-4" style={{ color: 'var(--accent)' }} />
+                Ver carpeta en Drive
+              </a>
+            )}
+            {sheetsUrl && (
+              <a
+                href={sheetsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11H6v-2h12v2zm0-4H6V8h12v2z" fill="#34a853"/>
+                </svg>
+                Ver Google Sheets
+              </a>
+            )}
+          </div>
+
+          {/* Sync button */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '16px 20px',
+            }}
+          >
+            <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
+              Sincronizar datos
+            </p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+              Exportá candidatos, vacantes y aplicaciones a tu Google Sheets.
+            </p>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                cursor: syncing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {syncing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+            </button>
+            {syncResult && (
+              <p
+                className="mt-3 text-xs"
+                style={{ color: syncResult.ok ? '#34d399' : '#f87171' }}
+              >
+                {syncResult.message}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {!isConnected && (
+        <a
+          href="/integrations"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+          style={{ background: 'var(--accent)', color: '#fff', textDecoration: 'none' }}
+        >
+          Conectar Google en Integraciones →
+        </a>
+      )}
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { t } = useLanguage()
@@ -1168,6 +1366,7 @@ export default function SettingsPage() {
     { id: 'notificaciones', label: t.settings.tabs.notifications },
     { id: 'ia', label: t.settings.tabs.ai },
     { id: 'idioma', label: t.settings.tabs.language },
+    { id: 'drive', label: 'Google Drive' },
   ]
 
   return (
@@ -1241,6 +1440,7 @@ export default function SettingsPage() {
         {activeTab === 'notificaciones' && <NotificacionesTab />}
         {activeTab === 'ia' && <ConexionIAsTab />}
         {activeTab === 'idioma' && <IdiomaTab />}
+        {activeTab === 'drive' && <DriveTab />}
       </main>
     </div>
   )
