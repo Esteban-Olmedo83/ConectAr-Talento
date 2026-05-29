@@ -71,9 +71,22 @@ export function InterviewReminderModal() {
 
     if (!data) return
 
-    type Row = { id: string; scheduled_at: string; candidate: { full_name: string; tenant_id: string }[]; vacancy: { title: string }[] }
+    type CandidateShape = { full_name: string; tenant_id: string }
+    type VacancyShape = { title: string }
+    type Row = {
+      id: string
+      scheduled_at: string
+      candidate: CandidateShape | CandidateShape[]
+      vacancy: VacancyShape | VacancyShape[]
+    }
+
+    const getCand = (c: CandidateShape | CandidateShape[]): CandidateShape | undefined =>
+      Array.isArray(c) ? c[0] : c
+    const getVacancy = (v: VacancyShape | VacancyShape[]): VacancyShape | undefined =>
+      Array.isArray(v) ? v[0] : v
+
     const pending = (data as unknown as Row[]).find(row => {
-      const cand = row.candidate?.[0]
+      const cand = getCand(row.candidate)
       if (!cand || cand.tenant_id !== user.tenantId) return false
       return !isDismissed(row.id)
     })
@@ -83,11 +96,12 @@ export function InterviewReminderModal() {
       return
     }
 
+    const cand = getCand(pending.candidate)!
     setInterview({
       id: pending.id,
       scheduledAt: pending.scheduled_at,
-      candidateName: pending.candidate[0]?.full_name ?? '',
-      vacancyTitle: pending.vacancy[0]?.title ?? '',
+      candidateName: cand.full_name ?? '',
+      vacancyTitle: getVacancy(pending.vacancy)?.title ?? '',
     })
   }, [user?.tenantId])
 

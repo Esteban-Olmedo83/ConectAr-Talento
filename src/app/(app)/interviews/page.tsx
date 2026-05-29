@@ -89,6 +89,8 @@ function SchedulerModal({
     notes: '',
   })
   const [saving, setSaving] = React.useState(false)
+  const [creatingZoom, setCreatingZoom] = React.useState(false)
+  const [zoomError, setZoomError] = React.useState<string | null>(null)
 
   // Full reset every time the modal opens so old data never bleeds through
   React.useEffect(() => {
@@ -138,6 +140,38 @@ function SchedulerModal({
     }
   }
 
+  async function handleCreateZoom() {
+    if (!form.date || !form.time) {
+      setZoomError('Seleccioná fecha y hora primero.')
+      return
+    }
+    setCreatingZoom(true)
+    setZoomError(null)
+    try {
+      const startTime = new Date(`${form.date}T${form.time}:00`).toISOString()
+      const candidateName = candidates.find(c => c.id === form.candidateId)?.fullName ?? 'Candidato'
+      const vacancyTitle = vacancies.find(v => v.id === form.vacancyId)?.title ?? ''
+      const topic = vacancyTitle
+        ? `Entrevista - ${candidateName} - ${vacancyTitle}`
+        : `Entrevista - ${candidateName}`
+      const res = await fetch('/api/zoom/create-meeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, startTime, duration: 60 }),
+      })
+      const data = await res.json() as { joinUrl?: string; error?: string }
+      if (!res.ok || !data.joinUrl) {
+        setZoomError(data.error ?? 'No se pudo crear la reunión.')
+        return
+      }
+      setForm(f => ({ ...f, meetingLink: data.joinUrl! }))
+    } catch {
+      setZoomError('Error de red al crear la reunión.')
+    } finally {
+      setCreatingZoom(false)
+    }
+  }
+
   const inputCls = 'w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring'
   const labelCls = 'text-xs font-medium text-muted-foreground mb-1 block'
 
@@ -181,7 +215,48 @@ function SchedulerModal({
           {form.platform !== 'presencial' && (
             <div>
               <label className={labelCls}>{t.pipeline.interviewForm.meetingLink}</label>
-              <input type="url" value={form.meetingLink} onChange={e => setForm(f => ({...f, meetingLink: e.target.value}))} className={inputCls} placeholder="https://meet.google.com/..." />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={form.meetingLink}
+                  onChange={e => { setForm(f => ({...f, meetingLink: e.target.value})); setZoomError(null) }}
+                  className={cn(inputCls, 'flex-1')}
+                  placeholder={form.platform === 'zoom' ? 'https://zoom.us/j/...' : 'https://meet.google.com/...'}
+                />
+                {form.platform === 'zoom' && (
+                  <button
+                    type="button"
+                    onClick={handleCreateZoom}
+                    disabled={creatingZoom}
+                    title="Crear reunión Zoom automáticamente"
+                    style={{
+                      flexShrink: 0,
+                      padding: '0 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(0,114,204,0.5)',
+                      background: creatingZoom ? 'rgba(0,114,204,0.1)' : 'rgba(0,114,204,0.15)',
+                      color: '#0072cc',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: creatingZoom ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {creatingZoom ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Video className="h-3 w-3" />
+                    )}
+                    {creatingZoom ? 'Creando...' : 'Crear con Zoom'}
+                  </button>
+                )}
+              </div>
+              {zoomError && (
+                <p className="mt-1 text-xs" style={{ color: '#f87171' }}>{zoomError}</p>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
