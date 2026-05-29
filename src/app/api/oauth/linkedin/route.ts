@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const origin = new URL(request.url).origin
-  const appUrl = appUrl || origin
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
