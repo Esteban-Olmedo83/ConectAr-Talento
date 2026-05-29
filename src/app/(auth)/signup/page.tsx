@@ -55,20 +55,9 @@ export default function SignupPage() {
   const [error, setError] = React.useState('')
   const [success, setSuccess] = React.useState(false)
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setError('')
-    setIsLoading(true)
-    const supabase = createClient()
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (oauthError) {
-      setError('Error al conectar con Google. Intentá de nuevo.')
-      setIsLoading(false)
-    }
+    window.location.href = '/api/auth/google'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
