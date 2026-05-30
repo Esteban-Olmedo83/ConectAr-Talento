@@ -164,7 +164,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-white/80 hover:text-white text-sm transition-colors">Funciones</a>
             <a href="#pricing" className="text-white/80 hover:text-white text-sm transition-colors">Precios</a>
-            <a href="#" className="text-white/80 hover:text-white text-sm transition-colors">Blog</a>
+            <Link href="/tienda" className="text-white/80 hover:text-white text-sm transition-colors">Tienda</Link>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/login" className="text-white/90 hover:text-white text-sm font-medium px-4 py-1.5 rounded-lg border border-white/30 hover:border-white/60 transition-colors">Iniciar sesión</Link>
