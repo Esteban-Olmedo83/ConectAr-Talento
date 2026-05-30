@@ -4,14 +4,15 @@ import * as React from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 
+// These interfaces match the actual admin_get_tenant_detail RPC output exactly
 interface TenantProfile {
   id: string
+  tenantId: string
   email: string
-  full_name: string
-  company_name: string
+  fullName: string
+  companyName: string
   plan: string
-  tenant_id: string
-  created_at: string
+  createdAt: string
 }
 
 interface ClientRow {
@@ -26,11 +27,11 @@ interface VacancyRow {
   id: string
   title: string
   status: string
-  created_at: string
+  createdAt: string
   applicationCount: number
 }
 
-interface CandidateSummary {
+interface CandidateStats {
   total: number
   unassigned: number
 }
@@ -47,11 +48,12 @@ interface BillingRow {
   current_period_ends_at?: string
 }
 
+// RPC returns: { profile, clients, vacancies, candidateStats, billing }
 interface TenantDetail {
-  tenant: TenantProfile
+  profile: TenantProfile
   clients: ClientRow[]
   vacancies: VacancyRow[]
-  candidates: CandidateSummary
+  candidateStats: CandidateStats
   billing: BillingRow | null
 }
 
@@ -106,12 +108,16 @@ export default function TenantDetailPage() {
     async function load() {
       try {
         const res = await fetch(`/api/admin/tenants/${id}`)
-        if (!res.ok) throw new Error('Failed to load')
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string }
+          throw new Error(err.error ?? 'Error al cargar el tenant')
+        }
         const d = await res.json() as TenantDetail
+        if (!d.profile) throw new Error('Datos del tenant incompletos')
         setData(d)
-        // Initialize billing form
+        // Initialize billing form from loaded data
         const b = d.billing
-        setBillingPlan(d.tenant.plan)
+        setBillingPlan(d.profile.plan)
         setBillingStatus(b?.status ?? 'active')
         setBillingEmail(b?.billing_email ?? '')
         setBillingName(b?.billing_name ?? '')
@@ -132,7 +138,7 @@ export default function TenantDetailPage() {
     setSavingBilling(true)
     setBillingMsg('')
     try {
-      const res = await fetch(`/api/admin/tenants/${data.tenant.tenant_id}`, {
+      const res = await fetch(`/api/admin/tenants/${data.profile.tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -165,7 +171,7 @@ export default function TenantDetailPage() {
     )
   }
 
-  if (error || !data) {
+  if (error || !data || !data.profile) {
     return (
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
         <p style={{ color: 'var(--coral)', fontSize: 13 }}>Error: {error ?? 'No encontrado'}</p>
@@ -176,13 +182,13 @@ export default function TenantDetailPage() {
     )
   }
 
-  const { tenant, clients, vacancies, candidates } = data
-  const planColor = PLAN_COLORS[tenant.plan] ?? '#9ca3af'
+  const { profile, clients, vacancies, candidateStats } = data
+  const planColor = PLAN_COLORS[profile.plan] ?? '#9ca3af'
 
   const tabs: { key: typeof activeTab; label: string }[] = [
     { key: 'clientes', label: `Clientes (${clients.length})` },
     { key: 'vacantes', label: `Vacantes (${vacancies.length})` },
-    { key: 'candidatos', label: `Candidatos (${candidates.total})` },
+    { key: 'candidatos', label: `Candidatos (${candidateStats.total})` },
     { key: 'facturacion', label: 'Facturación' },
   ]
 
@@ -211,20 +217,20 @@ export default function TenantDetailPage() {
               flexShrink: 0,
             }}
           >
-            {(tenant.company_name || tenant.full_name || '?')[0].toUpperCase()}
+            {(profile.companyName || profile.fullName || '?')[0].toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-nunito)', margin: 0 }}>
-                {tenant.company_name || tenant.full_name || '—'}
+                {profile.companyName || profile.fullName || '—'}
               </h2>
               <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: `${planColor}22`, color: planColor }}>
-                {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                {PLAN_LABELS[profile.plan] ?? profile.plan}
               </span>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--muted2)', marginTop: 4 }}>{tenant.email}</p>
+            <p style={{ fontSize: 13, color: 'var(--muted2)', marginTop: 4 }}>{profile.email}</p>
             <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-              Tenant ID: {tenant.tenant_id} &middot; Registrado: {formatDate(tenant.created_at)}
+              Tenant ID: {profile.tenantId} &middot; Registrado: {formatDate(profile.createdAt)}
             </p>
           </div>
         </div>
@@ -292,7 +298,7 @@ export default function TenantDetailPage() {
                   <span style={{ fontSize: 12, color: 'var(--muted2)', flexShrink: 0 }}>
                     {v.applicationCount} aplicación{v.applicationCount !== 1 ? 'es' : ''}
                   </span>
-                  <p style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{formatDate(v.created_at)}</p>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{formatDate(v.createdAt)}</p>
                 </div>
               ))}
             </div>
@@ -306,19 +312,19 @@ export default function TenantDetailPage() {
           <div className="grid grid-cols-2 gap-4" style={{ marginBottom: 16 }}>
             <div style={{ padding: '16px 20px', background: 'var(--surface2)', borderRadius: 12, textAlign: 'center' }}>
               <p style={{ fontSize: 28, fontWeight: 900, color: 'var(--text)', fontFamily: 'var(--font-nunito)', lineHeight: 1 }}>
-                {candidates.total}
+                {candidateStats.total}
               </p>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Total candidatos</p>
             </div>
             <div style={{ padding: '16px 20px', background: 'var(--surface2)', borderRadius: 12, textAlign: 'center' }}>
               <p style={{ fontSize: 28, fontWeight: 900, color: 'var(--gold)', fontFamily: 'var(--font-nunito)', lineHeight: 1 }}>
-                {candidates.unassigned}
+                {candidateStats.unassigned}
               </p>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Sin cliente asignado</p>
             </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--muted2)' }}>
-            {candidates.total - candidates.unassigned} candidatos asignados a clientes
+            {candidateStats.total - candidateStats.unassigned} candidatos asignados a clientes
           </p>
         </Card>
       )}
