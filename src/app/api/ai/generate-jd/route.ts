@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
+import { logAiUsage } from '@/lib/ai/log-usage'
 
 interface GenerateJdRequest {
   title: string
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     const { data: profile } = await supabase
       .from('profiles')
-      .select('groq_api_key, plan')
+      .select('groq_api_key, plan, tenant_id')
       .eq('id', user.id)
       .single()
 
@@ -97,10 +98,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
+    const plan = profile?.plan ?? 'free'
+    const tenantId = (profile?.tenant_id as string | null) ?? null
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada.' }, { status: 500 })
     }
 
+    const groqStart = Date.now()
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -118,13 +122,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
       console.error('Groq API error:', errorText)
+      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan })
       return NextResponse.json({ error: `Error al llamar a Groq: ${groqRes.statusText}` }, { status: 502 })
     }
 
-    const groqData = await groqRes.json()
+    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
     const rawText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     if (!rawText) {
+      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: 'empty_response', plan })
       return NextResponse.json({ error: 'Respuesta vacía de Groq.' }, { status: 502 })
     }
 
@@ -136,8 +142,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parsed = JSON.parse(jsonText) as GenerateJdResponse
     } catch {
       console.error('JSON parse error. Raw text:', rawText)
+      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: 'json_parse_error', plan })
       return NextResponse.json({ error: 'No se pudo parsear la respuesta de IA. Intente nuevamente.' }, { status: 502 })
     }
+
+    logAiUsage({
+      userId: user.id, tenantId, route: 'generate-jd',
+      promptTokens: groqData.usage?.prompt_tokens ?? null,
+      completionTokens: groqData.usage?.completion_tokens ?? null,
+      latencyMs: Date.now() - groqStart,
+      success: true, plan,
+    })
 
     return NextResponse.json({
       jobDescription: String(parsed.jobDescription ?? '').trim(),
