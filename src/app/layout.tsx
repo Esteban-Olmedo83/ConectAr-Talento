@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { DM_Sans, Nunito } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { Analytics } from '@/components/Analytics'
+import { CrispChat } from '@/components/CrispChat'
 
 const dmSans = DM_Sans({
   variable: '--font-dm-sans',
@@ -120,6 +122,8 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <Analytics />
+        <CrispChat />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
