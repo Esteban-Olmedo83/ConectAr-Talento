@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive, CreditCard, Zap, Shield, Building2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
@@ -1355,10 +1356,282 @@ function DriveTab() {
   )
 }
 
+// ─── Billing Tab ─────────────────────────────────────────────────────────────
+interface PlanDef {
+  id: string
+  name: string
+  price: string
+  period: string
+  description: string
+  features: string[]
+  icon: React.ElementType
+  highlight?: boolean
+}
+
+const PLANS: PlanDef[] = [
+  {
+    id: 'free',
+    name: 'Gratuito',
+    price: '$0',
+    period: 'para siempre',
+    description: 'Para empezar a reclutar',
+    icon: Shield,
+    features: ['3 vacantes activas', '50 candidatos', '10 llamadas de IA / hora', '1 integración', '1 cliente'],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '$29',
+    period: 'por mes',
+    description: 'Para equipos pequeños',
+    icon: Zap,
+    features: ['20 vacantes activas', '300 candidatos', '30 llamadas de IA / hora', '3 integraciones', '5 clientes'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$79',
+    period: 'por mes',
+    description: 'El más popular',
+    icon: CreditCard,
+    highlight: true,
+    features: ['Vacantes ilimitadas', 'Candidatos ilimitados', '100 llamadas de IA / hora', 'Integraciones ilimitadas', '20 clientes'],
+  },
+  {
+    id: 'business',
+    name: 'Business',
+    price: '$149',
+    period: 'por mes',
+    description: 'Para agencias y empresas',
+    icon: Building2,
+    features: ['Todo de Pro', '300 llamadas de IA / hora', 'Clientes ilimitados', 'Soporte prioritario', 'Reportes avanzados'],
+  },
+]
+
+function BillingTab() {
+  const { user } = useUser()
+  const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null)
+  const [loadingPortal, setLoadingPortal] = React.useState(false)
+  const [subscription, setSubscription] = React.useState<{
+    status: string | null
+    cancelAtPeriodEnd: boolean
+    periodEnd: string | null
+  } | null>(null)
+
+  const searchParams = useSearchParams()
+  const success = searchParams.get('success')
+  const canceled = searchParams.get('canceled')
+
+  const currentPlan = (user?.plan ?? 'free') as string
+  const isPaid = currentPlan !== 'free'
+
+  React.useEffect(() => {
+    fetch('/api/stripe/subscription')
+      .then(r => r.json())
+      .then(data => {
+        if (data.subscription) {
+          setSubscription({
+            status: data.subscription.stripe_status ?? data.subscription.status,
+            cancelAtPeriodEnd: data.subscription.cancel_at_period_end ?? false,
+            periodEnd: data.subscription.stripe_current_period_end ?? data.subscription.current_period_ends_at,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleUpgrade(planId: string) {
+    setLoadingPlan(planId)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {
+      setLoadingPlan(null)
+    }
+  }
+
+  async function handleManage() {
+    setLoadingPortal(true)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {
+      setLoadingPortal(false)
+    }
+  }
+
+  const periodEndStr = subscription?.periodEnd
+    ? new Date(subscription.periodEnd).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
+  return (
+    <div className="space-y-6">
+      {/* Success / Cancel banners */}
+      {success === '1' && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}
+        >
+          <Check className="h-4 w-4 shrink-0" />
+          ¡Suscripción activada! Tu plan fue actualizado correctamente.
+        </div>
+      )}
+      {canceled === '1' && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}
+        >
+          <X className="h-4 w-4 shrink-0" />
+          El pago fue cancelado. Podés intentarlo de nuevo cuando quieras.
+        </div>
+      )}
+
+      {/* Current plan summary */}
+      <div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl"
+        style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+      >
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--muted2)' }}>
+            Plan actual
+          </p>
+          <p className="text-lg font-bold capitalize" style={{ color: 'var(--text)' }}>
+            {currentPlan}
+            {subscription?.cancelAtPeriodEnd && periodEndStr && (
+              <span className="ml-2 text-xs font-normal" style={{ color: '#f87171' }}>
+                (cancela el {periodEndStr})
+              </span>
+            )}
+          </p>
+          {periodEndStr && !subscription?.cancelAtPeriodEnd && (
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted2)' }}>
+              Próximo cobro: {periodEndStr}
+            </p>
+          )}
+        </div>
+        {isPaid && (
+          <button
+            onClick={handleManage}
+            disabled={loadingPortal}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          >
+            {loadingPortal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+            Gestionar suscripción
+          </button>
+        )}
+      </div>
+
+      {/* Plan cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {PLANS.map(plan => {
+          const isCurrent = plan.id === currentPlan
+          const Icon = plan.icon
+          const isLoading = loadingPlan === plan.id
+
+          return (
+            <div
+              key={plan.id}
+              className="flex flex-col rounded-xl p-5 relative transition-all"
+              style={{
+                background: plan.highlight ? 'rgba(93,80,214,0.10)' : 'var(--surface2)',
+                border: `1px solid ${isCurrent ? 'var(--accent)' : plan.highlight ? 'rgba(93,80,214,0.4)' : 'var(--border)'}`,
+              }}
+            >
+              {plan.highlight && (
+                <div
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  Más popular
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="p-1.5 rounded-lg"
+                  style={{ background: plan.highlight ? 'rgba(93,80,214,0.2)' : 'var(--surface)', border: '1px solid var(--border)' }}
+                >
+                  <Icon className="h-4 w-4" style={{ color: plan.highlight ? 'var(--accent-2)' : 'var(--muted2)' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{plan.name}</p>
+                  <p className="text-xs" style={{ color: 'var(--muted2)' }}>{plan.description}</p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <span className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{plan.price}</span>
+                <span className="text-xs ml-1" style={{ color: 'var(--muted2)' }}>{plan.period}</span>
+              </div>
+
+              <ul className="space-y-1.5 mb-5 flex-1">
+                {plan.features.map(f => (
+                  <li key={f} className="flex items-start gap-2 text-xs" style={{ color: 'var(--muted2)' }}>
+                    <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: plan.highlight ? 'var(--accent-2)' : 'var(--muted2)' }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {isCurrent ? (
+                <div
+                  className="w-full py-2 rounded-lg text-xs font-semibold text-center"
+                  style={{ background: 'rgba(93,80,214,0.15)', color: 'var(--accent-2)' }}
+                >
+                  Plan actual
+                </div>
+              ) : plan.id === 'free' ? (
+                <div
+                  className="w-full py-2 rounded-lg text-xs font-semibold text-center"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted2)' }}
+                >
+                  {isPaid ? 'Cancelar suscripción' : 'Incluido'}
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleUpgrade(plan.id)}
+                  disabled={!!loadingPlan}
+                  className="w-full py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  style={{
+                    background: plan.highlight ? 'var(--accent)' : 'var(--surface)',
+                    border: plan.highlight ? 'none' : '1px solid var(--border)',
+                    color: plan.highlight ? '#fff' : 'var(--text)',
+                  }}
+                >
+                  {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {currentPlan === 'free' ? 'Actualizar plan' : 'Cambiar plan'}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="text-xs text-center" style={{ color: 'var(--muted2)' }}>
+        Los pagos son procesados de forma segura por Stripe. Cancelá en cualquier momento.
+      </p>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { t } = useLanguage()
   const [activeTab, setActiveTab] = React.useState('apariencia')
+
+  const searchParams = useSearchParams()
+
+  React.useEffect(() => {
+    if (searchParams.get('tab') === 'billing') {
+      setActiveTab('billing')
+    }
+  }, [searchParams])
 
   const SETTINGS_TABS = [
     { id: 'apariencia', label: t.settings.tabs.appearance },
@@ -1367,6 +1640,7 @@ export default function SettingsPage() {
     { id: 'ia', label: t.settings.tabs.ai },
     { id: 'idioma', label: t.settings.tabs.language },
     { id: 'drive', label: 'Google Drive' },
+    { id: 'billing', label: 'Facturación' },
   ]
 
   return (
@@ -1441,6 +1715,7 @@ export default function SettingsPage() {
         {activeTab === 'ia' && <ConexionIAsTab />}
         {activeTab === 'idioma' && <IdiomaTab />}
         {activeTab === 'drive' && <DriveTab />}
+        {activeTab === 'billing' && <BillingTab />}
       </main>
     </div>
   )
