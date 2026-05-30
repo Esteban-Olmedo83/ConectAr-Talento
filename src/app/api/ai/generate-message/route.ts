@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -12,9 +13,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     const { data: profile } = await supabase
       .from('profiles')
-      .select('groq_api_key')
+      .select('groq_api_key, plan')
       .eq('id', user.id)
       .single()
+
+    const rateLimit = await checkAiRateLimit(user.id, profile?.plan ?? 'free')
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: '', error: `Límite de generación de IA alcanzado. Reinicia en ${rateLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` },
+        { status: 429, headers: rateLimitHeaders(rateLimit) }
+      )
+    }
 
     const { context, type } = (await request.json()) as { context?: string; type?: string }
 
