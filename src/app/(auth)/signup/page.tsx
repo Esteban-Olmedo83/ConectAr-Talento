@@ -90,6 +90,8 @@ export default function SignupPage() {
       setIsLoading(false)
       return
     }
+    // Fire welcome email — fire and forget, do not block UI
+    fetch('/api/emails/welcome', { method: 'POST' }).catch(() => {})
     setSuccess(true)
   }
 
