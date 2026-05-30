@@ -219,7 +219,7 @@ export default function AdminTenantsPage() {
             >
               {/* Company */}
               <Link
-                href={`/admin/tenants/${t.id}`}
+                href={`/admin/tenants/${t.tenantId}`}
                 style={{ textDecoration: 'none', minWidth: 0 }}
               >
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
