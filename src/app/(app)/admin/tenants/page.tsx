@@ -62,6 +62,8 @@ export default function AdminTenantsPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [updatingPlan, setUpdatingPlan] = React.useState<string | null>(null)
+  const [search, setSearch] = React.useState('')
+  const [filterPlan, setFilterPlan] = React.useState('all')
 
   async function loadTenants() {
     try {
@@ -77,6 +79,18 @@ export default function AdminTenantsPage() {
   }
 
   React.useEffect(() => { loadTenants() }, [])
+
+  const filteredTenants = React.useMemo(() => {
+    const q = search.toLowerCase().trim()
+    return tenants.filter(t => {
+      const matchesSearch = !q ||
+        (t.companyName ?? '').toLowerCase().includes(q) ||
+        (t.fullName ?? '').toLowerCase().includes(q) ||
+        (t.email ?? '').toLowerCase().includes(q)
+      const matchesPlan = filterPlan === 'all' || t.plan === filterPlan
+      return matchesSearch && matchesPlan
+    })
+  }, [tenants, search, filterPlan])
 
   async function handlePlanChange(tenantId: string, plan: string) {
     setUpdatingPlan(tenantId)
@@ -113,9 +127,44 @@ export default function AdminTenantsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: 13, color: 'var(--muted2)' }}>
-          {tenants.length} tenant{tenants.length !== 1 ? 's' : ''} registrados
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <input
+          type="search"
+          placeholder="Buscar por empresa, nombre o email..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            flex: 1,
+            minWidth: 200,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 9,
+            color: 'var(--text)',
+            fontSize: 13,
+            padding: '8px 12px',
+            outline: 'none',
+          }}
+        />
+        <select
+          value={filterPlan}
+          onChange={e => setFilterPlan(e.target.value)}
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 9,
+            color: 'var(--text)',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '8px 12px',
+            outline: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="all">Todos los planes</option>
+          {PLANS.map(p => <option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
+        </select>
+        <p style={{ fontSize: 13, color: 'var(--muted2)', whiteSpace: 'nowrap' }}>
+          {filteredTenants.length} / {tenants.length} tenants
         </p>
       </div>
 
@@ -146,12 +195,14 @@ export default function AdminTenantsPage() {
         </div>
 
         {/* Table rows */}
-        {tenants.length === 0 ? (
+        {filteredTenants.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sin tenants registrados</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+              {tenants.length === 0 ? 'Sin tenants registrados' : 'Sin resultados para la búsqueda'}
+            </p>
           </div>
         ) : (
-          tenants.map(t => (
+          filteredTenants.map(t => (
             <div
               key={t.id}
               style={{

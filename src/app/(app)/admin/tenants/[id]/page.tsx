@@ -132,15 +132,26 @@ export default function TenantDetailPage() {
     setSavingBilling(true)
     setBillingMsg('')
     try {
-      const res = await fetch('/api/admin/tenants', {
+      const res = await fetch(`/api/admin/tenants/${data.tenant.tenant_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: data.tenant.tenant_id, plan: billingPlan }),
+        body: JSON.stringify({
+          plan: billingPlan,
+          status: billingStatus,
+          billingEmail,
+          billingName,
+          notes: billingNotes,
+          trialEndsAt,
+          periodEndsAt,
+        }),
       })
-      if (!res.ok) throw new Error('Failed to update')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? 'Failed to update')
+      }
       setBillingMsg('Guardado correctamente')
-    } catch {
-      setBillingMsg('Error al guardar')
+    } catch (e) {
+      setBillingMsg(e instanceof Error ? e.message : 'Error al guardar')
     } finally {
       setSavingBilling(false)
     }
