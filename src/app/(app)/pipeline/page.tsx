@@ -902,6 +902,21 @@ function ScheduleInterviewModal({
       if (applicationId && !applicationId.startsWith('virtual-')) {
         await provider.updateApplicationStatus(applicationId, 'Entrevistas')
       }
+      // Notify candidate via email — fire and forget
+      const selectedVacancy = vacancies.find((v) => v.id === (form.vacancyId || vacancies[0]?.id))
+      fetch('/api/emails/interview-scheduled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          vacancyTitle: selectedVacancy?.title ?? '',
+          scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
+          interviewerName: form.interviewerName,
+          interviewType: form.type,
+          meetingPlatform: form.meetingPlatform || undefined,
+          meetingLink: form.meetingLink || undefined,
+        }),
+      }).catch(() => {})
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       onScheduled?.()
