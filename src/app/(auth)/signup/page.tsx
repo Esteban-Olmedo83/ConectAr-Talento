@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, CheckCircle2, Loader2, Zap, Rocket, Building2 } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2, Loader2, Zap, Rocket, Building2, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserPlan } from '@/types'
 import { AuthLeftPanel } from '@/components/auth/AuthLeftPanel'
@@ -40,6 +40,7 @@ const plans: {
   highlighted?: boolean
 }[] = [
   { id: 'free', name: 'Free', price: '$0', description: 'Para empezar', icon: CheckCircle2 },
+  { id: 'starter', name: 'Starter', price: '$29', description: 'Para crecer', icon: Star },
   { id: 'pro', name: 'Pro', price: '$79', description: 'Para equipos', icon: Rocket, highlighted: true },
   { id: 'business', name: 'Business', price: '$149', description: 'Para empresas', icon: Building2 },
 ]
