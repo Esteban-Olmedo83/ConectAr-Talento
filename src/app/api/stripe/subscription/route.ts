@@ -28,10 +28,12 @@ export async function GET(): Promise<NextResponse> {
       .eq('tenant_id', profile.tenant_id)
       .maybeSingle()
 
+    const subRecord = sub as Record<string, unknown> | null
+
     return NextResponse.json({
       plan: profile.plan ?? 'free',
-      status: sub?.stripe_status ?? sub?.status ?? null,
-      subscription: sub ?? null,
+      status: (subRecord?.stripe_status ?? subRecord?.status) as string | null ?? null,
+      subscription: subRecord ?? null,
     })
   } catch (error) {
     console.error('Subscription GET error:', error)
