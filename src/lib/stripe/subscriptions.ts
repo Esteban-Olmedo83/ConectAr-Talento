@@ -78,6 +78,12 @@ export async function syncSubscriptionToDb(stripeSubscriptionId: string) {
   const priceId = subscription.items.data[0]?.price.id ?? null
   const { plan } = stripeStatusToPlan(subscription.status, priceId)
 
+  // current_period_start/end moved out of top-level Subscription in API 2026-05-27.dahlia
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subAny = subscription as any
+  const periodStart: number | null = subAny.current_period_start ?? null
+  const periodEnd: number | null = subAny.current_period_end ?? null
+
   const upsertData = {
     tenant_id: tenantId,
     stripe_customer_id: subscription.customer as string,
@@ -88,9 +94,9 @@ export async function syncSubscriptionToDb(stripeSubscriptionId: string) {
     status: subscription.status === 'active' || subscription.status === 'trialing' ? 'active' : 'inactive',
     cancel_at_period_end: subscription.cancel_at_period_end,
     canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
-    stripe_current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    current_period_ends_at: new Date(subscription.current_period_end * 1000).toISOString(),
+    stripe_current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
+    stripe_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    current_period_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     updated_at: new Date().toISOString(),
   }
 
