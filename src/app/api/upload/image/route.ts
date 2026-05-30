@@ -3,8 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+const ALLOWED_ENTITY_TYPES = ['candidate', 'company', 'avatar', 'image']
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -24,11 +27,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const type = (formData.get('type') as string) ?? 'image'
-    const entityId = (formData.get('id') as string) ?? 'unknown'
+    const rawType = (formData.get('type') as string) ?? 'image'
+    const rawEntityId = (formData.get('id') as string) ?? 'unknown'
 
     if (!file) {
       return NextResponse.json({ error: 'No se recibió ningún archivo.' }, { status: 400 })
+    }
+
+    if (!ALLOWED_ENTITY_TYPES.includes(rawType)) {
+      return NextResponse.json({ error: 'Tipo de entidad no válido.' }, { status: 400 })
+    }
+
+    if (!SAFE_ID_RE.test(rawEntityId)) {
+      return NextResponse.json({ error: 'ID de entidad no válido.' }, { status: 400 })
     }
 
     if (file.size > MAX_SIZE) {
@@ -39,11 +50,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Solo se permiten imágenes JPG, PNG o WebP.' }, { status: 400 })
     }
 
+    const rawExt = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!ALLOWED_EXTENSIONS.includes(rawExt)) {
+      return NextResponse.json({ error: 'Extensión de archivo no permitida.' }, { status: 400 })
+    }
+
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${tenantId}/${type}s/${entityId}/${Date.now()}.${ext}`
+    const ext = rawExt
+    const path = `${tenantId}/${rawType}s/${rawEntityId}/${Date.now()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
       .from('cvs')

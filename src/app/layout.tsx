@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: ['/logo.png'],
@@ -85,6 +85,12 @@ const jsonLd = {
       '@type': 'Offer',
       name: 'Plan Gratuito',
       price: '0',
+      priceCurrency: 'USD',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Plan Starter',
+      price: '29',
       priceCurrency: 'USD',
     },
     {
