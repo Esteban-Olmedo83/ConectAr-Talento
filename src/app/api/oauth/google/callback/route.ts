@@ -147,52 +147,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const adminClient = createAdminClient()
 
-    // Find or create the user by email
-    const { data: listData } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
-    const existingUser = (listData?.users ?? []).find(u => u.email === email)
-
-    let userId: string
-
-    if (existingUser) {
-      userId = existingUser.id
-    } else {
-      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
+    // Use type:'signup' which relies on the email+password provider (always enabled),
+    // unlike 'magiclink' which requires the Email OTP provider to be enabled.
+    // generateLink upserts the user, so it works for both new and existing accounts.
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password: crypto.randomUUID(),
+      options: {
+        redirectTo: `${appUrl}/auth/callback?next=/pipeline`,
+        data: {
           full_name: fullName ?? '',
           company_name: '',
           plan: 'free',
           avatar_url: avatarUrl ?? '',
         },
-      })
-      if (createError || !newUser?.user) {
-        return NextResponse.redirect(new URL('/login?error=google_link_failed', appUrl))
-      }
-      userId = newUser.user.id
-    }
-
-    // Set a temporary password, sign in server-side, then rotate the password
-    const tempPwd = `${crypto.randomUUID()}-${crypto.randomUUID()}`
-
-    const { error: setPwdError } = await adminClient.auth.admin.updateUserById(userId, {
-      password: tempPwd,
+      },
     })
-    if (setPwdError) {
+
+    if (linkError || !linkData?.properties?.action_link) {
       return NextResponse.redirect(new URL('/login?error=google_link_failed', appUrl))
     }
 
-    const supabase = await createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: tempPwd })
-
-    // Rotate password immediately regardless of sign-in outcome
-    await adminClient.auth.admin.updateUserById(userId, { password: crypto.randomUUID() })
-
-    if (signInError) {
-      return NextResponse.redirect(new URL('/login?error=google_link_failed', appUrl))
-    }
-
-    const response = NextResponse.redirect(new URL('/pipeline', appUrl))
+    const response = NextResponse.redirect(linkData.properties.action_link)
     response.cookies.delete('oauth_state_google_auth')
     return response
   }
