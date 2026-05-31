@@ -12,8 +12,11 @@ const ADMIN_EMAIL = 'conectar.rrhh.ar@gmail.com'
 
 const adminNavItems = [
   { label: 'Overview', href: '/admin' },
-  { label: 'Clientes (Tenants)', href: '/admin/tenants' },
+  { label: 'Tenants', href: '/admin/tenants' },
+  { label: 'Suscripciones', href: '/admin/subscriptions' },
   { label: 'Monitoreo', href: '/admin/monitoring' },
+  { label: 'Uso IA', href: '/admin/ai-logs' },
+  { label: 'Actividad', href: '/admin/activity' },
   { label: 'Changelog', href: '/admin/changelog' },
 ]
 
