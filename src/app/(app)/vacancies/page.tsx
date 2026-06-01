@@ -624,6 +624,7 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
 }) {
   const { t } = useLanguage()
   const isClosed = vacancy.status === 'Contratado'
+  const hasHired = !isClosed && vacancy.applications.some((a: { status: string }) => a.status === 'Contratado')
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
   const salaryStr = vacancy.salaryMin
@@ -645,6 +646,13 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
               style={{ background: 'rgba(107,114,128,0.2)', color: '#9ca3af' }}
             >
               Vacante Cerrada
+            </span>
+          ) : hasHired ? (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}
+            >
+              ✓ Candidato contratado
             </span>
           ) : (
             <span

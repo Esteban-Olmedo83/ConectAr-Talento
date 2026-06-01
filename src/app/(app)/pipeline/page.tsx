@@ -3228,10 +3228,25 @@ export default function PipelinePage() {
       const idx = STAGE_ORDER.indexOf(app.status)
       const nextStage = idx >= 0 && idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : null
       if (!nextStage) return
-      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a))
+      const updatedApps = applications.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a)
+      setApplications(updatedApps)
       if (!isVirtual) {
         await provider.updateApplicationStatus(appId, nextStage)
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+      // When a candidate is hired, check if all others for this vacancy are in terminal state
+      if (nextStage === 'Contratado' && app.vacancyId) {
+        const TERMINAL: VacancyStatus[] = ['Contratado', 'Descartado']
+        const othersForVacancy = updatedApps.filter(a => a.vacancyId === app.vacancyId && a.id !== appId)
+        const allTerminal = othersForVacancy.every(a => TERMINAL.includes(a.status))
+        if (allTerminal && !isVirtual) {
+          // Auto-close: all candidates resolved, close vacancy without dialog
+          await provider.closeVacancy(app.vacancyId)
+          handleVacancyClosed(app.vacancyId)
+        } else if (!isVirtual) {
+          // Show dialog to let user decide on remaining candidates
+          setHireDialog({ app: { ...app, status: 'Contratado' } })
+        }
       }
     }
   }
