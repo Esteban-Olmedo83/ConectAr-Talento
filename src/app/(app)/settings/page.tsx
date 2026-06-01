@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useLanguage } from '@/lib/context/language-context'
+import { getThemeKeys, applyStoredTheme } from '@/components/ThemeProvider'
+import { getLangKey } from '@/lib/context/language-context'
 import { LANGUAGES } from '@/lib/i18n/translations'
 import type { LangCode } from '@/lib/i18n/translations'
 
@@ -34,42 +36,38 @@ const THEMES = [
 
 // SETTINGS_TABS is built dynamically in SettingsPage using translations
 
-function applyTheme(theme: string) {
-  const html = document.documentElement
-  html.classList.remove('theme-light', 'theme-auto')
-  if (theme !== 'dark') html.classList.add(`theme-${theme}`)
-}
-
-function applyPalette(palette: string) {
-  const html = document.documentElement
-  PALETTE_CLASSES.forEach(p => html.classList.remove(p))
-  if (palette) html.classList.add(palette)
-}
-
 // ─── Apariencia Tab ───────────────────────────────────────────────────────────
 function AparienciaTab() {
+  const { user } = useUser()
   const [theme, setTheme] = React.useState('dark')
   const [palette, setPalette] = React.useState('')
 
   React.useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem('ct_theme') || 'dark'
-      const savedPalette = localStorage.getItem('ct_palette') || ''
+      const keys = getThemeKeys(user?.id)
+      const savedTheme = localStorage.getItem(keys.theme) || 'dark'
+      const savedPalette = localStorage.getItem(keys.palette) || ''
       setTheme(savedTheme)
       setPalette(savedPalette)
     } catch { /* noop */ }
-  }, [])
+  }, [user?.id])
 
   function handleThemeChange(newTheme: string) {
     setTheme(newTheme)
-    applyTheme(newTheme)
-    try { localStorage.setItem('ct_theme', newTheme) } catch { /* noop */ }
+    try {
+      const keys = getThemeKeys(user?.id)
+      localStorage.setItem(keys.theme, newTheme)
+    } catch { /* noop */ }
+    applyStoredTheme(user?.id)
   }
 
   function handlePaletteChange(newPalette: string) {
     setPalette(newPalette)
-    applyPalette(newPalette)
-    try { localStorage.setItem('ct_palette', newPalette) } catch { /* noop */ }
+    try {
+      const keys = getThemeKeys(user?.id)
+      localStorage.setItem(keys.palette, newPalette)
+    } catch { /* noop */ }
+    applyStoredTheme(user?.id)
   }
 
   return (
@@ -479,18 +477,21 @@ function defaultNotifPrefs(): NotifPrefs {
 }
 
 function NotificacionesTab() {
+  const { user } = useUser()
   const [prefs, setPrefs] = React.useState<NotifPrefs>(defaultNotifPrefs)
   const [saved, setSaved] = React.useState(false)
 
+  const notifKey = user?.id ? `u_${user.id}_notif_prefs` : 'ct_notif_prefs'
+
   React.useEffect(() => {
     try {
-      const raw = localStorage.getItem('ct_notif_prefs')
+      const raw = localStorage.getItem(notifKey)
       if (raw) {
         const parsed = JSON.parse(raw) as NotifPrefs
         setPrefs(prev => ({ ...prev, ...parsed }))
       }
     } catch { /* noop */ }
-  }, [])
+  }, [notifKey])
 
   function handleToggle(key: string, value: boolean) {
     setPrefs(prev => ({ ...prev, [key]: value }))
@@ -499,7 +500,7 @@ function NotificacionesTab() {
 
   function handleSave() {
     try {
-      localStorage.setItem('ct_notif_prefs', JSON.stringify(prefs))
+      localStorage.setItem(notifKey, JSON.stringify(prefs))
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch { /* noop */ }
@@ -623,6 +624,8 @@ interface AIConfig {
 
 function ConexionIAsTab() {
   const { user } = useUser()
+  const aiConfigKey = user?.id ? `u_${user.id}_ai_config` : 'ct_ai_config'
+
   const [selected, setSelected] = React.useState<IAProvider>('groq')
   const [apiKey, setApiKey] = React.useState('')
   const [showKey, setShowKey] = React.useState(false)
@@ -631,18 +634,20 @@ function ConexionIAsTab() {
   const [testing, setTesting] = React.useState(false)
   const [testResult, setTestResult] = React.useState<{ ok: boolean; message: string } | null>(null)
 
-  // Load from user context (Supabase) first, fallback to localStorage
+  // Cargar desde Supabase (contexto de usuario) primero, luego localStorage
   React.useEffect(() => {
     if (user?.groqApiKey) {
       setSelected((user.aiProvider as IAProvider) || 'groq')
       setApiKey(user.groqApiKey)
       setHasSavedKey(true)
-      // Sync to localStorage
-      localStorage.setItem('ct_ai_config', JSON.stringify({ provider: user.aiProvider || 'groq', apiKey: user.groqApiKey }))
+      // Sincronizar a localStorage con clave del usuario
+      try {
+        localStorage.setItem(aiConfigKey, JSON.stringify({ provider: user.aiProvider || 'groq', apiKey: user.groqApiKey }))
+      } catch { /* noop */ }
       return
     }
     try {
-      const raw = localStorage.getItem('ct_ai_config')
+      const raw = localStorage.getItem(aiConfigKey)
       if (raw) {
         const config = JSON.parse(raw) as AIConfig
         setSelected(config.provider || 'groq')
@@ -650,15 +655,15 @@ function ConexionIAsTab() {
         setHasSavedKey(!!config.apiKey)
       }
     } catch { /* noop */ }
-  }, [user?.groqApiKey, user?.aiProvider])
+  }, [user?.groqApiKey, user?.aiProvider, aiConfigKey])
 
   function handleSelectIA(id: IAProvider) {
     setSelected(id)
     setSaved(false)
     setTestResult(null)
-    // Load saved key for this provider if any
+    // Cargar la clave guardada para este proveedor si existe
     try {
-      const raw = localStorage.getItem('ct_ai_config')
+      const raw = localStorage.getItem(aiConfigKey)
       if (raw) {
         const config = JSON.parse(raw) as AIConfig
         if (config.provider === id) {
@@ -676,9 +681,9 @@ function ConexionIAsTab() {
   }
 
   async function handleSaveKey() {
-    // Save to localStorage immediately
+    // Guardar en localStorage inmediatamente con clave del usuario
     const config: AIConfig = { provider: selected, apiKey }
-    localStorage.setItem('ct_ai_config', JSON.stringify(config))
+    try { localStorage.setItem(aiConfigKey, JSON.stringify(config)) } catch { /* noop */ }
     setTestResult(null)
 
     // Save to Supabase

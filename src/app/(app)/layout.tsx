@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useSessionTimeout } from '@/lib/hooks/useSessionTimeout'
 import { UserContext } from '@/lib/context/user-context'
 import { LanguageProvider, useLanguage } from '@/lib/context/language-context'
+import { applyStoredTheme } from '@/components/ThemeProvider'
 import { InterviewReminderModal } from '@/components/interviews/interview-reminder-modal'
 import type { User } from '@/types'
 
@@ -17,7 +18,7 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
-  const { t } = useLanguage()
+  const { t, setUserId } = useLanguage()
 
   useSessionTimeout()
 
@@ -80,7 +81,7 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
           return
         }
 
-        setUser({
+        const loadedUser: User = {
           id: sessionUser.id,
           email: sessionUser.email ?? '',
           fullName: profile.full_name,
@@ -93,7 +94,12 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
           createdAt: profile.created_at,
           groqApiKey: profile.groq_api_key ?? undefined,
           aiProvider: profile.ai_provider ?? 'groq',
-        })
+        }
+        setUser(loadedUser)
+        // Aplicar preferencias de UI del usuario autenticado
+        // (aísla tema y paleta por userId)
+        setUserId(sessionUser.id)
+        applyStoredTheme(sessionUser.id)
       } catch {
         router.replace('/login')
       } finally {
