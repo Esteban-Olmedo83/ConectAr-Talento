@@ -3360,7 +3360,7 @@ export default function PipelinePage() {
       </div>
 
       {/* KPI strip */}
-      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0, WebkitOverflowScrolling: 'touch' as const }}>
         {[
           { label: t.pipeline.kpiTotal, value: filtered.length, color: 'var(--text)' },
           { label: t.pipeline.kpiNew, value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
@@ -3369,7 +3369,7 @@ export default function PipelinePage() {
           { label: t.pipeline.kpiOffer, value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
           { label: t.pipeline.kpiHired, value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
         ].map(kpi => (
-          <div key={kpi.label} style={{ flex: '1 1 80px', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+          <div key={kpi.label} style={{ flex: '0 0 auto', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: kpi.color, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1 }}>{kpi.value}</div>
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>{kpi.label}</div>
           </div>
