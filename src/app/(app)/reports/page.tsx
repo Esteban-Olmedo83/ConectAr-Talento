@@ -34,6 +34,8 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
 import type { Application, Candidate, Interview, Vacancy } from '@/types'
+import { FeatureGate } from '@/components/ui/feature-gate'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 type DateRange = 'month' | 'quarter' | 'year'
 
@@ -252,6 +254,7 @@ async function exportExecutivePdf({
 export default function ReportsPage() {
   const { user } = useUser()
   const { t } = useLanguage()
+  const features = getPlanFeatures(user?.plan ?? 'free')
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const [range, setRange] = React.useState<DateRange>('month')
   const [selectedSource, setSelectedSource] = React.useState('all')
@@ -520,6 +523,7 @@ export default function ReportsPage() {
   }
 
   return (
+    <FeatureGate feature="reports" hasAccess={features.reports} variant="blur">
     <div className="mx-auto flex h-full w-full max-w-[1680px] flex-col gap-5 px-4 py-4 md:px-6 md:py-6">
       <header className="rounded-[var(--radius-xl)] border border-border bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--surface-muted))_100%)] p-6 shadow-[var(--shadow-md)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -785,5 +789,6 @@ export default function ReportsPage() {
         </article>
       </section>
     </div>
+    </FeatureGate>
   )
 }
