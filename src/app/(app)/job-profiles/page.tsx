@@ -8,6 +8,8 @@ import { useLanguage } from '@/lib/context/language-context'
 import { skillsLibrary, rubros as builtinRubros } from '@/lib/skills'
 import { DraggableModal } from '@/components/ui/draggable-modal'
 import type { CustomJobProfile, JobRubro, CreateJobProfileInput, SkillProfile } from '@/types'
+import { LockedButton } from '@/components/ui/feature-gate'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -861,6 +863,7 @@ function ProfileFormModal({
 export default function JobProfilesPage() {
   const { user } = useUser()
   const { t } = useLanguage()
+  const features = getPlanFeatures(user?.plan ?? 'free')
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // State
@@ -1018,6 +1021,24 @@ export default function JobProfilesPage() {
         margin: '0 auto',
       }}
     >
+      {/* ── Demo banner for free plan ── */}
+      {!features.customJobProfiles && (
+        <div style={{ marginBottom: 20, borderRadius: 12, padding: '12px 16px', background: 'rgba(93,80,214,0.08)', border: '1px solid rgba(93,80,214,0.25)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: '1.1rem' }}>👀</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-soft, #8B7EFF)' }}>
+              Estás viendo los perfiles de puesto de muestra
+            </p>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--muted)', marginTop: 2 }}>
+              Actualizá al plan Starter para crear tus propios perfiles y rubros personalizados.
+            </p>
+          </div>
+          <a href="/configuracion?tab=plan" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff', background: 'var(--accent)', borderRadius: 8, padding: '6px 14px', textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Ver planes
+          </a>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div
         style={{
@@ -1042,44 +1063,66 @@ export default function JobProfilesPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={() => setRubroModalOpen(true)}
-            style={{
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: '8px 14px',
-              fontSize: '0.85rem',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontWeight: 500,
-            }}
-          >
-            <Plus size={15} />
-            Nuevo Rubro
-          </button>
-          <button
-            onClick={handleNewProfile}
-            style={{
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Plus size={15} />
-            {t.jobProfiles.new}
-          </button>
+          {features.customRubros ? (
+            <button
+              onClick={() => setRubroModalOpen(true)}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: '0.85rem',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 500,
+              }}
+            >
+              <Plus size={15} />
+              Nuevo Rubro
+            </button>
+          ) : (
+            <LockedButton
+              feature="customRubros"
+              className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium"
+              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted)', opacity: 0.6 } as React.CSSProperties}
+            >
+              <Plus size={15} />
+              Nuevo Rubro
+            </LockedButton>
+          )}
+          {features.customJobProfiles ? (
+            <button
+              onClick={handleNewProfile}
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Plus size={15} />
+              {t.jobProfiles.new}
+            </button>
+          ) : (
+            <LockedButton
+              feature="customJobProfiles"
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              style={{ background: 'var(--accent)', opacity: 0.5 } as React.CSSProperties}
+            >
+              <Plus size={15} />
+              {t.jobProfiles.new}
+            </LockedButton>
+          )}
         </div>
       </div>
 
