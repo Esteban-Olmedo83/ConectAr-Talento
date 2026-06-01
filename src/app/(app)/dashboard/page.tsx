@@ -5,6 +5,8 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
 import type { Candidate, Application, VacancyStatus, Interview, Vacancy, Client } from '@/types'
+import { getPlanLimits } from '@/lib/plan-limits'
+import { Zap } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name: string): string {
@@ -450,8 +452,68 @@ export default function DashboardPage() {
     return t.dashboard.daysAgo.replace('{n}', String(d))
   }
 
+  const planLimits = getPlanLimits(user?.plan ?? 'free')
+  const isFreePlan = (user?.plan ?? 'free') === 'free'
+  const activeVacanciesCount = vacancies.filter(v => v.status !== 'Contratado').length
+
   return (
     <div className="flex flex-col gap-5">
+
+      {/* Plan usage banner — only for Free plan */}
+      {isFreePlan && (
+        <div className="rounded-xl p-4" style={{ background: 'rgba(93,80,214,0.07)', border: '1px solid rgba(93,80,214,0.22)' }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'rgba(93,80,214,0.15)' }}>
+                <Zap size={16} className="text-[#8B7EFF]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Plan Free</p>
+                <p className="text-xs text-gray-400">Actualizá para desbloquear todas las funciones</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              {[
+                { label: 'Vacantes', used: activeVacanciesCount, max: planLimits.vacancies },
+                { label: 'Candidatos', used: candidates.length, max: planLimits.candidates },
+                { label: 'Clientes', used: clients.length, max: planLimits.clients },
+                { label: 'Integraciones', used: 0, max: planLimits.integrations },
+              ].map(({ label, used, max }) => {
+                const pct = max === Infinity ? 0 : Math.min((used / max) * 100, 100)
+                const isNearLimit = max !== Infinity && pct >= 80
+                return (
+                  <div key={label} className="flex min-w-[90px] flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-400">{label}</span>
+                      <span className={`text-xs font-semibold ${isNearLimit ? 'text-orange-400' : 'text-gray-300'}`}>
+                        {max === Infinity ? '∞' : `${used}/${max}`}
+                      </span>
+                    </div>
+                    {max !== Infinity && (
+                      <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${pct}%`,
+                            background: pct >= 100 ? '#f87171' : pct >= 80 ? '#fb923c' : '#5D50D6',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <a
+              href="/configuracion?tab=plan"
+              className="shrink-0 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}
+            >
+              Ver planes
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Header row: title + client filter */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
