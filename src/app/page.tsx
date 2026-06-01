@@ -6,6 +6,7 @@ import {
   BrainCircuit, BarChart3, Globe2, MessageCircle, Video, BookOpen,
   CheckCircle, ArrowRight, Zap, Star, TrendingUp, MapPin, Award,
 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand'
 
 /* ─── Data ─────────────────────────────────────────────────── */
 const STATS = [
@@ -155,12 +156,7 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav style={{ background: 'rgba(11,11,20,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(93,80,214,0.2)' }} className="fixed top-0 inset-x-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}>
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-black text-white text-lg">ConectAr Talento</span>
-          </div>
+          <BrandLogo onDark href="/" size="lg" iconSize={38} />
           <div className="hidden md:flex items-center gap-8">
             {[['#features', 'Funciones'], ['#pricing', 'Precios']].map(([href, label]) => (
               <a key={label} href={href} className="text-sm transition-colors" style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</a>
@@ -377,11 +373,8 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="py-12" style={{ background: '#060610', borderTop: '1px solid rgba(93,80,214,0.15)' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}>
-              <Zap className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="font-black text-white">ConectAr Talento</span>
+          <div className="mb-8">
+            <BrandLogo onDark href="/" size="md" iconSize={28} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-2 md:col-span-1">
