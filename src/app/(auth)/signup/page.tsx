@@ -55,6 +55,8 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [success, setSuccess] = React.useState(false)
+  const [acceptedTerms, setAcceptedTerms] = React.useState(false)
+  const [acceptedComms, setAcceptedComms] = React.useState(false)
 
   const handleGoogleLogin = async () => {
     setError('')
@@ -84,6 +86,10 @@ export default function SignupPage() {
       setError('Por favor completá todos los campos.')
       return
     }
+    if (!acceptedTerms) {
+      setError('Debés aceptar los Términos y Condiciones y la Política de Privacidad para continuar.')
+      return
+    }
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres.')
       return
@@ -109,6 +115,18 @@ export default function SignupPage() {
     }
     // Fire welcome email — fire and forget, do not block UI
     fetch('/api/emails/welcome', { method: 'POST' }).catch(() => {})
+
+    // Registrar consentimientos legales
+    fetch('/api/legal/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventTypes: ['terms_accepted', 'privacy_accepted', 'dpa_accepted'],
+        documentVersions: { terms: '1.0', privacy: '1.0', dpa: '1.0' },
+        metadata: { accepted_comms: acceptedComms },
+      }),
+    }).catch(() => {})
+
     setSuccess(true)
   }
 
@@ -340,6 +358,44 @@ export default function SignupPage() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* Checkboxes legales */}
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  disabled={isLoading}
+                  className="mt-0.5 rounded"
+                  style={{ accentColor: S.accent, width: 15, height: 15, flexShrink: 0 }}
+                />
+                <span className="text-xs leading-relaxed" style={{ color: S.textSec }}>
+                  Acepto los{' '}
+                  <Link href="/terminos" target="_blank" className="hover:underline" style={{ color: S.accentSoft }}>
+                    Términos y Condiciones
+                  </Link>{' '}
+                  y la{' '}
+                  <Link href="/privacidad" target="_blank" className="hover:underline" style={{ color: S.accentSoft }}>
+                    Política de Privacidad
+                  </Link>
+                  <span style={{ color: '#f87171' }}> *</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedComms}
+                  onChange={(e) => setAcceptedComms(e.target.checked)}
+                  disabled={isLoading}
+                  className="mt-0.5 rounded"
+                  style={{ accentColor: S.accent, width: 15, height: 15, flexShrink: 0 }}
+                />
+                <span className="text-xs leading-relaxed" style={{ color: S.textSec }}>
+                  Acepto recibir comunicaciones sobre el servicio, novedades y actualizaciones de ConectAr Talento (opcional)
+                </span>
+              </label>
             </div>
 
             {/* Submit */}

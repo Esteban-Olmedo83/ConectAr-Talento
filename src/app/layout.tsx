@@ -4,6 +4,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Analytics } from '@/components/Analytics'
 import { CrispChat } from '@/components/CrispChat'
+import { CookieBanner } from '@/components/ui/cookie-banner'
 
 const dmSans = DM_Sans({
   variable: '--font-dm-sans',
@@ -130,6 +131,7 @@ export default function RootLayout({
         />
         <Analytics />
         <CrispChat />
+        <CookieBanner />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
