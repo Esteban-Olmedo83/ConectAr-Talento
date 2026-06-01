@@ -21,6 +21,7 @@ import {
   BookOpen,
   ShieldCheck,
   Archive,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -55,21 +56,24 @@ interface NavItemProps {
   label: string
   isActive: boolean
   isCollapsed: boolean
+  locked?: boolean
   onClick?: () => void
 }
 
-function NavItem({ href, icon: Icon, label, isActive, isCollapsed, onClick }: NavItemProps) {
+function NavItem({ href, icon: Icon, label, isActive, isCollapsed, locked, onClick }: NavItemProps) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      title={isCollapsed ? label : undefined}
+      title={isCollapsed ? (locked ? `${label} — Plan Starter` : label) : undefined}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-2.5 rounded-[10px] transition-all duration-150 text-sm font-medium',
         isCollapsed ? 'justify-center px-2 py-2.5' : 'px-2.5 py-[9px]',
         isActive
           ? 'bg-[var(--accent-soft)] text-[var(--accent-2)]'
+          : locked
+          ? 'text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--muted2)]'
           : 'text-[var(--muted2)] hover:bg-[var(--surface2)] hover:text-[var(--text)]'
       )}
     >
@@ -77,7 +81,12 @@ function NavItem({ href, icon: Icon, label, isActive, isCollapsed, onClick }: Na
         className={cn('shrink-0 h-4 w-4', isActive ? 'text-[var(--accent-2)]' : '')}
         aria-hidden="true"
       />
-      {!isCollapsed && <span className="truncate">{label}</span>}
+      {!isCollapsed && (
+        <>
+          <span className="truncate flex-1">{label}</span>
+          {locked && <Lock size={11} className="shrink-0 opacity-50" style={{ color: '#8B7EFF' }} />}
+        </>
+      )}
     </Link>
   )
 }
@@ -104,6 +113,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const { t } = useLanguage()
+  const isFreePlan = (user?.plan ?? 'free') === 'free'
 
   const mainNavItems = [
     { label: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
@@ -218,6 +228,7 @@ export function Sidebar({
             label={t.nav.jobProfiles}
             isActive={isActive('/job-profiles')}
             isCollapsed={isCollapsed}
+            locked={isFreePlan}
             onClick={onClose}
           />
           <NavItem
@@ -226,6 +237,7 @@ export function Sidebar({
             label={t.nav.templates}
             isActive={isActive('/templates')}
             isCollapsed={isCollapsed}
+            locked={isFreePlan}
             onClick={onClose}
           />
           <NavItem
@@ -234,6 +246,7 @@ export function Sidebar({
             label={t.nav.integrations}
             isActive={isActive('/integrations')}
             isCollapsed={isCollapsed}
+            locked={isFreePlan}
             onClick={onClose}
           />
           <NavItem
@@ -242,6 +255,7 @@ export function Sidebar({
             label={t.nav.reports}
             isActive={isActive('/reports')}
             isCollapsed={isCollapsed}
+            locked={isFreePlan}
             onClick={onClose}
           />
 
