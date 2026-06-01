@@ -1195,12 +1195,16 @@ function DriveTab() {
     }
   }
 
+  const driveIconFill = isConnected
+    ? { green: '#34d399', blue: '#60a5fa', yellow: '#fbbf24' }
+    : { green: '#9ca3af', blue: '#9ca3af', yellow: '#9ca3af' }
+
   return (
     <div className="space-y-6 max-w-xl">
       <div>
         <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Google Drive</h3>
         <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-          Almacená y sincronizá tus datos de reclutamiento en Google Drive y Google Sheets.
+          Almacená y sincronizá tus datos de reclutamiento en Google Drive y Google Sheets automáticamente.
         </p>
       </div>
 
@@ -1208,7 +1212,7 @@ function DriveTab() {
       <div
         style={{
           background: 'var(--surface)',
-          border: '1px solid var(--border)',
+          border: `1px solid ${isConnected ? 'rgba(52,211,153,0.3)' : 'var(--border)'}`,
           borderRadius: 12,
           padding: '16px 20px',
           display: 'flex',
@@ -1230,12 +1234,12 @@ function DriveTab() {
           }}
         >
           <svg width="20" height="20" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill={isConnected ? '#34d399' : '#9ca3af'}/>
-            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill={isConnected ? '#60a5fa' : '#9ca3af'}/>
-            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill={isConnected ? '#fbbf24' : '#9ca3af'}/>
-            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill={isConnected ? '#60a5fa' : '#9ca3af'}/>
-            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill={isConnected ? '#34d399' : '#9ca3af'}/>
-            <path d="m73.4 26.95-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill={isConnected ? '#fbbf24' : '#9ca3af'}/>
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill={driveIconFill.green}/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill={driveIconFill.blue}/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill={driveIconFill.yellow}/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill={driveIconFill.blue}/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill={driveIconFill.green}/>
+            <path d="m73.4 26.95-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill={driveIconFill.yellow}/>
           </svg>
         </div>
         <div className="flex-1 min-w-0">
@@ -1244,8 +1248,8 @@ function DriveTab() {
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
             {isConnected
-              ? 'Tu carpeta y hoja de cálculo están listas.'
-              : 'Conectá tu cuenta de Google en la pestaña Integraciones.'}
+              ? 'Tu carpeta y hoja de cálculo están listas para sincronizar.'
+              : 'Conectá tu cuenta de Google para habilitar Drive y Sheets.'}
           </p>
         </div>
         {isConnected && (
@@ -1258,6 +1262,7 @@ function DriveTab() {
               background: 'rgba(52,211,153,0.12)',
               color: '#34d399',
               border: '1px solid rgba(52,211,153,0.25)',
+              flexShrink: 0,
             }}
           >
             Activo
@@ -1265,6 +1270,61 @@ function DriveTab() {
         )}
       </div>
 
+      {/* Not connected: connect panel */}
+      {!isConnected && (
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '20px',
+          }}
+        >
+          <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
+            Conectar Google Drive
+          </p>
+          <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+            Al conectar se creará automáticamente una carpeta <strong style={{ color: 'var(--text)' }}>ConectAr Talento</strong> en
+            tu Drive y una hoja de cálculo para exportar candidatos, vacantes y aplicaciones.
+          </p>
+          <ul className="space-y-1.5 mb-5">
+            {[
+              { icon: '💾', label: 'Google Drive', desc: 'Carpeta propia para CVs y documentos' },
+              { icon: '📊', label: 'Google Sheets', desc: 'Base de datos exportable de tus candidatos' },
+              { icon: '📧', label: 'Gmail', desc: 'Enviá emails a candidatos desde la app' },
+              { icon: '📅', label: 'Google Calendar', desc: 'Creá entrevistas automáticamente' },
+            ].map((f) => (
+              <li key={f.label} className="flex items-start gap-2 text-xs">
+                <span className="text-base leading-none mt-0.5">{f.icon}</span>
+                <span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{f.label}</span>
+                  <span style={{ color: 'var(--muted)' }}> — {f.desc}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="/api/oauth/google"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+              style={{ background: 'var(--accent)', color: '#fff', textDecoration: 'none' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="white"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+              </svg>
+              Conectar con Google
+            </a>
+            <span className="text-xs" style={{ color: 'var(--muted)' }}>
+              🔒 Solo se accede a lo que autorices. Podés desconectar cuando quieras.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Connected: links and sync */}
       {isConnected && (
         <>
           {/* Links */}
@@ -1345,17 +1405,18 @@ function DriveTab() {
               </p>
             )}
           </div>
-        </>
-      )}
 
-      {!isConnected && (
-        <a
-          href="/integrations"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
-          style={{ background: 'var(--accent)', color: '#fff', textDecoration: 'none' }}
-        >
-          Conectar Google en Integraciones →
-        </a>
+          {/* Reconnect */}
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            ¿Querés cambiar de cuenta?{' '}
+            <a
+              href="/api/oauth/google"
+              style={{ color: 'var(--accent-2)', textDecoration: 'underline' }}
+            >
+              Reconectá tu Google Drive
+            </a>
+          </p>
+        </>
       )}
     </div>
   )
