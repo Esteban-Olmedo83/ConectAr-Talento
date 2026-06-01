@@ -40,6 +40,10 @@ interface AiLog {
 interface ActivityLog {
   id: string; action: string; entity_type: string; entity_label: string | null; created_at: string
 }
+interface LegalAuditLog {
+  id: string; event_type: string; ip_address: string | null
+  document_version: string | null; created_at: string
+}
 
 const PLAN_COLORS: Record<string, string> = {
   free: '#9ca3af', starter: '#60a5fa', pro: '#a78bfa', business: '#fb923c', enterprise: '#fbbf24',
@@ -102,7 +106,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 8, color: 'var(--text)', fontSize: 13, padding: '8px 12px', outline: 'none',
 }
 
-type TabKey = 'clientes' | 'vacantes' | 'candidatos' | 'facturacion' | 'suscripcion' | 'ia' | 'actividad'
+type TabKey = 'clientes' | 'vacantes' | 'candidatos' | 'facturacion' | 'suscripcion' | 'ia' | 'actividad' | 'legal'
 
 export default function TenantDetailPage() {
   const params = useParams()
@@ -131,6 +135,10 @@ export default function TenantDetailPage() {
   // Activity
   const [actLogs, setActLogs] = React.useState<ActivityLog[]>([])
   const [actLoading, setActLoading] = React.useState(false)
+
+  // Legal audit
+  const [legalLogs, setLegalLogs] = React.useState<LegalAuditLog[]>([])
+  const [legalLoading, setLegalLoading] = React.useState(false)
 
   React.useEffect(() => {
     if (!id) return
@@ -182,6 +190,18 @@ export default function TenantDetailPage() {
       .finally(() => setActLoading(false))
   }, [activeTab, data])
 
+  // Load legal audit when tab activated
+  React.useEffect(() => {
+    if (activeTab !== 'legal' || !data) return
+    if (legalLogs.length > 0) return
+    setLegalLoading(true)
+    fetch(`/api/admin/legal-audit?userId=${data.profile.id}`)
+      .then(r => r.json())
+      .then((d: { logs?: LegalAuditLog[] }) => setLegalLogs(d.logs ?? []))
+      .catch(() => {})
+      .finally(() => setLegalLoading(false))
+  }, [activeTab, data])
+
   async function saveBilling() {
     if (!data) return
     setSavingBilling(true)
@@ -225,6 +245,7 @@ export default function TenantDetailPage() {
     { key: 'suscripcion', label: 'Suscripción' },
     { key: 'ia', label: 'Uso IA' },
     { key: 'actividad', label: 'Actividad' },
+    { key: 'legal', label: 'Legal' },
   ]
 
   return (
@@ -470,6 +491,40 @@ export default function TenantDetailPage() {
                 ))}
               </div>
             </>
+          )}
+        </Card>
+      )}
+
+      {/* ── Tab: Legal ── */}
+      {activeTab === 'legal' && (
+        <Card>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Registros de compliance legal</p>
+          {legalLoading ? (
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>Cargando...</p>
+          ) : legalLogs.length === 0 ? (
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>Sin registros de compliance</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {['Evento', 'Fecha/hora', 'IP', 'Versión documento'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '6px 10px', color: 'var(--muted2)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {legalLogs.map(l => (
+                    <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 10px', color: 'var(--text)', fontWeight: 600 }}>{l.event_type}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--muted2)' }}>{formatDateTime(l.created_at)}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--muted)', fontFamily: 'monospace' }}>{l.ip_address ?? '—'}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--muted2)' }}>{l.document_version ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
       )}
