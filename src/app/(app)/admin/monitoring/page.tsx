@@ -230,12 +230,14 @@ export default function AdminMonitoringPage() {
         </button>
       </div>
 
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 14,
           overflow: 'hidden',
+          minWidth: 800,
         }}
       >
         {/* Header */}
@@ -355,6 +357,7 @@ export default function AdminMonitoringPage() {
             )
           })
         )}
+      </div>
       </div>
     </div>
   )

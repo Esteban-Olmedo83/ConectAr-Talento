@@ -235,3 +235,10 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
+
+/* ── Talent Pool Drawer — mobile full-width ──────────────────── */
+@media (max-width: 767px) {
+  .talent-pool-drawer {
+    width: 100vw !important;
+  }
+}
