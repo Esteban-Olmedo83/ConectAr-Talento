@@ -447,9 +447,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   google_state_mismatch: 'Error de seguridad en la autenticación de Google. Intentá de nuevo.',
   google_no_code: 'No se recibió el código de Google. Intentá de nuevo.',
   google_token_error: 'Error al obtener el token de Google. Verificá la configuración OAuth.',
-  linkedin_not_configured: 'LinkedIn OAuth no está configurado. El administrador debe configurar LINKEDIN_CLIENT_ID y LINKEDIN_CLIENT_SECRET.',
+  linkedin_not_configured: 'La integración con LinkedIn está disponible pero aún no está habilitada en esta instancia. Contactá a soporte para activarla.',
   linkedin_denied: 'Denegaste el acceso a LinkedIn. Podés intentarlo de nuevo.',
-  microsoft_not_configured: 'Microsoft OAuth no está configurado. El administrador debe configurar MICROSOFT_CLIENT_ID y MICROSOFT_CLIENT_SECRET.',
+  microsoft_not_configured: 'La integración con Microsoft está disponible pero aún no está habilitada en esta instancia. Contactá a soporte para activarla.',
   zoom_not_configured: 'Zoom OAuth no está configurado. El administrador debe configurar ZOOM_CLIENT_ID y ZOOM_CLIENT_SECRET.',
   meta_not_configured: 'WhatsApp Business (Meta) OAuth no está configurado. El administrador debe configurar META_APP_ID y META_APP_SECRET.',
   invalid_state: 'Error de seguridad en la autenticación. Por favor, intentá de nuevo.',
@@ -457,8 +457,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 function ErrorBanner({ message, onClose }: { message: string; onClose: () => void }) {
+  const isInfo = message.includes('disponible pero') || message.includes('aún no está habilitada')
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 bg-red-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm">
+    <div className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 px-4 py-3 rounded-xl shadow-xl animate-in slide-in-from-bottom-2 max-w-sm ${isInfo ? 'bg-amber-600 text-white' : 'bg-red-600 text-white'}`}>
       <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
       <span className="text-sm leading-relaxed">{message}</span>
       <button onClick={onClose} className="ml-2 p-0.5 hover:opacity-70 transition-opacity flex-shrink-0">
