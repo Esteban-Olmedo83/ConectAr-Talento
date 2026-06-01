@@ -238,7 +238,7 @@ export default function LandingPage() {
 
       {/* ── STATS con contadores ── */}
       <section style={{ borderTop: '1px solid rgba(93,80,214,0.15)', borderBottom: '1px solid rgba(93,80,214,0.15)' }}>
-        <div ref={statsRef} className="max-w-5xl mx-auto px-6 py-16 grid grid-cols-4 gap-6">
+        <div ref={statsRef} className="max-w-5xl mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {STATS.map(s => (
             <StatCard key={s.label} stat={s} triggered={statsVisible} />
           ))}
