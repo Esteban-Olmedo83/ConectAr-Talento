@@ -33,6 +33,16 @@ export function UpdatesNotificationBanner() {
   const [dismissed, setDismissed] = React.useState(false)
   const [marking, setMarking] = React.useState(false)
 
+  // When the notification bell marks updates as read, dismiss the banner too
+  React.useEffect(() => {
+    function handleMarkedRead() {
+      setUpdates([])
+      dismiss()
+    }
+    window.addEventListener('updates:marked-read', handleMarkedRead)
+    return () => window.removeEventListener('updates:marked-read', handleMarkedRead)
+  }, [])
+
   React.useEffect(() => {
     // Check if dismissed this session
     const sessionDismissed = sessionStorage.getItem(SESSION_DISMISSED_KEY)

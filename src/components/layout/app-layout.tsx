@@ -5,6 +5,7 @@ import { Menu, Search, LogOut, Settings, User } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { UpdatesNotificationBanner } from '@/app/(app)/components/updates-banner'
+import { SearchModal } from '@/components/search/search-modal'
 import { cn } from '@/lib/utils'
 import type { User as UserType } from '@/types'
 
@@ -19,7 +20,20 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [dropdownOpen, setDropdownOpen] = React.useState(false)
+  const [searchOpen, setSearchOpen] = React.useState(false)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
+
+  // Ctrl+K / Cmd+K global shortcut
+  React.useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(v => !v)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
 
   const handleLogout = React.useCallback(async () => {
     await fetch('/api/auth/signout', { method: 'POST' })
@@ -113,8 +127,10 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
           <div className="flex items-center gap-2">
             {/* Search */}
             <button
+              onClick={() => setSearchOpen(true)}
               className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
               aria-label="Buscar"
+              title="Buscar (Ctrl+K)"
               style={{ color: 'var(--muted)' }}
             >
               <Search className="h-4 w-4" />
@@ -223,6 +239,9 @@ export function AppLayout({ children, pageTitle, pageSubtitle, user }: AppLayout
           {children}
         </main>
       </div>
+
+      {/* Global search modal */}
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

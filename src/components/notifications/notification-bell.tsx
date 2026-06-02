@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Bell, Calendar, Clock, AlertTriangle, Settings } from 'lucide-react'
+import { Bell, Calendar, Clock, AlertTriangle, Settings, Sparkles } from 'lucide-react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 
@@ -20,8 +20,8 @@ const DEFAULT_SETTINGS: NotifSettings = {
   openDays: 30,
 }
 
-type NotifType = 'interview' | 'closing' | 'long_open'
-type Urgency = 'high' | 'medium' | 'low'
+type NotifType = 'interview' | 'closing' | 'long_open' | 'update'
+type Urgency = 'high' | 'medium' | 'low' | 'info'
 
 interface Notif {
   id: string
@@ -30,6 +30,7 @@ interface Notif {
   message: string
   urgency: Urgency
   href: string
+  updateId?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,12 +70,21 @@ const URGENCY_COLOR: Record<Urgency, string> = {
   high:   '#f87171',
   medium: '#fbbf24',
   low:    'var(--muted2)',
+  info:   'var(--accent-2)',
 }
 
 const TYPE_ICON: Record<NotifType, React.ElementType> = {
   interview: Calendar,
   closing:   Clock,
   long_open: AlertTriangle,
+  update:    Sparkles,
+}
+
+const UPDATE_TYPE_LABELS: Record<string, string> = {
+  fix:         'Corrección',
+  feature:     'Novedad',
+  improvement: 'Mejora',
+  security:    'Seguridad',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -166,9 +176,28 @@ export function NotificationBell() {
       }
     }
 
-    // Sort: high urgency first
+    // System updates (novedades)
+    try {
+      const updRes = await fetch('/api/admin/changelog/unread')
+      if (updRes.ok) {
+        const updData = await updRes.json() as { updates: Array<{ id: string; title: string; type: string }> }
+        for (const u of updData.updates ?? []) {
+          result.push({
+            id: `upd-${u.id}`,
+            type: 'update',
+            title: u.title,
+            message: UPDATE_TYPE_LABELS[u.type] ?? 'Actualización',
+            urgency: 'info',
+            href: '/',
+            updateId: u.id,
+          })
+        }
+      }
+    } catch { /* non-fatal */ }
+
+    // Sort: high urgency first, info (system updates) last
     result.sort((a, b) => {
-      const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2 }
+      const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2, info: 3 }
       return order[a.urgency] - order[b.urgency]
     })
 
@@ -181,7 +210,7 @@ export function NotificationBell() {
     return () => clearInterval(id)
   }, [compute, settings])
 
-  // Auto-refresh when interviews/vacancies change or tab becomes visible
+  // Auto-refresh when data changes or tab becomes visible
   React.useEffect(() => {
     function refresh() { compute(settings) }
     window.addEventListener('application:stage-changed', refresh)
@@ -196,6 +225,13 @@ export function NotificationBell() {
       window.removeEventListener('interview:scheduled', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
+  }, [compute, settings])
+
+  // Re-fetch when system updates are marked read elsewhere (e.g. from the banner)
+  React.useEffect(() => {
+    function refresh() { compute(settings) }
+    window.addEventListener('updates:marked-read', refresh)
+    return () => window.removeEventListener('updates:marked-read', refresh)
   }, [compute, settings])
 
   // Close on outside click
@@ -215,22 +251,38 @@ export function NotificationBell() {
     compute(tempSettings)
   }
 
+  async function handleBellOpen() {
+    const willOpen = !open
+    if (willOpen && notifications.length > 0) {
+      const newSeen = addSeen(notifications.map(n => n.id))
+      setSeenIds(newSeen)
+
+      // Mark system updates as read in DB
+      const updateIds = notifications
+        .filter(n => n.type === 'update' && n.updateId)
+        .map(n => n.updateId!)
+      if (updateIds.length > 0) {
+        fetch('/api/admin/changelog/unread', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updateIds }),
+        }).catch(() => {})
+        window.dispatchEvent(new CustomEvent('updates:marked-read'))
+      }
+    }
+    setOpen(v => !v)
+  }
+
   const total = notifications.length
   const unseenCount = notifications.filter(n => !seenIds.has(n.id)).length
   const highCount = notifications.filter(n => n.urgency === 'high' && !seenIds.has(n.id)).length
+  const updateCount = notifications.filter(n => n.type === 'update' && !seenIds.has(n.id)).length
 
   return (
     <div className="relative" ref={ref}>
       {/* Bell button */}
       <button
-        onClick={() => {
-          const willOpen = !open
-          if (willOpen && notifications.length > 0) {
-            const newSeen = addSeen(notifications.map(n => n.id))
-            setSeenIds(newSeen)
-          }
-          setOpen(v => !v)
-        }}
+        onClick={handleBellOpen}
         className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-[var(--surface2)]"
         aria-label="Notificaciones"
         style={{ color: 'var(--muted)' }}
@@ -240,7 +292,7 @@ export function NotificationBell() {
           <span
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-white font-bold leading-none"
             style={{
-              background: highCount > 0 ? '#f87171' : 'var(--accent)',
+              background: highCount > 0 ? '#f87171' : updateCount > 0 && unseenCount === updateCount ? 'var(--accent-2)' : 'var(--accent)',
               fontSize: 9,
               minWidth: 15,
               height: 15,
