@@ -3,11 +3,142 @@ const APP_URL =
   'https://conect-ar-talento-esteban-olmedo83s-projects.vercel.app'
 
 const ACCENT = '#5D50D6'
+const ACCENT2 = '#8B7EFF'
 const BG = '#0B0B14'
 const TEXT = '#ffffff'
 const TEXT_SECONDARY = 'rgba(255,255,255,0.6)'
 const CARD_BG = '#13131F'
 const BORDER = 'rgba(255,255,255,0.08)'
+
+const TYPE_BADGE: Record<string, { label: string; color: string; emoji: string }> = {
+  fix:         { label: 'Fix',       color: '#f87171', emoji: '🔧' },
+  feature:     { label: 'Novedad',   color: '#34d399', emoji: '✨' },
+  improvement: { label: 'Mejora',    color: '#60a5fa', emoji: '⚡' },
+  security:    { label: 'Seguridad', color: '#fbbf24', emoji: '🔒' },
+}
+
+// ── Sistema de Novedades ───────────────────────────────────────────────────────
+
+export interface SystemUpdateEmailData {
+  recipientName: string
+  updates: { id: string; title: string; description: string; type: string }[]
+  unsubscribeUrl?: string // solo presente si el usuario está inactivo
+}
+
+export function systemUpdateEmailHtml(data: SystemUpdateEmailData): string {
+  const logoUrl = `${APP_URL}/logo-transparent.png`
+  const novedadesUrl = `${APP_URL}/novedades`
+
+  const updateCards = data.updates.map(u => {
+    const meta = TYPE_BADGE[u.type] ?? { label: u.type, color: '#9ca3af', emoji: '📌' }
+    return `
+      <tr>
+        <td style="background:#0d0d1a;border:1px solid rgba(93,80,214,0.2);border-radius:12px;padding:18px 20px;margin-bottom:12px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-bottom:8px;">
+                <span style="display:inline-block;background:${meta.color}1a;color:${meta.color};font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;text-transform:uppercase;letter-spacing:1px;">${meta.emoji} ${meta.label}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-bottom:6px;">
+                <p style="margin:0;font-size:15px;font-weight:800;color:#e2e8f0;">${u.title}</p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p style="margin:0;font-size:13px;color:#64748b;line-height:1.65;">${u.description}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr><td style="height:10px;"></td></tr>
+    `
+  }).join('')
+
+  const unsubscribeRow = data.unsubscribeUrl
+    ? `<span style="color:rgba(255,255,255,0.15);">&nbsp;·&nbsp;</span>
+       <a href="${data.unsubscribeUrl}" style="color:rgba(255,255,255,0.25);text-decoration:none;font-size:11px;">Desuscribirse</a>`
+    : ''
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novedades del sistema — ConectAr Talento</title>
+  <meta name="description" content="Hay novedades en tu plataforma de reclutamiento" />
+</head>
+<body style="margin:0;padding:0;background-color:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;">Hay ${data.updates.length} novedad${data.updates.length !== 1 ? 'es' : ''} nueva${data.updates.length !== 1 ? 's' : ''} en ConectAr Talento</div>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG};min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#0d0d1a;border-radius:20px;overflow:hidden;border:1px solid rgba(93,80,214,0.2);">
+
+          <!-- Barra superior gradiente -->
+          <tr>
+            <td style="background:linear-gradient(90deg,${ACCENT},${ACCENT2},#e879f9);height:4px;font-size:1px;line-height:1px;">&nbsp;</td>
+          </tr>
+
+          <!-- Header con logo real -->
+          <tr>
+            <td style="padding:24px 36px 0;border-bottom:1px solid rgba(93,80,214,0.12);">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td valign="middle">
+                    <a href="${APP_URL}" style="text-decoration:none;display:inline-flex;align-items:center;gap:10px;">
+                      <img src="${logoUrl}" alt="ConectAr Talento" width="36" height="36" style="border-radius:9px;display:inline-block;vertical-align:middle;" />
+                      <span style="font-size:15px;font-weight:800;color:#e2e8f0;vertical-align:middle;margin-left:8px;">ConectAr <span style="color:${ACCENT2};">Talento</span></span>
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <div style="height:20px;"></div>
+            </td>
+          </tr>
+
+          <!-- Cuerpo -->
+          <tr>
+            <td style="padding:32px 36px;">
+              <p style="margin:0 0 4px;font-size:13px;color:${ACCENT2};font-weight:600;">Hola, ${data.recipientName} 👋</p>
+              <h1 style="margin:0 0 20px;font-size:24px;font-weight:900;color:#fff;line-height:1.2;">Tenemos novedades para vos</h1>
+
+              <!-- Cards de actualizaciones -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                ${updateCards}
+              </table>
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+                <tr>
+                  <td align="center">
+                    <a href="${novedadesUrl}" style="display:inline-block;background:rgba(93,80,214,0.15);border:1px solid rgba(93,80,214,0.4);color:${ACCENT2};text-decoration:none;font-size:13px;font-weight:700;padding:13px 32px;border-radius:10px;">Ver todas las novedades →</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 36px 28px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+              <p style="margin:0 0 6px;font-size:11px;color:rgba(255,255,255,0.2);">ConectAr Talento · ATS para reclutadores de LATAM</p>
+              <p style="margin:0;font-size:11px;">
+                <a href="${APP_URL}" style="color:${ACCENT};text-decoration:none;">Plataforma</a>
+                ${unsubscribeRow}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
 
 function baseTemplate(title: string, previewText: string, bodyHtml: string): string {
   return `<!DOCTYPE html>
