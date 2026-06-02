@@ -1275,7 +1275,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all mb-4"
+        className="border-2 border-dashed rounded-xl p-4 flex flex-wrap items-center gap-4 cursor-pointer transition-all mb-4"
         style={{
           borderColor: isDragging ? 'var(--accent)' : 'var(--border2)',
           background: isDragging ? 'var(--accent-soft)' : 'var(--surface2)',
@@ -1291,7 +1291,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
            status === 'done' ? <CheckCircle2 className="h-5 w-5" style={{ color: '#34d399' }} /> :
            <Upload className="h-5 w-5" style={{ color: 'var(--accent-2)' }} />}
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-medium" style={{ color: status === 'error' ? 'var(--coral)' : 'var(--text)' }}>
             {status === 'analyzing' ? t.candidates.analyzingCV :
              status === 'done' ? t.candidates.cvAnalyzedSuccess :
@@ -1300,7 +1300,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{t.candidates.dragCVSub}</p>
         </div>
-        <div className="ml-auto">
+        <div className="shrink-0 ml-auto">
           <span
             className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
             style={{
