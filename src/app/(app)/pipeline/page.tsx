@@ -3007,6 +3007,7 @@ export default function PipelinePage() {
     return param ?? 'all'
   })
   const [filterScore, setFilterScore] = React.useState<string>('all')
+  const [filterProcess, setFilterProcess] = React.useState<'activos' | 'concluidos' | 'cancelados'>('activos')
   const [searchText, setSearchText] = React.useState('')
   const [activeStage, setActiveStage] = React.useState<VacancyStatus | 'all'>('all')
   const [activeModal, setActiveModal] = React.useState<ActiveModal>(null)
@@ -3135,6 +3136,10 @@ export default function PipelinePage() {
       const vac = vacancies.find(v => v.id === a.vacancyId)
       // Hide applications for vacancies belonging to a deleted or inactive client
       if (vac?.clientId && !activeClientIds.has(vac.clientId)) return false
+      // Filter by process status (based on vacancy status)
+      if (filterProcess === 'activos' && vac && (vac.status === 'Contratado' || vac.status === 'Descartado')) return false
+      if (filterProcess === 'concluidos' && (!vac || vac.status !== 'Contratado')) return false
+      if (filterProcess === 'cancelados' && (!vac || vac.status !== 'Descartado')) return false
       if (activeStage !== 'all' && a.status !== activeStage) return false
       if (filterClient !== 'all') {
         if (!vac || vac.clientId !== filterClient) return false
@@ -3146,7 +3151,7 @@ export default function PipelinePage() {
       if (searchText && !c.fullName.toLowerCase().includes(searchText.toLowerCase())) return false
       return true
     })
-  }, [applications, activeStage, filterClient, filterVacancy, filterScore, searchText, vacancies, clients])
+  }, [applications, activeStage, filterClient, filterVacancy, filterScore, filterProcess, searchText, vacancies, clients])
 
   const stageCounts = React.useMemo(() => {
     const map: Record<VacancyStatus, number> = {
@@ -3162,6 +3167,19 @@ export default function PipelinePage() {
     })
     return map
   }, [filtered])
+
+  const processStatusCounts = React.useMemo(() => {
+    const count = (predicate: (vac: Vacancy | undefined) => boolean) =>
+      applications.filter(a => {
+        const vac = vacancies.find(v => v.id === a.vacancyId)
+        return !!a.candidate && !!a.vacancyId && predicate(vac)
+      }).length
+    return {
+      activos: count(vac => !!vac && vac.status !== 'Contratado' && vac.status !== 'Descartado'),
+      concluidos: count(vac => vac?.status === 'Contratado'),
+      cancelados: count(vac => vac?.status === 'Descartado'),
+    }
+  }, [applications, vacancies])
 
   const clientGroups = React.useMemo(() => {
     const groups = new Map<string, { clientId: string; clientName: string; apps: HydratedApplication[] }>()
@@ -3251,9 +3269,9 @@ export default function PipelinePage() {
     }
   }
 
-  // When a vacancy is closed after hiring, remove it from the list
+  // When a vacancy is closed after hiring, mark it as Contratado so it moves to Concluidos
   function handleVacancyClosed(vacancyId: string) {
-    setVacancies(prev => prev.filter(v => v.id !== vacancyId))
+    setVacancies(prev => prev.map(v => v.id === vacancyId ? { ...v, status: 'Contratado' as VacancyStatus } : v))
     setHireDialog(null)
   }
 
@@ -3292,6 +3310,49 @@ export default function PipelinePage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Process status filter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 24px', borderBottom: '1px solid var(--border)' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginRight: 4, flexShrink: 0 }}>
+          Ver:
+        </span>
+        {([
+          { key: 'activos',    label: 'Activos',    color: '#34d399' },
+          { key: 'concluidos', label: 'Concluidos', color: '#60a5fa' },
+          { key: 'cancelados', label: 'Cancelados', color: '#9ca3af' },
+        ] as const).map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => { setFilterProcess(key); setActiveStage('all') }}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 99,
+              border: `1px solid ${filterProcess === key ? color : 'var(--border)'}`,
+              background: filterProcess === key ? `${color}22` : 'transparent',
+              color: filterProcess === key ? color : 'var(--muted2)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            {label}
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              background: filterProcess === key ? `${color}33` : 'var(--surface2)',
+              color: filterProcess === key ? color : 'var(--muted)',
+              padding: '1px 5px',
+              borderRadius: 99,
+            }}>
+              {processStatusCounts[key]}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {/* Stage tabs */}
       <div style={{ padding: '10px 24px', borderBottom: '1px solid var(--border)' }}>
         <StagePillsBar
@@ -3336,9 +3397,15 @@ export default function PipelinePage() {
             style={{ ...inputStyle, paddingRight: 28, appearance: 'none' as const }}
           >
             <option value="all">{t.pipeline.allVacancies}</option>
-            {(filterClient === 'all' ? vacancies : vacancies.filter(v => v.clientId === filterClient)).map(v => (
-              <option key={v.id} value={v.id}>{v.title}</option>
-            ))}
+            {(filterClient === 'all' ? vacancies : vacancies.filter(v => v.clientId === filterClient))
+              .filter(v =>
+                filterProcess === 'activos'    ? v.status !== 'Contratado' && v.status !== 'Descartado' :
+                filterProcess === 'concluidos' ? v.status === 'Contratado' :
+                v.status === 'Descartado'
+              )
+              .map(v => (
+                <option key={v.id} value={v.id}>{v.title}</option>
+              ))}
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} />
         </div>
@@ -3357,7 +3424,7 @@ export default function PipelinePage() {
         </div>
         {(filterClient !== 'all' || filterVacancy !== 'all' || filterScore !== 'all' || searchText || activeStage !== 'all') && (
           <button
-            onClick={() => { setFilterClient('all'); setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all') }}
+            onClick={() => { setFilterClient('all'); setFilterVacancy('all'); setFilterScore('all'); setSearchText(''); setActiveStage('all'); }}
             className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
             style={{ color: 'var(--muted)' }}
           >
@@ -3398,8 +3465,16 @@ export default function PipelinePage() {
             <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Search style={{ width: 22, height: 22, color: 'var(--muted)' }} />
             </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Sin candidatos</p>
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Probá ajustando los filtros o creando una nueva vacante</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+              {filterProcess === 'concluidos' ? 'Sin procesos concluidos' :
+               filterProcess === 'cancelados' ? 'Sin procesos cancelados' :
+               'Sin candidatos'}
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
+              {filterProcess === 'concluidos' ? 'Los procesos donde se contrató un candidato aparecerán aquí' :
+               filterProcess === 'cancelados' ? 'Los procesos sin contratación aparecerán aquí' :
+               'Probá ajustando los filtros o creando una nueva vacante'}
+            </p>
           </div>
         ) : (
           clientGroups.map(group => (
