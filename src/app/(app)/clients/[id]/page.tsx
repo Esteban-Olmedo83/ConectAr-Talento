@@ -602,8 +602,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         className="rounded-2xl p-6 mb-6"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-start gap-4 flex-wrap">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
             <div
               className="shrink-0 flex items-center justify-center rounded-2xl text-white text-2xl font-bold"
               style={{
@@ -614,12 +614,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             >
               {client.name.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold truncate" style={{ color: 'var(--text)' }}>
                 {client.name}
               </h1>
               {client.industry && (
-                <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{client.industry}</p>
+                <p className="text-sm mt-0.5 truncate" style={{ color: 'var(--muted)' }}>{client.industry}</p>
               )}
             </div>
           </div>
@@ -631,7 +631,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--muted2)' }}
             >
-              <Pencil className="h-4 w-4" /> {t.common.edit}
+              <Pencil className="h-4 w-4" /> <span className="hidden sm:inline">{t.common.edit}</span>
             </Button>
             <Button
               variant="ghost"
@@ -640,7 +640,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               className="flex items-center gap-1.5"
               style={{ color: 'var(--coral)' }}
             >
-              <Trash2 className="h-4 w-4" /> {t.common.delete}
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{t.common.delete}</span>
             </Button>
           </div>
         </div>
