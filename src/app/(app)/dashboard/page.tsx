@@ -223,6 +223,14 @@ export default function DashboardPage() {
   const [data, setData] = React.useState<DashboardData | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [filterClient, setFilterClient] = React.useState<string>('all')
+  const [aiUsage, setAiUsage] = React.useState<{ remaining: number | null; isUnlimited: boolean; plan: string } | null>(null)
+
+  React.useEffect(() => {
+    fetch('/api/ai/usage-today')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setAiUsage({ remaining: d.remaining, isUnlimited: d.isUnlimited, plan: d.plan }))
+      .catch(() => {})
+  }, [])
 
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
@@ -646,7 +654,7 @@ export default function DashboardPage() {
         >
           ✦
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{t.dashboard.aiInsightTitle}</p>
           <p style={{ fontSize: 13, color: 'var(--muted2)' }}>
             {stuckCount > 0
@@ -654,6 +662,23 @@ export default function DashboardPage() {
               : t.dashboard.aiInsightOk}
           </p>
         </div>
+        {aiUsage && !aiUsage.isUnlimited && (
+          <div
+            style={{
+              flexShrink: 0,
+              padding: '4px 10px',
+              borderRadius: 8,
+              background: aiUsage.remaining === 0 ? 'rgba(239,68,68,0.12)' : 'var(--accent-soft)',
+              border: `1px solid ${aiUsage.remaining === 0 ? 'rgba(239,68,68,0.3)' : 'rgba(var(--accent-rgb),0.3)'}`,
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ fontSize: 10, fontWeight: 700, color: aiUsage.remaining === 0 ? '#ef4444' : 'var(--accent-2)', lineHeight: 1.3 }}>
+              {aiUsage.remaining === 0 ? '🔒' : '✨'} {aiUsage.remaining === 0 ? 'Sin análisis' : `${aiUsage.remaining} análisis`}
+            </p>
+            <p style={{ fontSize: 9, color: 'var(--muted)', lineHeight: 1.2 }}>CV hoy · Plan {aiUsage.plan}</p>
+          </div>
+        )}
       </div>
 
       {/* Funnel + Donut */}

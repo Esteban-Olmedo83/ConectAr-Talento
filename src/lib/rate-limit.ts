@@ -8,6 +8,15 @@ const AI_HOURLY_LIMITS: Record<string, number> = {
   enterprise: Infinity,
 }
 
+// Daily CV-analysis limits (tracked via ai_usage_logs)
+const AI_DAILY_LIMITS: Record<string, number> = {
+  free:       1,
+  starter:    Infinity,
+  pro:        Infinity,
+  business:   Infinity,
+  enterprise: Infinity,
+}
+
 export interface RateLimitResult {
   allowed: boolean
   limit: number
@@ -48,6 +57,42 @@ export async function checkAiRateLimit(userId: string, plan: string): Promise<Ra
     return { allowed: count <= limit, limit, remaining, resetAt }
   } catch (err) {
     console.error('Rate limit unexpected error:', err)
+    return { allowed: true, limit, remaining: limit, resetAt }
+  }
+}
+
+export async function checkAiDailyLimit(userId: string, plan: string, route = 'analyze-cv'): Promise<RateLimitResult> {
+  const limit = AI_DAILY_LIMITS[plan] ?? AI_DAILY_LIMITS.free
+
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+  const resetAt = new Date(startOfDay)
+  resetAt.setDate(resetAt.getDate() + 1)
+
+  if (!isFinite(limit)) {
+    return { allowed: true, limit, remaining: Infinity, resetAt }
+  }
+
+  try {
+    const supabase = createAdminClient()
+    const { count, error } = await supabase
+      .from('ai_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('route', route)
+      .eq('success', true)
+      .gte('created_at', startOfDay.toISOString())
+
+    if (error) {
+      console.error('Daily AI limit check error:', error)
+      return { allowed: true, limit, remaining: limit, resetAt }
+    }
+
+    const used = count ?? 0
+    const remaining = Math.max(0, limit - used)
+    return { allowed: used < limit, limit, remaining, resetAt }
+  } catch (err) {
+    console.error('Daily AI limit unexpected error:', err)
     return { allowed: true, limit, remaining: limit, resetAt }
   }
 }

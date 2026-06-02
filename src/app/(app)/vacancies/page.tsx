@@ -226,7 +226,7 @@ function VacancyFormDialog({
               </select>
             </div>
             <div>
-              <label className={cn(labelCls)} style={{ color: 'var(--accent-2)' }}>Perfil (auto-completa skills)</label>
+              <label className={cn(labelCls, 'truncate')} style={{ color: 'var(--accent-2)' }}>Perfil del puesto</label>
               {manualPerfil ? (
                 <div className="flex gap-1">
                   <input

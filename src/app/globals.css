@@ -60,33 +60,33 @@
   --red: #ef4444;
 }
 
-/* ── Light mode ──────────────────────────────────────────────── */
+/* ── Light mode (Opción 3 — Acento/Branded) ─────────────────── */
 .theme-light {
-  --bg: #f7f7fb;
-  --surface: #ffffff;
-  --surface2: #f1f1f8;
-  --surface3: #e6e6f0;
-  --border: rgba(15, 15, 30, 0.08);
-  --border2: rgba(15, 15, 30, 0.14);
-  --text: #0f0f1f;
-  --muted: #8a8aa8;
-  --muted2: #5a5a78;
-  --topbar-bg: rgba(247, 247, 251, 0.92);
+  --bg: #f3f2fb;
+  --surface: #fafaff;
+  --surface2: #e9e8f6;
+  --surface3: #d6d4ef;
+  --border: rgba(93, 80, 214, 0.18);
+  --border2: rgba(93, 80, 214, 0.28);
+  --text: #0f0d20;
+  --muted: #6868a0;
+  --muted2: #4e4e7e;
+  --topbar-bg: rgba(243, 242, 251, 0.92);
 }
 
 /* ── Auto mode (follows OS) ──────────────────────────────────── */
 @media (prefers-color-scheme: light) {
   .theme-auto {
-    --bg: #f7f7fb;
-    --surface: #ffffff;
-    --surface2: #f1f1f8;
-    --surface3: #e6e6f0;
-    --border: rgba(15, 15, 30, 0.08);
-    --border2: rgba(15, 15, 30, 0.14);
-    --text: #0f0f1f;
-    --muted: #8a8aa8;
-    --muted2: #5a5a78;
-    --topbar-bg: rgba(247, 247, 251, 0.92);
+    --bg: #f3f2fb;
+    --surface: #fafaff;
+    --surface2: #e9e8f6;
+    --surface3: #d6d4ef;
+    --border: rgba(93, 80, 214, 0.18);
+    --border2: rgba(93, 80, 214, 0.28);
+    --text: #0f0d20;
+    --muted: #6868a0;
+    --muted2: #4e4e7e;
+    --topbar-bg: rgba(243, 242, 251, 0.92);
   }
 }
 
