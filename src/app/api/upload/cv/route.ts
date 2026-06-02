@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCvText, CvExtractionError } from '@/lib/cv/extract-text'
 import { getPlanLimits } from '@/lib/plan-limits'
+import { checkAiDailyLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
-
-// Monthly CV-analysis limit (separate from total candidate limit)
-const MONTHLY_ANALYSIS_LIMITS: Record<string, number> = { free: 10, starter: 50, pro: Infinity, business: Infinity, enterprise: Infinity }
 
 function extractJpegFromPdf(buffer: Buffer): Buffer | null {
   // Collect ALL JPEGs embedded in the PDF, then pick the largest one
@@ -126,25 +124,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const formData = await request.formData()
     const skipAnalysis = formData.get('skipAnalysis') === 'true'
 
-    // Plan-based monthly CV-analysis limit (only applies when running AI analysis)
+    // Daily CV-analysis limit (only applies when running AI analysis)
     if (!skipAnalysis) {
-      const monthlyLimit = MONTHLY_ANALYSIS_LIMITS[plan] ?? 10
-      if (isFinite(monthlyLimit)) {
-        const startOfMonth = new Date()
-        startOfMonth.setDate(1)
-        startOfMonth.setHours(0, 0, 0, 0)
-        const { count } = await supabase
-          .from('candidates')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId)
-          .gte('created_at', startOfMonth.toISOString())
-        if ((count ?? 0) >= monthlyLimit) {
-          return NextResponse.json({
-            ok: false,
-            planLimit: true,
-            error: `Límite del plan ${plan} alcanzado (${monthlyLimit} análisis/mes). Actualizá tu plan para análisis ilimitados.`,
-          }, { status: 429 })
-        }
+      const dailyCheck = await checkAiDailyLimit(user.id, plan, 'analyze-cv')
+      if (!dailyCheck.allowed) {
+        const resetTime = dailyCheck.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        return NextResponse.json({
+          ok: false,
+          planLimit: true,
+          error: plan === 'free'
+            ? `Plan gratuito: 1 análisis de CV por día. Se renueva a las ${resetTime}. Actualizá tu plan para análisis ilimitados.`
+            : `Límite diario de análisis alcanzado. Se renueva a las ${resetTime}.`,
+        }, { status: 429 })
       }
     }
     const file = formData.get('file') as File | null

@@ -1271,6 +1271,14 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
   const [prefill, setPrefill] = React.useState<Partial<Candidate> | null>(null)
   const [showAdd, setShowAdd] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const [aiUsage, setAiUsage] = React.useState<{ remaining: number | null; isUnlimited: boolean } | null>(null)
+
+  React.useEffect(() => {
+    fetch('/api/ai/usage-today')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setAiUsage({ remaining: d.remaining, isUnlimited: d.isUnlimited }))
+      .catch(() => {})
+  }, [])
 
   async function analyzeFile(file: File) {
     if (onLimitReached()) return
@@ -1341,11 +1349,13 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
         onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed rounded-xl p-4 flex flex-wrap items-center gap-4 cursor-pointer transition-all mb-4"
+        onClick={() => { if (aiUsage && !aiUsage.isUnlimited && aiUsage.remaining === 0) return; inputRef.current?.click() }}
+        className="border-2 border-dashed rounded-xl p-4 flex flex-wrap items-center gap-4 transition-all mb-4"
         style={{
           borderColor: isDragging ? 'var(--accent)' : 'var(--border2)',
           background: isDragging ? 'var(--accent-soft)' : 'var(--surface2)',
+          cursor: (aiUsage && !aiUsage.isUnlimited && aiUsage.remaining === 0) ? 'not-allowed' : 'pointer',
+          opacity: (aiUsage && !aiUsage.isUnlimited && aiUsage.remaining === 0) ? 0.65 : 1,
         }}
       >
         <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.rtf,.txt,.md" className="hidden"
@@ -1368,16 +1378,29 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{t.candidates.dragCVSub}</p>
         </div>
         <div className="shrink-0 ml-auto">
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
-            style={{
-              background: 'var(--accent-soft)',
-              color: 'var(--accent-2)',
-              borderColor: 'var(--accent)',
-            }}
-          >
-            ✨ IA
-          </span>
+          {aiUsage && !aiUsage.isUnlimited ? (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+              style={{
+                background: aiUsage.remaining === 0 ? 'rgba(239,68,68,0.1)' : 'var(--accent-soft)',
+                color: aiUsage.remaining === 0 ? '#ef4444' : 'var(--accent-2)',
+                borderColor: aiUsage.remaining === 0 ? '#ef4444' : 'var(--accent)',
+              }}
+            >
+              {aiUsage.remaining === 0 ? '🔒 Sin análisis hoy' : `✨ ${aiUsage.remaining} análisis hoy`}
+            </span>
+          ) : (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+              style={{
+                background: 'var(--accent-soft)',
+                color: 'var(--accent-2)',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              ✨ IA
+            </span>
+          )}
         </div>
       </div>
       <AddCandidateDialog
