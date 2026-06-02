@@ -122,26 +122,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Plan-based monthly CV-analysis limit
-    const monthlyLimit = MONTHLY_ANALYSIS_LIMITS[plan] ?? 10
-    if (isFinite(monthlyLimit)) {
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
-      const { count } = await supabase
-        .from('candidates')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .gte('created_at', startOfMonth.toISOString())
-      if ((count ?? 0) >= monthlyLimit) {
-        return NextResponse.json({
-          error: `Límite del plan ${plan} alcanzado (${monthlyLimit} análisis/mes). Actualizá tu plan para análisis ilimitados.`,
-        }, { status: 429 })
-      }
-    }
-
     // Parse form data
     const formData = await request.formData()
+    const skipAnalysis = formData.get('skipAnalysis') === 'true'
+
+    // Plan-based monthly CV-analysis limit (only applies when running AI analysis)
+    if (!skipAnalysis) {
+      const monthlyLimit = MONTHLY_ANALYSIS_LIMITS[plan] ?? 10
+      if (isFinite(monthlyLimit)) {
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+        const { count } = await supabase
+          .from('candidates')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId)
+          .gte('created_at', startOfMonth.toISOString())
+        if ((count ?? 0) >= monthlyLimit) {
+          return NextResponse.json({
+            ok: false,
+            planLimit: true,
+            error: `Límite del plan ${plan} alcanzado (${monthlyLimit} análisis/mes). Actualizá tu plan para análisis ilimitados.`,
+          }, { status: 429 })
+        }
+      }
+    }
     const file = formData.get('file') as File | null
     const vacancyRequirementsRaw = formData.get('vacancyRequirements') as string | null
     const vacancyRequirements: string[] = vacancyRequirementsRaw
@@ -174,23 +179,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Extract text from file using the shared utility (pdf2json, mammoth, etc.)
+    // Extract text (only needed for AI analysis)
     let cvText = ''
+    if (!skipAnalysis) {
+      try {
+        cvText = await extractCvText(file)
+      } catch (e) {
+        console.error('[upload-cv] text extraction error:', e)
+        const message = e instanceof CvExtractionError
+          ? e.message
+          : 'No se pudo leer el archivo. Asegurate de que sea un PDF de texto (no escaneado), DOCX, RTF o TXT.'
+        return NextResponse.json({ error: message }, { status: 400 })
+      }
 
-    try {
-      cvText = await extractCvText(file)
-    } catch (e) {
-      console.error('[upload-cv] text extraction error:', e)
-      const message = e instanceof CvExtractionError
-        ? e.message
-        : 'No se pudo leer el archivo. Asegurate de que sea un PDF de texto (no escaneado), DOCX, RTF o TXT.'
-      return NextResponse.json({ error: message }, { status: 400 })
-    }
-
-    if (!cvText || cvText.trim().length < 50) {
-      return NextResponse.json({
-        error: 'El archivo está vacío o no contiene texto extraíble. Si es un PDF escaneado (imagen), convertilo a PDF de texto primero.',
-      }, { status: 400 })
+      if (!cvText || cvText.trim().length < 50) {
+        return NextResponse.json({
+          error: 'El archivo está vacío o no contiene texto extraíble. Si es un PDF escaneado (imagen), convertilo a PDF de texto primero.',
+        }, { status: 400 })
+      }
     }
 
     // Upload original file to Supabase Storage
@@ -232,6 +238,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
       } catch { /* non-fatal */ }
+    }
+
+    // Skip analysis — just store the file
+    if (skipAnalysis) {
+      return NextResponse.json({ ok: true, cvUrl, cvFileName })
     }
 
     // Analyze with Groq

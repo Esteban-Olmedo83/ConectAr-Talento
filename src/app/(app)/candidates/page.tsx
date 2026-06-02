@@ -957,8 +957,11 @@ function AddCandidateDialog({
   const { t } = useLanguage()
   const provider = React.useMemo(() => new SupabaseProvider(), [])
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
+  const cvInputRef = React.useRef<HTMLInputElement>(null)
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
   const [avatarError, setAvatarError] = React.useState<string | null>(null)
+  const [uploadingCvManual, setUploadingCvManual] = React.useState(false)
+  const [cvUploadError, setCvUploadError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState({
     fullName: prefill?.fullName ?? '',
     email: prefill?.email ?? '',
@@ -1016,6 +1019,30 @@ function AddCandidateDialog({
       setAvatarError(t.candidates.photoNetworkError)
     } finally {
       setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingCvManual(true)
+    setCvUploadError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('skipAnalysis', 'true')
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: fd })
+      const data = await res.json() as { ok?: boolean; cvUrl?: string; cvFileName?: string; error?: string }
+      if (data.ok && data.cvUrl) {
+        setForm(f => ({ ...f, cvUrl: data.cvUrl!, cvFileName: data.cvFileName ?? file.name }))
+      } else {
+        setCvUploadError(data.error ?? 'No se pudo subir el archivo.')
+      }
+    } catch {
+      setCvUploadError('Sin conexión al servidor.')
+    } finally {
+      setUploadingCvManual(false)
       e.target.value = ''
     }
   }
@@ -1181,13 +1208,33 @@ function AddCandidateDialog({
             <label className={labelCls}>{t.candidates.addDialog.notes}</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'resize-none h-16')} placeholder={t.candidates.addDialog.notesPlaceholder} />
           </div>
-          {form.cvFileName && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid var(--accent)' }}>
-              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-              <span>CV adjunto: <strong>{form.cvFileName}</strong></span>
-              {form.cvUrl && <a href={form.cvUrl} target="_blank" rel="noopener noreferrer" className="ml-auto underline hover:opacity-80">Ver</a>}
-            </div>
-          )}
+          {/* CV upload */}
+          <div>
+            <label className={labelCls}>CV (PDF, DOC, DOCX)</label>
+            <input ref={cvInputRef} type="file" accept=".pdf,.doc,.docx,.rtf,.txt" className="hidden" onChange={handleCvUpload} />
+            {form.cvFileName ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid var(--accent)' }}>
+                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                <span className="flex-1 truncate"><strong>{form.cvFileName}</strong></span>
+                {form.cvUrl && <a href={form.cvUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 underline hover:opacity-80">Ver</a>}
+                <button type="button" onClick={() => setForm(f => ({ ...f, cvUrl: '', cvFileName: '' }))} className="shrink-0 ml-1 opacity-60 hover:opacity-100" style={{ color: 'var(--coral)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>✕</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => cvInputRef.current?.click()}
+                disabled={uploadingCvManual}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs border cursor-pointer transition-colors"
+                style={{ background: 'var(--surface2)', borderColor: 'var(--border)', color: 'var(--muted2)' }}
+              >
+                {uploadingCvManual
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />Subiendo...</>
+                  : <><svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>Adjuntar CV (sin análisis IA)</>
+                }
+              </button>
+            )}
+            {cvUploadError && <p className="text-xs mt-1" style={{ color: 'var(--coral)' }}>{cvUploadError}</p>}
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
             <Button type="submit" disabled={saving}>
@@ -1234,7 +1281,8 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
       if (!res.ok || !data.ok) {
         setErrorMsg(data.error ?? t.candidates.cvAnalyzeError)
         setStatus('error')
-        setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
+        // Give extra time to read plan-limit messages
+        setTimeout(() => { setStatus('idle'); setErrorMsg('') }, data.planLimit ? 10000 : 5000)
         return
       }
 
@@ -1254,9 +1302,13 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
       setStatus('done')
       setShowAdd(true)
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : t.candidates.cvNetworkError)
+      const raw = error instanceof Error ? error.message : ''
+      const friendly = raw === 'Failed to fetch'
+        ? 'Sin conexión al servidor. Verificá tu internet e intentá de nuevo.'
+        : (raw || t.candidates.cvNetworkError)
+      setErrorMsg(friendly)
       setStatus('error')
-      setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 5000)
+      setTimeout(() => { setStatus('idle'); setErrorMsg('') }, 6000)
     }
   }
 

@@ -1692,7 +1692,8 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
         if (pointerStart.current) {
           const dx = e.clientX - pointerStart.current.x
           const dy = e.clientY - pointerStart.current.y
-          if (dx * dx + dy * dy > 64) { // 8px threshold (8^2 = 64)
+          const threshold = isTouchDevice.current ? 900 : 64 // 30px touch, 8px mouse
+          if (dx * dx + dy * dy > threshold) {
             pointerMoved.current = true
           }
         }
@@ -1902,12 +1903,12 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
           </span>
         </div>
 
-        {/* Quick action buttons */}
+        {/* Quick action buttons — always visible on touch, hover-only on desktop */}
         <div
           style={{
             display: 'flex',
             gap: 4,
-            opacity: hovered ? 1 : 0,
+            opacity: (hovered || isTouchDevice.current) ? 1 : 0,
             transition: 'opacity 0.15s',
           }}
         >

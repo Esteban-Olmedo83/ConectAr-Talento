@@ -1122,11 +1122,23 @@ export default function VacanciesPage() {
   }
 
   function handleAssigned(vacancyId: string, newCount: number) {
-    setVacancies(prev => prev.map(v =>
-      v.id === vacancyId
-        ? { ...v, applications: Array.from({ length: newCount }) as unknown as typeof v.applications }
-        : v
-    ))
+    setVacancies(prev => prev.map(v => {
+      if (v.id !== vacancyId) return v
+      const current = v.applications.length
+      const extra = newCount - current
+      if (extra <= 0) return v
+      const now = new Date().toISOString()
+      const placeholders = Array.from({ length: extra }, (_, i) => ({
+        id: `__temp_${Date.now()}_${i}`,
+        vacancyId,
+        candidateId: '',
+        status: 'Nuevas Vacantes' as const,
+        positionInStage: current + i,
+        appliedAt: now,
+        updatedAt: now,
+      }))
+      return { ...v, applications: [...v.applications, ...placeholders] }
+    }))
   }
 
   if (loading) return (
