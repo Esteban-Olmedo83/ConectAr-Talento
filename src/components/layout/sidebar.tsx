@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Archive,
   Lock,
+  Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { User } from '@/types'
@@ -256,6 +257,16 @@ export function Sidebar({
             isActive={isActive('/reports')}
             isCollapsed={isCollapsed}
             locked={isFreePlan}
+            onClick={onClose}
+          />
+
+          {/* Novedades */}
+          <NavItem
+            href="/novedades"
+            icon={Bell}
+            label="Novedades"
+            isActive={isActive('/novedades')}
+            isCollapsed={isCollapsed}
             onClick={onClose}
           />
 

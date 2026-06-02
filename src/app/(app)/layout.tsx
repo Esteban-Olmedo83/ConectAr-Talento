@@ -34,8 +34,15 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
     '/settings': t.pageTitles.settings,
     '/job-profiles': t.pageTitles.jobProfiles,
     '/admin': t.pageTitles.admin,
+    '/admin/tenants': 'Cuentas',
+    '/admin/subscriptions': 'Suscripciones',
+    '/admin/monitoring': 'Monitoreo',
+    '/admin/ai-logs': 'Uso IA',
+    '/admin/activity': 'Actividad',
+    '/admin/changelog': 'Novedades del sistema',
     '/talent-pool': t.pageTitles.talentPool,
     '/clients': t.pageTitles.clients,
+    '/novedades': 'Novedades',
   }
 
   const pageTitle = TITLE_MAP[pathname] ?? ''
