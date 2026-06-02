@@ -63,6 +63,8 @@ export default function AdminChangelogPage() {
   const [newTargetTenant, setNewTargetTenant] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
   const [submitMsg, setSubmitMsg] = React.useState('')
+  const [notifying, setNotifying] = React.useState<string | null>(null)
+  const [notifyMsg, setNotifyMsg] = React.useState<Record<string, string>>({})
 
   async function loadData() {
     try {
@@ -126,6 +128,31 @@ export default function AdminChangelogPage() {
       setUpdates(prev => prev.map(u => u.id === update.id ? { ...u, is_published: !update.is_published, published_at: !update.is_published ? new Date().toISOString() : u.published_at } : u))
     } catch {
       // silent
+    }
+  }
+
+  async function handleNotify(update: SystemUpdate) {
+    setNotifying(update.id)
+    setNotifyMsg(prev => ({ ...prev, [update.id]: '' }))
+    try {
+      const res = await fetch('/api/admin/changelog/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updateId: update.id }),
+      })
+      const data = await res.json() as { ok: boolean; sent?: number; reason?: string; errors?: string[] }
+      if (!res.ok) throw new Error('Error al notificar')
+      const msg = data.reason === 'no_recipients'
+        ? 'Sin destinatarios con email activo'
+        : `✓ Email enviado a ${data.sent} usuario${data.sent !== 1 ? 's' : ''}`
+      setNotifyMsg(prev => ({ ...prev, [update.id]: msg }))
+      if (!update.is_published) {
+        setUpdates(prev => prev.map(u => u.id === update.id ? { ...u, is_published: true, published_at: new Date().toISOString() } : u))
+      }
+    } catch {
+      setNotifyMsg(prev => ({ ...prev, [update.id]: '✗ Error al enviar' }))
+    } finally {
+      setNotifying(null)
     }
   }
 
@@ -305,38 +332,63 @@ export default function AdminChangelogPage() {
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <button
-                    onClick={() => togglePublish(u)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      background: u.is_published ? 'var(--surface2)' : 'var(--accent)',
-                      color: u.is_published ? 'var(--muted2)' : '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {u.is_published ? 'Despublicar' : 'Publicar'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(u.id)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface2)',
-                      color: 'var(--coral)',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Eliminar
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => handleNotify(u)}
+                      disabled={notifying === u.id}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(93,80,214,0.4)',
+                        background: 'rgba(93,80,214,0.15)',
+                        color: '#8B7EFF',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: notifying === u.id ? 'not-allowed' : 'pointer',
+                        opacity: notifying === u.id ? 0.7 : 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {notifying === u.id ? 'Enviando...' : u.is_published ? '✉ Reenviar email' : '✉ Publicar y notificar'}
+                    </button>
+                    <button
+                      onClick={() => togglePublish(u)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: u.is_published ? 'var(--surface2)' : 'var(--accent)',
+                        color: u.is_published ? 'var(--muted2)' : '#fff',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {u.is_published ? 'Despublicar' : 'Publicar'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface2)',
+                        color: 'var(--coral)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                  {notifyMsg[u.id] && (
+                    <span style={{ fontSize: 11, color: notifyMsg[u.id].startsWith('✓') ? '#34d399' : notifyMsg[u.id].startsWith('✗') ? '#f87171' : 'var(--muted)' }}>
+                      {notifyMsg[u.id]}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

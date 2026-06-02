@@ -3,9 +3,11 @@ import {
   welcomeEmailHtml,
   interviewScheduledEmailHtml,
   stageChangedEmailHtml,
+  systemUpdateEmailHtml,
   type WelcomeEmailData,
   type InterviewScheduledEmailData,
   type StageChangedEmailData,
+  type SystemUpdateEmailData,
 } from './templates'
 
 type SendResult = { ok: true } | { ok: false; error: string }
@@ -42,6 +44,30 @@ export async function sendInterviewScheduledEmail(
       to: data.candidateEmail,
       subject: `Entrevista programada: ${data.vacancyTitle} en ${data.companyName}`,
       html: interviewScheduledEmailHtml(data),
+    })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: String(e) }
+  }
+}
+
+export async function sendSystemUpdateEmail(
+  to: string,
+  data: SystemUpdateEmailData
+): Promise<SendResult> {
+  if (!isEmailEnabled()) return { ok: true }
+  try {
+    const resend = getResend()
+    const count = data.updates.length
+    const subject = count === 1
+      ? `Novedad en ConectAr Talento: ${data.updates[0].title}`
+      : `${count} novedades nuevas en ConectAr Talento`
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html: systemUpdateEmailHtml(data),
     })
     if (error) return { ok: false, error: error.message }
     return { ok: true }
