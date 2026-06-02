@@ -148,7 +148,7 @@ export default function AdminOverviewPage() {
     .slice(0, 5)
 
   const quickLinks = [
-    { label: 'Gestionar Tenants', href: '/admin/tenants', description: 'Ver y editar planes de clientes' },
+    { label: 'Gestionar Cuentas', href: '/admin/tenants', description: 'Ver y editar planes de clientes' },
     { label: 'Monitoreo', href: '/admin/monitoring', description: 'Uso por tenant y límites de plan' },
     { label: 'Changelog', href: '/admin/changelog', description: 'Publicar novedades del sistema' },
   ]
@@ -157,7 +157,7 @@ export default function AdminOverviewPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard label="Tenants" value={stats.totalTenants} accentColor="var(--accent)" />
+        <KpiCard label="Cuentas" value={stats.totalTenants} accentColor="var(--accent)" />
         <KpiCard label="Candidatos" value={stats.totalCandidates} accentColor="var(--accent-2)" />
         <KpiCard label="Vacantes" value={stats.totalVacancies} accentColor="var(--emerald)" />
         <KpiCard label="Clientes" value={stats.totalClients} accentColor="var(--gold)" />
@@ -167,7 +167,7 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Plans distribution */}
         <Card>
-          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Tenants por plan</p>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Cuentas por plan</p>
           {planEntries.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin datos</p>
           ) : (
@@ -221,7 +221,7 @@ export default function AdminOverviewPage() {
         <Card>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Últimos registros</p>
           {recentTenants.length === 0 ? (
-            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin tenants</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin cuentas</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {recentTenants.map(t => (

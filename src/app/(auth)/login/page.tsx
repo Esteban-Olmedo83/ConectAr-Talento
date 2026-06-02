@@ -51,21 +51,31 @@ export default function LoginPage() {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const err = params.get('error')
-    const GOOGLE_ERRORS: Record<string, string> = {
+    const AUTH_ERRORS: Record<string, string> = {
       auth_callback_failed: 'Error al iniciar sesión. Por favor intentá de nuevo.',
-      google_denied: 'Cancelaste el acceso con Google.',
-      google_not_configured: 'Google OAuth no está configurado.',
-      google_token_failed: 'Error al obtener tokens de Google. Intentá de nuevo.',
-      google_no_email: 'No se pudo obtener el email de tu cuenta Google.',
-      google_link_failed: 'Error al generar el acceso. Intentá de nuevo.',
-      google_state_mismatch: 'Error de seguridad en el flujo OAuth. Intentá de nuevo.',
     }
-    if (err && GOOGLE_ERRORS[err]) setError(GOOGLE_ERRORS[err])
+    if (err && AUTH_ERRORS[err]) setError(AUTH_ERRORS[err])
   }, [])
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setError('')
-    window.location.href = '/api/auth/google'
+    setIsLoading(true)
+    const supabase = createClient()
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${appUrl}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
+      },
+    })
+    if (oauthError) {
+      setError('Error al iniciar sesión con Google. Por favor intentá de nuevo.')
+      setIsLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

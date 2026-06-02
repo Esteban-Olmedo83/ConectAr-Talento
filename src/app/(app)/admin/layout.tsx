@@ -11,10 +11,13 @@ import { cn } from '@/lib/utils'
 const ADMIN_EMAIL = 'conectar.rrhh.ar@gmail.com'
 
 const adminNavItems = [
-  { label: 'Overview', href: '/admin' },
-  { label: 'Clientes (Tenants)', href: '/admin/tenants' },
+  { label: 'Resumen', href: '/admin' },
+  { label: 'Cuentas', href: '/admin/tenants' },
+  { label: 'Suscripciones', href: '/admin/subscriptions' },
   { label: 'Monitoreo', href: '/admin/monitoring' },
-  { label: 'Changelog', href: '/admin/changelog' },
+  { label: 'Uso IA', href: '/admin/ai-logs' },
+  { label: 'Actividad', href: '/admin/activity' },
+  { label: 'Novedades', href: '/admin/changelog' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

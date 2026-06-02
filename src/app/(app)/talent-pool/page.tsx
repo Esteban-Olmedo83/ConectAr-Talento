@@ -524,8 +524,13 @@ function ProfileDrawer({
       />
       {/* Drawer */}
       <div
-        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden shadow-2xl"
-        style={{ width: '400px', maxWidth: '100vw', background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}
+        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden shadow-2xl talent-pool-drawer"
+        style={{
+          width: 'clamp(300px, 40vw, 420px)',
+          maxWidth: '100vw',
+          background: 'var(--surface)',
+          borderLeft: '1px solid var(--border)',
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>

@@ -28,6 +28,8 @@ import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
 import type { MessageTemplate, TemplateChannel, TemplateCategory, Vacancy, Application, Interview } from '@/types'
 import { generateId } from '@/lib/utils'
+import { LockedButton } from '@/components/ui/feature-gate'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 const VARIABLE_LABELS: Record<string, string> = {
   vacante: 'Vacante',
@@ -817,6 +819,7 @@ function EditorModal({
 export default function TemplatesPage() {
   const { user } = useUser()
   const { t } = useLanguage()
+  const features = getPlanFeatures(user?.plan ?? 'free')
   const [templates, setTemplates] = React.useState<MessageTemplate[]>([])
   const [vacancies, setVacancies] = React.useState<Vacancy[]>([])
   const [applications, setApplications] = React.useState<Application[]>([])
@@ -942,14 +945,42 @@ export default function TemplatesPage() {
             Publicaciones, emails y mensajes de WhatsApp listos para usar
           </p>
         </div>
-        <button
-          onClick={() => setEditTarget('new')}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          {t.templates.new}
-        </button>
+        {features.customTemplates ? (
+          <button
+            onClick={() => setEditTarget('new')}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            {t.templates.new}
+          </button>
+        ) : (
+          <LockedButton
+            feature="customTemplates"
+            className="flex items-center gap-2 bg-primary/40 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed"
+          >
+            <Plus className="h-4 w-4" />
+            {t.templates.new}
+          </LockedButton>
+        )}
       </div>
+
+      {/* Demo banner for free plan */}
+      {!features.useTemplates && (
+        <div className="mx-6 mt-4 flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(93,80,214,0.08)', border: '1px solid rgba(93,80,214,0.25)' }}>
+          <span className="text-lg">👀</span>
+          <div className="flex-1">
+            <p className="m-0 text-sm font-semibold" style={{ color: '#8B7EFF' }}>
+              Estás viendo las plantillas de muestra
+            </p>
+            <p className="m-0 mt-0.5 text-xs text-muted-foreground">
+              Actualizá al plan Starter para usar, crear y editar tus propias plantillas de comunicación.
+            </p>
+          </div>
+          <a href="/configuracion?tab=plan" className="shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white no-underline" style={{ background: '#5D50D6' }}>
+            Ver planes
+          </a>
+        </div>
+      )}
 
       {/* filter tabs */}
       <div className="flex gap-1 px-6 pt-4 pb-2">
@@ -1030,31 +1061,49 @@ export default function TemplatesPage() {
 
                   {/* actions */}
                   <div className="flex items-center gap-1 pt-1 border-t border-border mt-auto">
-                    <button
-                      onClick={() => setSendTarget(t)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 px-2.5 py-1.5 rounded-lg transition-colors flex-1 justify-center"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      Usar
-                    </button>
-                    <button
-                      onClick={() => setEditTarget(t)}
-                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
+                    {features.useTemplates ? (
+                      <button
+                        onClick={() => setSendTarget(t)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 px-2.5 py-1.5 rounded-lg transition-colors flex-1 justify-center"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Usar
+                      </button>
+                    ) : (
+                      <LockedButton
+                        feature="useTemplates"
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary/40 px-2.5 py-1.5 rounded-lg flex-1 justify-center"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Usar
+                      </LockedButton>
+                    )}
+                    {features.customTemplates ? (
+                      <button
+                        onClick={() => setEditTarget(t)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : (
+                      <LockedButton feature="customTemplates" className="p-1.5 text-muted-foreground/40 rounded-lg">
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </LockedButton>
+                    )}
                     <button
                       onClick={() => handleDuplicate(t)}
                       className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {!t.isDefault && features.customTemplates && (
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )

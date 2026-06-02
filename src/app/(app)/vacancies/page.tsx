@@ -615,15 +615,17 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
 }
 
 // ─── Vacancy Card ─────────────────────────────────────────────────────────────
-function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
+function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary, onCloseVacancy }: {
   vacancy: Vacancy
   onEdit: () => void
   onArchive: () => void | Promise<void>
   onAssign: () => void
   onViewSummary: () => void
+  onCloseVacancy: () => void | Promise<void>
 }) {
   const { t } = useLanguage()
   const isClosed = vacancy.status === 'Contratado'
+  const hasHired = !isClosed && vacancy.applications.some((a: { status: string }) => a.status === 'Contratado')
   const ModalityIcon = MODALITY_ICONS[vacancy.modality]
   const days = Math.floor((Date.now() - new Date(vacancy.createdAt).getTime()) / 86400000)
   const salaryStr = vacancy.salaryMin
@@ -645,6 +647,13 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
               style={{ background: 'rgba(107,114,128,0.2)', color: '#9ca3af' }}
             >
               Vacante Cerrada
+            </span>
+          ) : hasHired ? (
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}
+            >
+              ✓ Candidato contratado
             </span>
           ) : (
             <span
@@ -739,6 +748,21 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary }: {
             >
               <FileText className="h-3 w-3" /> Ver resumen del proceso
             </Button>
+          ) : hasHired ? (
+            <>
+              <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
+                {t.vacancies.actions.viewPipeline}
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 text-xs h-7 gap-1"
+                style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+                variant="outline"
+                onClick={e => { e.stopPropagation(); onCloseVacancy() }}
+              >
+                ✓ Cerrar vacante
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={e => { e.stopPropagation(); window.location.href = `/pipeline?vacancy=${vacancy.id}` }}>
@@ -1083,6 +1107,12 @@ export default function VacanciesPage() {
     window.dispatchEvent(new CustomEvent('vacancy:deleted'))
   }
 
+  async function handleCloseVacancy(id: string) {
+    await provider.closeVacancy(id)
+    setVacancies(prev => prev.map(v => v.id === id ? { ...v, status: 'Contratado' as const, closingDate: new Date().toISOString().slice(0, 10) } : v))
+    window.dispatchEvent(new CustomEvent('vacancy:closed'))
+  }
+
   function handleSaved(v: Vacancy) {
     setVacancies(prev => {
       const idx = prev.findIndex(x => x.id === v.id)
@@ -1205,6 +1235,7 @@ export default function VacanciesPage() {
               onArchive={() => handleArchive(v.id)}
               onAssign={() => setAssignVacancy(v)}
               onViewSummary={() => setSummaryVacancy(v)}
+              onCloseVacancy={() => handleCloseVacancy(v.id)}
             />
           ))}
         </div>

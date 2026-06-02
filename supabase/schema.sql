@@ -16,6 +16,8 @@ create table if not exists public.profiles (
   avatar_url      text,
   google_drive_folder_id text,
   google_sheets_db_id    text,
+  groq_api_key           text,
+  ai_provider            text not null default 'groq',
   created_at      timestamptz not null default now()
 );
 
@@ -261,15 +263,18 @@ end $$;
 -- ── INTEGRATIONS ────────────────────────────────────────────
 
 create table if not exists public.integrations (
-  id            uuid        primary key default gen_random_uuid(),
-  tenant_id     uuid        not null,
-  platform      text        not null,
-  account_name  text        not null,
-  account_email text,
-  status        text        not null default 'pending',
-  expires_at    timestamptz,
-  metadata      jsonb,
-  created_at    timestamptz not null default now(),
+  id               uuid        primary key default gen_random_uuid(),
+  tenant_id        uuid        not null,
+  platform         text        not null,
+  account_name     text        not null,
+  account_email    text,
+  status           text        not null default 'pending',
+  access_token     text,
+  refresh_token    text,
+  token_expires_at timestamptz,
+  expires_at       timestamptz,
+  metadata         jsonb,
+  created_at       timestamptz not null default now(),
   unique(tenant_id, platform)
 );
 

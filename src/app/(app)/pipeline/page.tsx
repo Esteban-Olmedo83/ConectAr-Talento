@@ -3246,10 +3246,25 @@ export default function PipelinePage() {
       const idx = STAGE_ORDER.indexOf(app.status)
       const nextStage = idx >= 0 && idx < STAGE_ORDER.length - 1 ? STAGE_ORDER[idx + 1] : null
       if (!nextStage) return
-      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a))
+      const updatedApps = applications.map(a => a.id === appId ? { ...a, status: nextStage, disposition: null } : a)
+      setApplications(updatedApps)
       if (!isVirtual) {
         await provider.updateApplicationStatus(appId, nextStage)
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
+      }
+      // When a candidate is hired, check if all others for this vacancy are in terminal state
+      if (nextStage === 'Contratado' && app.vacancyId) {
+        const TERMINAL: VacancyStatus[] = ['Contratado', 'Descartado']
+        const othersForVacancy = updatedApps.filter(a => a.vacancyId === app.vacancyId && a.id !== appId)
+        const allTerminal = othersForVacancy.every(a => TERMINAL.includes(a.status))
+        if (allTerminal && !isVirtual) {
+          // Auto-close: all candidates resolved, close vacancy without dialog
+          await provider.closeVacancy(app.vacancyId)
+          handleVacancyClosed(app.vacancyId)
+        } else if (!isVirtual) {
+          // Show dialog to let user decide on remaining candidates
+          setHireDialog({ app: { ...app, status: 'Contratado' } })
+        }
       }
     }
   }
@@ -3427,7 +3442,7 @@ export default function PipelinePage() {
       </div>
 
       {/* KPI strip */}
-      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 24px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0, WebkitOverflowScrolling: 'touch' as const }}>
         {[
           { label: t.pipeline.kpiTotal, value: filtered.length, color: 'var(--text)' },
           { label: t.pipeline.kpiNew, value: stageCounts['Nuevas Vacantes'], color: STAGE_COLORS['Nuevas Vacantes'] },
@@ -3436,7 +3451,7 @@ export default function PipelinePage() {
           { label: t.pipeline.kpiOffer, value: stageCounts['Oferta Enviada'], color: STAGE_COLORS['Oferta Enviada'] },
           { label: t.pipeline.kpiHired, value: stageCounts['Contratado'], color: STAGE_COLORS['Contratado'] },
         ].map(kpi => (
-          <div key={kpi.label} style={{ flex: '1 1 80px', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+          <div key={kpi.label} style={{ flex: '0 0 auto', minWidth: 70, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: kpi.color, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', lineHeight: 1 }}>{kpi.value}</div>
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>{kpi.label}</div>
           </div>

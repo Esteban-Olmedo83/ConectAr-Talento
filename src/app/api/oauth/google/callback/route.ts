@@ -147,11 +147,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const adminClient = createAdminClient()
 
-    // generateLink creates the user automatically if they don't exist,
-    // or issues a magic link for an existing account.
+    // Use type:'signup' which relies on the email+password provider (always enabled),
+    // unlike 'magiclink' which requires the Email OTP provider to be enabled.
+    // generateLink upserts the user, so it works for both new and existing accounts.
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: 'magiclink',
+      type: 'signup',
       email,
+      password: crypto.randomUUID(),
       options: {
         redirectTo: `${appUrl}/auth/callback?next=/pipeline`,
         data: {
