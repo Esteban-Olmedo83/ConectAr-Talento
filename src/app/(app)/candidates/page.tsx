@@ -15,7 +15,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
-import type { Candidate, Vacancy, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
+import type { Candidate, Vacancy, VacancyStatus, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
 import { useLanguage } from '@/lib/context/language-context'
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
@@ -1385,6 +1385,8 @@ export default function CandidatesPage() {
   }, [load])
 
   const filtered = React.useMemo(() => {
+    const TERMINAL: VacancyStatus[] = ['Contratado', 'Descartado']
+    const closedVacancyIds = new Set(vacancies.filter(v => v.status === 'Contratado').map(v => v.id))
     const activeClientIds = new Set(clients.filter(cl => cl.active !== false).map(cl => cl.id))
     return candidates.filter(c => {
       // Hide archived candidates (their company was deleted)
@@ -1394,6 +1396,12 @@ export default function CandidatesPage() {
       // Hide orphaned candidates: all applications point to deleted vacancies (vacancyId = null)
       const candidateApps = applications.filter(a => a.candidateId === c.id)
       if (candidateApps.length > 0 && candidateApps.every(a => a.vacancyId === null)) return false
+      // Hide candidates whose all applications are in terminal state and vacancy is closed
+      if (
+        candidateApps.length > 0 &&
+        candidateApps.every(a => TERMINAL.includes(a.status as VacancyStatus)) &&
+        candidateApps.every(a => a.vacancyId !== null && closedVacancyIds.has(a.vacancyId!))
+      ) return false
       if (filterClient !== 'all') {
         const clientVacancyIds = new Set(vacancies.filter(v => v.clientId === filterClient).map(v => v.id))
         const appliedToClient = applications.some(a => a.candidateId === c.id && a.vacancyId !== null && clientVacancyIds.has(a.vacancyId))
