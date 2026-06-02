@@ -89,6 +89,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
   const [editEducation, setEditEducation] = React.useState('')
   const [editSkills, setEditSkills] = React.useState('')
   const [editClientId, setEditClientId] = React.useState('')
+  const [editSource, setEditSource] = React.useState<CandidateSource>('Manual')
   const [isSaving, setIsSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState('')
   const cvInputRef = React.useRef<HTMLInputElement>(null)
@@ -113,6 +114,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       setEditEducation(candidateProp.education ?? '')
       setEditSkills(candidateProp.skills.join(', '))
       setEditClientId(candidateProp.clientId ?? '')
+      setEditSource(candidateProp.source ?? 'Manual')
       setEditMode(false)
       setSaveError('')
       // Load process info
@@ -226,6 +228,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       education: editEducation || undefined,
       skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
       clientId: editClientId || undefined,
+      source: editSource,
     })
     setIsSaving(false)
     if (result.error) {
@@ -375,7 +378,19 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <Award className="inline h-3 w-3 mr-1" />{t.candidates.addDialog.source}
               </label>
-              <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.source}</p>
+              {editMode ? (
+                <select
+                  value={editSource}
+                  onChange={e => setEditSource(e.target.value as CandidateSource)}
+                  className={inputEditCls}
+                >
+                  {['LinkedIn','Portal','Referido','Indeed','Computrabajo','ZonaJobs','Bumeran','WhatsApp','Manual'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className={inputCls} style={{ color: 'var(--text)' }}>{candidate.source}</p>
+              )}
             </div>
           </div>
 

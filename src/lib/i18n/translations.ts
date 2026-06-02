@@ -1631,7 +1631,7 @@ const es: Translations = {
       noVacancies: 'Sin vacantes para este cliente.',
       noCandidates: 'Sin candidatos para este cliente.',
       noHistory: 'Sin historial registrado.',
-      pipeline: 'Pipeline',
+      pipeline: 'Procesos',
       backToClients: 'Volver a Clientes',
       notFound: 'Cliente no encontrado',
     },
