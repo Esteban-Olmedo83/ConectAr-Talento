@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
+import { isAutoNotifyEnabled } from '@/lib/auto-notify'
 import { useLanguage } from '@/lib/context/language-context'
 import type {
   Application,
@@ -902,22 +903,24 @@ function ScheduleInterviewModal({
       if (applicationId && !applicationId.startsWith('virtual-')) {
         await provider.updateApplicationStatus(applicationId, 'Entrevistas')
       }
-      // Notify candidate via email — fire and forget
+      // Notify candidate via email (only if user opted in)
       const selectedVacancy = vacancies.find((v) => v.id === (form.vacancyId || vacancies[0]?.id))
-      fetch('/api/emails/interview-scheduled', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          candidateId: candidate.id,
-          clientId: selectedVacancy?.clientId ?? undefined,
-          vacancyTitle: selectedVacancy?.title ?? '',
-          scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
-          interviewerName: form.interviewerName,
-          interviewType: form.type,
-          meetingPlatform: form.meetingPlatform || undefined,
-          meetingLink: form.meetingLink || undefined,
-        }),
-      }).catch(() => {})
+      if (isAutoNotifyEnabled(user?.id)) {
+        fetch('/api/emails/interview-scheduled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidateId: candidate.id,
+            clientId: selectedVacancy?.clientId ?? undefined,
+            vacancyTitle: selectedVacancy?.title ?? '',
+            scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
+            interviewerName: form.interviewerName,
+            interviewType: form.type,
+            meetingPlatform: form.meetingPlatform || undefined,
+            meetingLink: form.meetingLink || undefined,
+          }),
+        }).catch(() => {})
+      }
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       setSaved(true)
       onScheduled?.()
@@ -3018,6 +3021,7 @@ export default function PipelinePage() {
   const [hireDialog, setHireDialog] = React.useState<{ app: HydratedApplication } | null>(null)
   const [rejectDialog, setRejectDialog] = React.useState<{ appId: string; candidateName: string } | null>(null)
   const [stagePrompt, setStagePrompt] = React.useState<{ candidateName: string; currentStage: VacancyStatus; appId: string } | null>(null)
+  const [autoNotifyBanner, setAutoNotifyBanner] = React.useState(false)
 
   const { user } = useUser()
   const { t } = useLanguage()
@@ -3218,6 +3222,11 @@ export default function PipelinePage() {
 
   function notifyStageChanged(app: HydratedApplication, newStage: string) {
     if (!app.candidate?.email) return
+    if (!isAutoNotifyEnabled(user?.id)) {
+      // Show the "enable auto-notify?" banner if not dismissed recently
+      setAutoNotifyBanner(true)
+      return
+    }
     const vac = vacancies.find(v => v.id === app.vacancyId)
     fetch('/api/emails/stage-changed', {
       method: 'POST',
@@ -3628,6 +3637,79 @@ export default function PipelinePage() {
           onClose={() => setStagePrompt(null)}
         />
       )}
+      {autoNotifyBanner && (
+        <AutoNotifyBanner onClose={() => setAutoNotifyBanner(false)} />
+      )}
+    </div>
+  )
+}
+
+// ─── Auto-notify hint banner ──────────────────────────────────────────────────
+function AutoNotifyBanner({ onClose }: { onClose: () => void }) {
+  React.useEffect(() => {
+    const t = setTimeout(onClose, 8000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 1200,
+        maxWidth: 360,
+        background: 'linear-gradient(135deg, rgba(93,80,214,0.95), rgba(139,126,255,0.95))',
+        backdropFilter: 'blur(12px)',
+        borderRadius: 14,
+        padding: '14px 18px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        animation: 'banner-slide-in 0.3s ease-out',
+      }}
+    >
+      <style>{`
+        @keyframes banner-slide-in {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>
+          ¿Sabías que podés notificar candidatos automáticamente?
+        </p>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', padding: 0, lineHeight: 1 }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, margin: 0, lineHeight: 1.4 }}>
+        Activá los emails automáticos a candidatos en Configuración y se enviarán con el branding de tu cliente.
+      </p>
+      <Link
+        href="/settings?tab=notificaciones&highlight=auto_notify_candidates"
+        onClick={onClose}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'rgba(255,255,255,0.2)',
+          color: '#fff',
+          fontSize: 12,
+          fontWeight: 700,
+          padding: '6px 12px',
+          borderRadius: 8,
+          textDecoration: 'none',
+          alignSelf: 'flex-start',
+          transition: 'background 0.15s',
+        }}
+      >
+        Activar en Configuración →
+      </Link>
     </div>
   )
 }

@@ -1,8 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive, CreditCard, Zap, Shield, Building2 } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive, CreditCard, Zap, Shield, Building2, Bell } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import { AUTO_NOTIFY_KEY } from '@/lib/auto-notify'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/lib/context/user-context'
@@ -433,6 +434,15 @@ function CuentaTab() {
 }
 
 // ─── Notificaciones Tab ───────────────────────────────────────────────────────
+const CANDIDATE_NOTIFS = [
+  {
+    key: AUTO_NOTIFY_KEY,
+    label: 'Notificar automáticamente a candidatos al cambiar de etapa',
+    description: 'Cuando avanzás o rechazás un candidato en el pipeline, se le envía un email automáticamente con el branding de tu cliente.',
+    default: false,
+  },
+]
+
 const EMAIL_NOTIFS = [
   { key: 'nueva_aplicacion', label: 'Nueva aplicación recibida', default: true },
   { key: 'entrevista_agendada', label: 'Entrevista agendada', default: true },
@@ -470,16 +480,18 @@ type NotifPrefs = Record<string, boolean>
 
 function defaultNotifPrefs(): NotifPrefs {
   const prefs: NotifPrefs = {}
-  for (const n of [...EMAIL_NOTIFS, ...INAPP_NOTIFS]) {
+  for (const n of [...CANDIDATE_NOTIFS, ...EMAIL_NOTIFS, ...INAPP_NOTIFS]) {
     prefs[n.key] = n.default
   }
   return prefs
 }
 
-function NotificacionesTab() {
+function NotificacionesTab({ highlight }: { highlight?: string }) {
   const { user } = useUser()
   const [prefs, setPrefs] = React.useState<NotifPrefs>(defaultNotifPrefs)
   const [saved, setSaved] = React.useState(false)
+  const [blinking, setBlinking] = React.useState<string | null>(null)
+  const highlightRef = React.useRef<HTMLDivElement | null>(null)
 
   const notifKey = user?.id ? `u_${user.id}_notif_prefs` : 'ct_notif_prefs'
 
@@ -492,6 +504,18 @@ function NotificacionesTab() {
       }
     } catch { /* noop */ }
   }, [notifKey])
+
+  // Scroll to and blink the highlighted row
+  React.useEffect(() => {
+    if (!highlight) return
+    const t = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setBlinking(highlight)
+      const t2 = setTimeout(() => setBlinking(null), 1800)
+      return () => clearTimeout(t2)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [highlight])
 
   function handleToggle(key: string, value: boolean) {
     setPrefs(prev => ({ ...prev, [key]: value }))
@@ -513,6 +537,46 @@ function NotificacionesTab() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @keyframes notif-blink {
+          0%, 100% { background: rgba(93,80,214,0.18); outline-color: var(--accent); }
+          50% { background: rgba(93,80,214,0.05); outline-color: transparent; }
+        }
+      `}</style>
+      {/* Candidate auto-notifications */}
+      <div className="rounded-xl border p-5 space-y-4" style={sectionStyle}>
+        <div className="flex items-center gap-2">
+          <Bell size={15} style={{ color: 'var(--accent)' }} />
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            Notificaciones a candidatos
+          </h3>
+        </div>
+        <div className="space-y-4">
+          {CANDIDATE_NOTIFS.map(n => (
+            <div
+              key={n.key}
+              ref={highlight === n.key ? highlightRef : null}
+              className="flex items-start justify-between gap-4 rounded-lg px-3 py-2 transition-all"
+              style={{
+                background: blinking === n.key ? 'rgba(93,80,214,0.18)' : 'transparent',
+                animation: blinking === n.key ? 'notif-blink 0.6s ease-in-out 3' : 'none',
+                outline: blinking === n.key ? '2px solid var(--accent)' : 'none',
+              }}
+            >
+              <div className="flex flex-col gap-0.5 flex-1">
+                <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  {n.label}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                  {n.description}
+                </span>
+              </div>
+              <Toggle checked={!!prefs[n.key]} onChange={v => handleToggle(n.key, v)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Email */}
       <div className="rounded-xl border p-5 space-y-4" style={sectionStyle}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -1693,10 +1757,12 @@ export default function SettingsPage() {
 
   const searchParams = useSearchParams()
 
+  const highlightParam = searchParams.get('highlight') ?? undefined
+
   React.useEffect(() => {
-    if (searchParams.get('tab') === 'billing') {
-      setActiveTab('billing')
-    }
+    const tab = searchParams.get('tab')
+    if (tab === 'billing') setActiveTab('billing')
+    else if (tab === 'notificaciones') setActiveTab('notificaciones')
   }, [searchParams])
 
   const SETTINGS_TABS = [
@@ -1777,7 +1843,7 @@ export default function SettingsPage() {
 
         {activeTab === 'apariencia' && <AparienciaTab />}
         {activeTab === 'cuenta' && <CuentaTab />}
-        {activeTab === 'notificaciones' && <NotificacionesTab />}
+        {activeTab === 'notificaciones' && <NotificacionesTab highlight={highlightParam} />}
         {activeTab === 'ia' && <ConexionIAsTab />}
         {activeTab === 'idioma' && <IdiomaTab />}
         {activeTab === 'drive' && <DriveTab />}
