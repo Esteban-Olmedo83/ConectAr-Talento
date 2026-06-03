@@ -20,7 +20,7 @@ const nunito = Nunito({
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  'https://conect-ar-talento-esteban-olmedo83s-projects.vercel.app'
+  'https://www.conectartalento.com'
 
 const SITE_NAME = 'ConectAr Talento'
 const SITE_TITLE = `${SITE_NAME} — ATS para LATAM`
