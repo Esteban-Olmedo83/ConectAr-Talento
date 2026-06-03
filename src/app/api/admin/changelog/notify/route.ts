@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   // 3. Resolve target users
   let profilesQuery = admin
     .from('profiles')
-    .select('id, full_name, email, tenant_id, email_notifications')
+    .select('id, full_name, tenant_id, email_notifications')
 
   if (update.target_tenant_id) {
     profilesQuery = profilesQuery.eq('tenant_id', update.target_tenant_id)
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0, reason: 'no_recipients' })
   }
 
-  // 4. Get last_sign_in_at from auth.users for each user (to decide unsubscribe link)
+  // 4. Get email + last_sign_in_at from auth.users
   const userIds = profiles.map((p: { id: string }) => p.id)
   const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 })
-  const lastSignInMap = new Map<string, string | null>()
+  const authMap = new Map<string, { email: string; lastSignIn: string | null }>()
   for (const au of (authUsers?.users ?? [])) {
-    if (userIds.includes(au.id)) {
-      lastSignInMap.set(au.id, au.last_sign_in_at ?? null)
+    if (userIds.includes(au.id) && au.email) {
+      authMap.set(au.id, { email: au.email, lastSignIn: au.last_sign_in_at ?? null })
     }
   }
 
@@ -85,12 +85,13 @@ export async function POST(request: NextRequest) {
   const errors: string[] = []
 
   for (const profile of profiles) {
-    if (!profile.email) continue
-    const inactive = isInactive(lastSignInMap.get(profile.id) ?? null)
+    const auth = authMap.get(profile.id)
+    if (!auth?.email) continue
+    const inactive = isInactive(auth.lastSignIn)
     const unsubscribeUrl = inactive ? buildUnsubscribeUrl(profile.id) : undefined
     const recipientName = (profile.full_name as string | null)?.split(' ')[0] ?? 'Reclutador'
 
-    const result = await sendSystemUpdateEmail(profile.email as string, {
+    const result = await sendSystemUpdateEmail(auth.email, {
       recipientName,
       updates: [updatePayload],
       unsubscribeUrl,
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (result.ok) {
       sent++
     } else {
-      errors.push(`${profile.email}: ${result.error}`)
+      errors.push(`${auth.email}: ${result.error}`)
     }
   }
 
