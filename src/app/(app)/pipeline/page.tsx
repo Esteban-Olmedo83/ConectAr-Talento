@@ -909,6 +909,7 @@ function ScheduleInterviewModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateId: candidate.id,
+          clientId: selectedVacancy?.clientId ?? undefined,
           vacancyTitle: selectedVacancy?.title ?? '',
           scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
           interviewerName: form.interviewerName,
@@ -3215,13 +3216,30 @@ export default function PipelinePage() {
     load()
   }
 
+  function notifyStageChanged(app: HydratedApplication, newStage: string) {
+    if (!app.candidate?.email) return
+    const vac = vacancies.find(v => v.id === app.vacancyId)
+    fetch('/api/emails/stage-changed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidateId: app.candidateId,
+        clientId: vac?.clientId ?? undefined,
+        vacancyTitle: vac?.title ?? '',
+        newStage,
+      }),
+    }).catch(() => {})
+  }
+
   async function handleDecide(appId: string, action: DecisionAction) {
     const isVirtual = appId.startsWith('virtual-')
     if (action === 'avanzar') {
+      const app = applications.find(a => a.id === appId)
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Oferta Enviada' as VacancyStatus, disposition: null } : a))
       if (!isVirtual) {
         await provider.updateApplicationStatus(appId, 'Oferta Enviada')
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
+        if (app) notifyStageChanged(app, 'Oferta Enviada')
       }
     } else if (action === 'rechazar') {
       const app = applications.find(a => a.id === appId)
@@ -3252,6 +3270,9 @@ export default function PipelinePage() {
       if (!isVirtual) {
         await provider.updateApplicationStatus(appId, nextStage)
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
+        // Notify candidate on meaningful stage advances
+        const NOTIFY_STAGES: VacancyStatus[] = ['Entrevistas', 'Oferta Enviada', 'Contratado']
+        if (NOTIFY_STAGES.includes(nextStage)) notifyStageChanged(app, nextStage)
       }
       // When a candidate is hired, check if all others for this vacancy are in terminal state
       if (nextStage === 'Contratado' && app.vacancyId) {

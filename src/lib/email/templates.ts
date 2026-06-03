@@ -17,12 +17,138 @@ const TYPE_BADGE: Record<string, { label: string; color: string; emoji: string }
   security:    { label: 'Seguridad', color: '#fbbf24', emoji: '🔒' },
 }
 
-// ── Sistema de Novedades ───────────────────────────────────────────────────────
+// ── Client-branded base template (for candidate-facing emails) ─────────────────
+//
+// Shows the client's logo and name at the top. ConectAr Talento appears only
+// in the small footer so candidates associate the email with the hiring company.
+//
+interface ClientBranding {
+  name: string
+  logoUrl?: string | null
+  website?: string | null
+}
+
+function clientTemplate(client: ClientBranding, title: string, previewText: string, bodyHtml: string): string {
+  const initials = client.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  const logoSection = client.logoUrl
+    ? `<img src="${client.logoUrl}" alt="${client.name}" height="48"
+           style="max-width:200px;height:48px;object-fit:contain;display:block;" />`
+    : `<div style="display:inline-block;background:linear-gradient(135deg,${ACCENT},${ACCENT2});
+               color:#fff;font-size:18px;font-weight:800;width:48px;height:48px;
+               border-radius:12px;line-height:48px;text-align:center;">${initials}</div>`
+
+  const websiteHref = client.website
+    ? (client.website.startsWith('http') ? client.website : `https://${client.website}`)
+    : APP_URL
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <meta name="description" content="${previewText}" />
+</head>
+<body style="margin:0;padding:0;background-color:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:${TEXT};">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${previewText}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG};min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+          <!-- Client header -->
+          <tr>
+            <td style="padding-bottom:28px;text-align:center;">
+              <a href="${websiteHref}" style="text-decoration:none;display:inline-block;">
+                ${logoSection}
+              </a>
+              <p style="margin:10px 0 0;font-size:16px;font-weight:700;color:${TEXT};">${client.name}</p>
+            </td>
+          </tr>
+          <!-- Content card -->
+          <tr>
+            <td style="background-color:${CARD_BG};border:1px solid ${BORDER};border-radius:16px;padding:40px 36px;">
+              ${bodyHtml}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding-top:24px;text-align:center;color:rgba(255,255,255,0.2);font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 4px;">
+                Enviado por <strong style="color:rgba(255,255,255,0.3);">${client.name}</strong>
+                &nbsp;·&nbsp;
+                Gestionado con <a href="${APP_URL}" style="color:rgba(93,80,214,0.7);text-decoration:none;">ConectAr Talento</a>
+              </p>
+              <p style="margin:0;">
+                <a href="${APP_URL}/privacy" style="color:rgba(255,255,255,0.15);text-decoration:none;">Privacidad</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+// ── ConectAr Talento base template (for recruiter-facing emails) ───────────────
+
+function baseTemplate(title: string, previewText: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <meta name="description" content="${previewText}" />
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:${TEXT};">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${previewText}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG};min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+          <!-- Header -->
+          <tr>
+            <td style="padding-bottom:32px;text-align:center;">
+              <a href="${APP_URL}" style="text-decoration:none;">
+                <span style="color:${ACCENT};font-size:22px;font-weight:700;letter-spacing:-0.5px;">ConectAr</span>
+                <span style="color:${TEXT};font-size:22px;font-weight:700;letter-spacing:-0.5px;"> Talento</span>
+              </a>
+            </td>
+          </tr>
+          <!-- Content card -->
+          <tr>
+            <td style="background-color:${CARD_BG};border:1px solid ${BORDER};border-radius:16px;padding:40px 36px;">
+              ${bodyHtml}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding-top:28px;text-align:center;color:${TEXT_SECONDARY};font-size:13px;line-height:1.6;">
+              <p style="margin:0 0 8px;">© 2026 ConectAr Talento. Todos los derechos reservados.</p>
+              <p style="margin:0;">
+                <a href="${APP_URL}" style="color:${ACCENT};text-decoration:none;">Abrir aplicación</a>
+                &nbsp;·&nbsp;
+                <a href="${APP_URL}/privacy" style="color:${TEXT_SECONDARY};text-decoration:none;">Privacidad</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+// ── Sistema de Novedades (recruiter-facing, ConectAr branded) ──────────────────
 
 export interface SystemUpdateEmailData {
   recipientName: string
   updates: { id: string; title: string; description: string; type: string }[]
-  unsubscribeUrl?: string // solo presente si el usuario está inactivo
+  unsubscribeUrl?: string
 }
 
 export function systemUpdateEmailHtml(data: SystemUpdateEmailData): string {
@@ -71,7 +197,7 @@ export function systemUpdateEmailHtml(data: SystemUpdateEmailData): string {
   <meta name="description" content="Hay novedades en tu plataforma de reclutamiento" />
 </head>
 <body style="margin:0;padding:0;background-color:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;">Hay ${data.updates.length} novedad${data.updates.length !== 1 ? 'es' : ''} nueva${data.updates.length !== 1 ? 's' : ''} en ConectAr Talento</div>
+  <div style="display:none;max-height:0;overflow:hidden;">${data.updates.length} novedad${data.updates.length !== 1 ? 'es' : ''} nueva${data.updates.length !== 1 ? 's' : ''} en ConectAr Talento</div>
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG};min-height:100vh;">
     <tr>
       <td align="center" style="padding:40px 16px;">
@@ -140,57 +266,7 @@ export function systemUpdateEmailHtml(data: SystemUpdateEmailData): string {
 </html>`
 }
 
-function baseTemplate(title: string, previewText: string, bodyHtml: string): string {
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <meta name="description" content="${previewText}" />
-  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
-</head>
-<body style="margin:0;padding:0;background-color:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:${TEXT};">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${previewText}</div>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG};min-height:100vh;">
-    <tr>
-      <td align="center" style="padding:40px 16px;">
-        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
-          <!-- Header -->
-          <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <a href="${APP_URL}" style="text-decoration:none;">
-                <span style="color:${ACCENT};font-size:22px;font-weight:700;letter-spacing:-0.5px;">ConectAr</span>
-                <span style="color:${TEXT};font-size:22px;font-weight:700;letter-spacing:-0.5px;"> Talento</span>
-              </a>
-            </td>
-          </tr>
-          <!-- Content card -->
-          <tr>
-            <td style="background-color:${CARD_BG};border:1px solid ${BORDER};border-radius:16px;padding:40px 36px;">
-              ${bodyHtml}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding-top:28px;text-align:center;color:${TEXT_SECONDARY};font-size:13px;line-height:1.6;">
-              <p style="margin:0 0 8px;">© 2026 ConectAr Talento. Todos los derechos reservados.</p>
-              <p style="margin:0;">
-                <a href="${APP_URL}" style="color:${ACCENT};text-decoration:none;">Abrir aplicación</a>
-                &nbsp;·&nbsp;
-                <a href="${APP_URL}/privacy" style="color:${TEXT_SECONDARY};text-decoration:none;">Privacidad</a>
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-// ── Welcome email ──────────────────────────────────────────────────────────────
+// ── Welcome email (recruiter-facing, ConectAr branded) ────────────────────────
 
 export interface WelcomeEmailData {
   fullName: string
@@ -247,18 +323,22 @@ export function welcomeEmailHtml(data: WelcomeEmailData): string {
   )
 }
 
-// ── Interview scheduled email ─────────────────────────────────────────────────
+// ── Interview scheduled email (candidate-facing, client branded) ──────────────
 
 export interface InterviewScheduledEmailData {
   candidateName: string
   candidateEmail: string
   vacancyTitle: string
   companyName: string
+  companyLogoUrl?: string | null
+  companyWebsite?: string | null
   scheduledAt: Date
   interviewerName: string
   meetingPlatform?: string
   meetingLink?: string
   interviewType: string
+  interviewAddress?: string | null
+  arrivalDetails?: string | null
 }
 
 export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): string {
@@ -283,6 +363,16 @@ export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): 
                 font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;">
          Unirse a la entrevista →
        </a>`
+    : ''
+
+  const locationRow = data.interviewAddress
+    ? `<tr>
+         <td style="border-top:1px solid ${BORDER};padding-top:12px;padding-bottom:12px;">
+           <span style="font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Dirección</span><br/>
+           <span style="font-size:15px;color:${TEXT};font-weight:600;">${data.interviewAddress}</span>
+           ${data.arrivalDetails ? `<br/><span style="font-size:13px;color:${TEXT_SECONDARY};">${data.arrivalDetails}</span>` : ''}
+         </td>
+       </tr>`
     : ''
 
   const body = `
@@ -314,11 +404,12 @@ export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): 
               </td>
             </tr>
             <tr>
-              <td style="border-top:1px solid ${BORDER};padding-top:12px;">
+              <td style="border-top:1px solid ${BORDER};padding-top:12px;padding-bottom:12px;">
                 <span style="font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Entrevistador/a</span><br/>
                 <span style="font-size:15px;color:${TEXT};font-weight:600;">${data.interviewerName}</span>
               </td>
             </tr>
+            ${locationRow}
           </table>
         </td>
       </tr>
@@ -327,22 +418,26 @@ export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): 
     ${meetingButton ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;"><tr><td align="center">${meetingButton}</td></tr></table>` : ''}
 
     <p style="margin:0;font-size:13px;color:${TEXT_SECONDARY};line-height:1.6;border-top:1px solid ${BORDER};padding-top:20px;">
-      Si tenés alguna pregunta sobre la entrevista, escribinos respondiendo este mail.
+      Si tenés alguna pregunta sobre la entrevista, respondé este mail.
     </p>
   `
-  return baseTemplate(
+
+  return clientTemplate(
+    { name: data.companyName, logoUrl: data.companyLogoUrl, website: data.companyWebsite },
     `Entrevista programada: ${data.vacancyTitle} en ${data.companyName}`,
     `Tenés una entrevista el ${dateStr} a las ${timeStr} para el puesto ${data.vacancyTitle}.`,
     body
   )
 }
 
-// ── Stage change (advance / reject) ────────────────────────────────────────────
+// ── Stage change (advance / reject) — candidate-facing, client branded ─────────
 
 export interface StageChangedEmailData {
   candidateName: string
   vacancyTitle: string
   companyName: string
+  companyLogoUrl?: string | null
+  companyWebsite?: string | null
   newStage: string
   recruiterMessage?: string
 }
@@ -369,7 +464,7 @@ export function stageChangedEmailHtml(data: StageChangedEmailData): string {
     ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
          <tr>
            <td style="background:rgba(255,255,255,0.04);border-left:3px solid ${ACCENT};border-radius:0 8px 8px 0;padding:16px 20px;">
-             <p style="margin:0 0 4px;font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Mensaje del reclutador</p>
+             <p style="margin:0 0 4px;font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Mensaje</p>
              <p style="margin:0;font-size:14px;color:${TEXT};line-height:1.6;">${data.recruiterMessage}</p>
            </td>
          </tr>
@@ -388,14 +483,13 @@ export function stageChangedEmailHtml(data: StageChangedEmailData): string {
       ${intro}
     </p>
     ${messageBlock}
-    <p style="margin:0 0 24px;font-size:14px;color:${TEXT_SECONDARY};line-height:1.6;">
+    <p style="margin:0;font-size:14px;color:${TEXT_SECONDARY};line-height:1.6;">
       ${closing}
     </p>
-    <p style="margin:0;font-size:13px;color:${TEXT_SECONDARY};line-height:1.6;border-top:1px solid ${BORDER};padding-top:20px;">
-      Este email fue enviado por <strong style="color:${TEXT};">${data.companyName}</strong> vía ConectAr Talento.
-    </p>
   `
-  return baseTemplate(
+
+  return clientTemplate(
+    { name: data.companyName, logoUrl: data.companyLogoUrl, website: data.companyWebsite },
     `${isRejection ? 'Actualización de tu postulación' : 'Avanzaste en el proceso'}: ${data.vacancyTitle}`,
     `${isRejection ? 'Actualización sobre tu postulación' : `Avanzaste a: ${data.newStage}`} en ${data.companyName}.`,
     body

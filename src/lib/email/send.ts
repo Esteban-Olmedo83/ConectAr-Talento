@@ -34,7 +34,7 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<SendResu
 }
 
 export async function sendInterviewScheduledEmail(
-  data: InterviewScheduledEmailData
+  data: InterviewScheduledEmailData & { replyTo?: string }
 ): Promise<SendResult> {
   if (!isEmailEnabled()) return { ok: true }
   try {
@@ -42,6 +42,7 @@ export async function sendInterviewScheduledEmail(
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: data.candidateEmail,
+      ...(data.replyTo ? { replyTo: data.replyTo } : {}),
       subject: `Entrevista programada: ${data.vacancyTitle} en ${data.companyName}`,
       html: interviewScheduledEmailHtml(data),
     })
@@ -76,7 +77,7 @@ export async function sendSystemUpdateEmail(
   }
 }
 
-export async function sendStageChangedEmail(data: StageChangedEmailData & { candidateEmail: string }): Promise<SendResult> {
+export async function sendStageChangedEmail(data: StageChangedEmailData & { candidateEmail: string; replyTo?: string }): Promise<SendResult> {
   if (!isEmailEnabled()) return { ok: true }
   try {
     const resend = getResend()
@@ -89,6 +90,7 @@ export async function sendStageChangedEmail(data: StageChangedEmailData & { cand
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: data.candidateEmail,
+      ...(data.replyTo ? { replyTo: data.replyTo } : {}),
       subject,
       html: stageChangedEmailHtml(data),
     })
