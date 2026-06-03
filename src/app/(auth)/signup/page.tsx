@@ -62,7 +62,7 @@ export default function SignupPage() {
     setError('')
     setIsLoading(true)
     const supabase = createClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    const appUrl = window.location.origin
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
