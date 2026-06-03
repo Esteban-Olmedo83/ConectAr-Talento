@@ -4,9 +4,17 @@ import { sendStageChangedEmail } from '@/lib/email/send'
 
 interface StageChangedBody {
   candidateId: string
+  clientId?: string
   vacancyTitle: string
   newStage: string
   recruiterMessage?: string
+}
+
+interface ClientRow {
+  name: string
+  logo_url: string | null
+  website: string | null
+  recruitment_email: string | null
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -28,15 +36,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       supabase.from('profiles').select('company_name').eq('id', user.id).single(),
     ])
 
-    if (!candidate?.email) {
+    // Fetch client branding when a clientId is provided
+    let clientData: ClientRow | null = null
+    if (body.clientId) {
+      const { data } = await supabase
+        .from('clients')
+        .select('name, logo_url, website, recruitment_email')
+        .eq('id', body.clientId)
+        .single()
+      if (data) clientData = data as ClientRow
+    }
+
+    if (!(candidate as { email?: string } | null)?.email) {
       return NextResponse.json({ ok: false, reason: 'candidate_no_email' })
     }
 
+    const cand = candidate as { full_name: string; email: string }
+    const prof = profile as { company_name?: string } | null
+    const companyName = clientData?.name ?? prof?.company_name ?? 'la empresa'
+
     const result = await sendStageChangedEmail({
-      candidateName: candidate.full_name,
-      candidateEmail: candidate.email,
+      candidateName: cand.full_name,
+      candidateEmail: cand.email,
+      replyTo: clientData?.recruitment_email ?? undefined,
       vacancyTitle: body.vacancyTitle,
-      companyName: profile?.company_name ?? 'la empresa',
+      companyName,
+      companyLogoUrl: clientData?.logo_url,
+      companyWebsite: clientData?.website,
       newStage: body.newStage,
       recruiterMessage: body.recruiterMessage,
     })
