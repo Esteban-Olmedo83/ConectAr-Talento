@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/pipeline'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin
+  const appUrl = origin
 
   if (code) {
     const cookieStore = await cookies()
