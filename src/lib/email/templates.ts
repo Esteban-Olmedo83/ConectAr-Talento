@@ -1,6 +1,6 @@
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  'https://conect-ar-talento-esteban-olmedo83s-projects.vercel.app'
+  'https://www.conectartalento.com'
 
 const ACCENT = '#5D50D6'
 const ACCENT2 = '#8B7EFF'

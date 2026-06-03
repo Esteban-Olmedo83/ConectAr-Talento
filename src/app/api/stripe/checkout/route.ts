@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createCheckoutSession } from '@/lib/stripe/subscriptions'
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://conect-ar-talento-esteban-olmedo83s-projects.vercel.app'
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.conectartalento.com'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
