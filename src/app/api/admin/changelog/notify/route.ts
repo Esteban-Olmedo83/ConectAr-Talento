@@ -6,7 +6,7 @@ import { createHmac } from 'crypto'
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
-  'https://conect-ar-talento-esteban-olmedo83s-projects.vercel.app'
+  'https://www.conectartalento.com'
 
 const INACTIVE_DAYS = 30
 
