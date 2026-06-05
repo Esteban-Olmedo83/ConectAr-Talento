@@ -705,10 +705,10 @@ export default function IntegrationsPage() {
               </p>
               <ul className="space-y-1.5">
                 {[
-                  { icon: '📧', label: 'Gmail', desc: 'Enviá emails a candidatos directamente desde la app' },
-                  { icon: '💾', label: 'Google Drive', desc: 'Almacená CVs y documentos de candidatos en tu Drive' },
-                  { icon: '📅', label: 'Google Calendar', desc: 'Creá eventos de entrevistas automáticamente' },
-                  { icon: '🎥', label: 'Google Meet', desc: 'Generá links de videollamada al agendar entrevistas' },
+                  { icon: '📧', label: 'Gmail', desc: 'Enviá emails transaccionales desde tu cuenta de Google' },
+                  { icon: '💾', label: 'Google Drive', desc: 'Los CVs analizados se guardan automáticamente en tu Drive' },
+                  { icon: '📅', label: 'Google Calendar + Meet', desc: 'Al agendar una entrevista se crea el evento y el link de Meet automáticamente' },
+                  { icon: '📊', label: 'Google Sheets', desc: 'Exportá candidatos y vacantes a una hoja de cálculo en tu Drive' },
                 ].map((f) => (
                   <li key={f.label} className="flex items-start gap-2 text-xs">
                     <span className="text-base leading-none mt-0.5">{f.icon}</span>

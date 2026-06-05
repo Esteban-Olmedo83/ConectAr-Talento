@@ -213,6 +213,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.warn('[upload-cv] storage error (non-fatal):', e)
     }
 
+    // Mirror CV to Google Drive if connected (non-blocking)
+    try {
+      const { data: gIntegration } = await supabase
+        .from('integrations')
+        .select('access_token')
+        .eq('tenant_id', tenantId)
+        .eq('platform', 'gmail')
+        .eq('status', 'connected')
+        .maybeSingle()
+      if (gIntegration?.access_token) {
+        const driveForm = new FormData()
+        driveForm.append('file', new Blob([buffer], { type: file.type || 'application/octet-stream' }), file.name)
+        const nameForDrive = (formData.get('candidateName') as string | null) || file.name.replace(/\.[^.]+$/, '')
+        driveForm.append('candidateName', nameForDrive)
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/google/upload-cv`, {
+          method: 'POST',
+          headers: { Cookie: request.headers.get('cookie') ?? '' },
+          body: driveForm,
+        }).catch(() => { /* fire-and-forget */ })
+      }
+    } catch { /* non-fatal */ }
+
     // Extract profile photo from PDF (look for embedded JPEG)
     let avatarUrl: string | undefined
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {

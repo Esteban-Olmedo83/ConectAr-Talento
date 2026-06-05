@@ -91,6 +91,8 @@ function SchedulerModal({
   const [saving, setSaving] = React.useState(false)
   const [creatingZoom, setCreatingZoom] = React.useState(false)
   const [zoomError, setZoomError] = React.useState<string | null>(null)
+  const [creatingMeet, setCreatingMeet] = React.useState(false)
+  const [meetError, setMeetError] = React.useState<string | null>(null)
 
   // Full reset every time the modal opens so old data never bleeds through
   React.useEffect(() => {
@@ -137,6 +139,38 @@ function SchedulerModal({
       window.dispatchEvent(new CustomEvent('interview:scheduled'))
       onSaved(result.data)
       onClose()
+    }
+  }
+
+  async function handleCreateMeet() {
+    if (!form.date || !form.time) {
+      setMeetError('Seleccioná fecha y hora primero.')
+      return
+    }
+    setCreatingMeet(true)
+    setMeetError(null)
+    try {
+      const startTime = new Date(`${form.date}T${form.time}:00`).toISOString()
+      const candidateName = candidates.find(c => c.id === form.candidateId)?.fullName ?? 'Candidato'
+      const vacancyTitle = vacancies.find(v => v.id === form.vacancyId)?.title ?? ''
+      const summary = vacancyTitle
+        ? `Entrevista - ${candidateName} - ${vacancyTitle}`
+        : `Entrevista - ${candidateName}`
+      const res = await fetch('/api/google/create-meet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary, startTime, duration: 60 }),
+      })
+      const data = await res.json() as { meetLink?: string; calendarLink?: string; error?: string }
+      if (!res.ok || !data.meetLink) {
+        setMeetError(data.error ?? 'No se pudo crear el evento. Verificá que Google Calendar tenga permisos.')
+        return
+      }
+      setForm(f => ({ ...f, meetingLink: data.meetLink! }))
+    } catch {
+      setMeetError('Error de red al crear el evento.')
+    } finally {
+      setCreatingMeet(false)
     }
   }
 
@@ -223,6 +257,32 @@ function SchedulerModal({
                   className={cn(inputCls, 'flex-1')}
                   placeholder={form.platform === 'zoom' ? 'https://zoom.us/j/...' : 'https://meet.google.com/...'}
                 />
+                {form.platform === 'google_meet' && (
+                  <button
+                    type="button"
+                    onClick={handleCreateMeet}
+                    disabled={creatingMeet}
+                    title="Crear evento en Google Calendar con Meet"
+                    style={{
+                      flexShrink: 0,
+                      padding: '0 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(66,133,244,0.5)',
+                      background: creatingMeet ? 'rgba(66,133,244,0.1)' : 'rgba(66,133,244,0.15)',
+                      color: '#4285F4',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: creatingMeet ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {creatingMeet ? <Loader2 className="h-3 w-3 animate-spin" /> : <Video className="h-3 w-3" />}
+                    {creatingMeet ? 'Creando...' : 'Crear con Meet'}
+                  </button>
+                )}
                 {form.platform === 'zoom' && (
                   <button
                     type="button"
@@ -245,15 +305,14 @@ function SchedulerModal({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {creatingZoom ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Video className="h-3 w-3" />
-                    )}
+                    {creatingZoom ? <Loader2 className="h-3 w-3 animate-spin" /> : <Video className="h-3 w-3" />}
                     {creatingZoom ? 'Creando...' : 'Crear con Zoom'}
                   </button>
                 )}
               </div>
+              {meetError && (
+                <p className="mt-1 text-xs" style={{ color: '#f87171' }}>{meetError}</p>
+              )}
               {zoomError && (
                 <p className="mt-1 text-xs" style={{ color: '#f87171' }}>{zoomError}</p>
               )}
