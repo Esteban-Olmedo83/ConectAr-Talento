@@ -740,6 +740,8 @@ function PublicarPortalesModal({ vacancy, onClose }: { vacancy: Vacancy; onClose
 
   const portal = PORTALS.find(p => p.key === activePortal)!
   const text = formatVacancyForPortal(vacancy, activePortal)
+  const pct = Math.min((text.length / portal.charLimit) * 100, 100)
+  const barColor = text.length > portal.charLimit ? '#f87171' : pct > 80 ? '#fbbf24' : portal.color
 
   const handleCopy = async (content: string, field: string) => {
     await navigator.clipboard.writeText(content)
@@ -747,158 +749,141 @@ function PublicarPortalesModal({ vacancy, onClose }: { vacancy: Vacancy; onClose
     setTimeout(() => setCopied(null), 2000)
   }
 
-  return (
-    <DraggableModal open onClose={onClose} title="Publicar en portales de empleo" maxWidth="54rem">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+  const salary = vacancy.salaryMin
+    ? `${vacancy.currency ?? 'ARS'} ${(vacancy.salaryMin / 1000).toFixed(0)}K${vacancy.salaryMax ? `–${(vacancy.salaryMax / 1000).toFixed(0)}K` : '+'}`
+    : 'A convenir'
 
-        {/* Vacante resumida */}
-        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--accent-soft)', border: '1px solid var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{vacancy.title}</span>
-            <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>{vacancy.department} · {vacancy.modality}</span>
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {vacancy.salaryMin ? `${vacancy.currency ?? 'ARS'} ${(vacancy.salaryMin / 1000).toFixed(0)}K${vacancy.salaryMax ? `–${(vacancy.salaryMax / 1000).toFixed(0)}K` : '+'}` : 'Salario a convenir'}
-          </span>
+  const fields = [
+    { label: 'Título', value: vacancy.title },
+    { label: 'Área', value: vacancy.department },
+    { label: 'Modalidad', value: vacancy.modality },
+    { label: 'Ubicación', value: vacancy.location ?? (vacancy.modality === 'Remoto' ? 'Remoto / AR' : 'Argentina') },
+  ]
+
+  return (
+    <DraggableModal open onClose={onClose} title="Publicar en portales de empleo" maxWidth="52rem">
+      {/* wrapper: full width, no overflow */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
+
+        {/* Vacante pill */}
+        <div style={{
+          boxSizing: 'border-box', width: '100%', padding: '9px 12px', borderRadius: 8,
+          background: 'var(--accent-soft)', border: '1px solid rgba(93,80,214,0.2)',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 12px',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{vacancy.title}</span>
+          <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{vacancy.department} · {vacancy.modality} · {salary}</span>
         </div>
 
-        <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
-          Seleccioná el portal, copiá el texto generado y pegalo directamente al publicar la vacante.
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>
+          Seleccioná el portal → copiá el texto → pegalo en la plataforma.
         </p>
 
-        {/* Tabs portales */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {/* Portal tabs */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {PORTALS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => setActivePortal(p.key)}
-              style={{
-                padding: '5px 12px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: activePortal === p.key ? `2px solid ${p.color}` : '2px solid transparent',
-                background: activePortal === p.key ? `${p.color}18` : 'var(--surface2)',
-                color: activePortal === p.key ? p.color : 'var(--muted)',
-                transition: 'all 0.15s',
-              }}
-            >
+            <button key={p.key} onClick={() => setActivePortal(p.key)} style={{
+              padding: '4px 11px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              border: activePortal === p.key ? `2px solid ${p.color}` : '2px solid transparent',
+              background: activePortal === p.key ? `${p.color}18` : 'var(--surface2)',
+              color: activePortal === p.key ? p.color : 'var(--muted)',
+              transition: 'all 0.15s',
+            }}>
               {p.name}
             </button>
           ))}
         </div>
 
         {/* Hint */}
-        <div style={{ padding: '8px 12px', borderRadius: 8, background: `${portal.color}10`, border: `1px solid ${portal.color}30`, fontSize: 12, color: 'var(--muted)' }}>
+        <div style={{ boxSizing: 'border-box', width: '100%', padding: '7px 11px', borderRadius: 8, background: `${portal.color}10`, border: `1px solid ${portal.color}30`, fontSize: 12, color: 'var(--muted)' }}>
           💡 {portal.formatHint}
         </div>
 
-        {/* Texto generado */}
-        <div style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              Texto para {portal.name} · {text.length} / {portal.charLimit} caracteres
-            </span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                onClick={() => handleCopy(text, 'text')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
-                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  background: copied === 'text' ? '#34d39920' : 'var(--accent-soft)',
-                  border: `1px solid ${copied === 'text' ? '#34d399' : 'rgba(93,80,214,0.3)'}`,
-                  color: copied === 'text' ? '#34d399' : 'var(--accent-2)',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {copied === 'text' ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
-                {copied === 'text' ? '¡Copiado!' : 'Copiar texto'}
-              </button>
-              <a
-                href={portal.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
-                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  background: `${portal.color}15`,
-                  border: `1px solid ${portal.color}40`,
-                  color: portal.color,
-                  textDecoration: 'none',
-                }}
-              >
-                <ExternalLink style={{ width: 12, height: 12 }} />
-                Ir a {portal.name}
-              </a>
-            </div>
+        {/* Header fila: contador + botones */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, boxSizing: 'border-box', width: '100%' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+            {text.length} / {portal.charLimit} caracteres
+          </span>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={() => handleCopy(text, 'text')} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+              borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+              background: copied === 'text' ? '#34d39920' : 'var(--accent-soft)',
+              border: `1px solid ${copied === 'text' ? '#34d399' : 'rgba(93,80,214,0.3)'}`,
+              color: copied === 'text' ? '#34d399' : 'var(--accent-2)',
+              transition: 'all 0.2s',
+            }}>
+              {copied === 'text' ? <Check style={{ width: 12, height: 12, flexShrink: 0 }} /> : <Copy style={{ width: 12, height: 12, flexShrink: 0 }} />}
+              {copied === 'text' ? '¡Copiado!' : 'Copiar'}
+            </button>
+            <a href={portal.url} target="_blank" rel="noopener noreferrer" style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+              borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+              background: `${portal.color}15`, border: `1px solid ${portal.color}40`,
+              color: portal.color, textDecoration: 'none',
+            }}>
+              <ExternalLink style={{ width: 12, height: 12, flexShrink: 0 }} />
+              Ir a {portal.name}
+            </a>
           </div>
+        </div>
 
+        {/* Textarea */}
+        <div style={{ boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           <textarea
             readOnly
             value={text}
-            rows={14}
+            rows={12}
             style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: 8,
+              boxSizing: 'border-box', width: '100%', minWidth: 0,
+              padding: '11px 12px', borderRadius: 8,
               border: '1px solid var(--border)',
-              background: 'var(--surface2)',
-              color: 'var(--text)',
-              fontSize: 13,
-              fontFamily: 'monospace',
-              resize: 'vertical',
-              lineHeight: 1.6,
-              outline: 'none',
+              background: 'var(--surface2)', color: 'var(--text)',
+              fontSize: 12, fontFamily: 'monospace',
+              resize: 'vertical', lineHeight: 1.6, outline: 'none',
+              display: 'block',
             }}
             onClick={e => (e.target as HTMLTextAreaElement).select()}
           />
-
-          {/* Barra de progreso de caracteres */}
+          {/* Progress bar */}
           <div style={{ marginTop: 4, height: 3, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.min((text.length / portal.charLimit) * 100, 100)}%`,
-              background: text.length > portal.charLimit ? '#f87171' : text.length > portal.charLimit * 0.8 ? '#fbbf24' : portal.color,
-              transition: 'width 0.3s',
-            }} />
+            <div style={{ height: '100%', width: `${pct}%`, background: barColor, transition: 'width 0.3s' }} />
           </div>
           {text.length > portal.charLimit && (
-            <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
-              ⚠️ El texto supera el límite recomendado de {portal.charLimit} caracteres. Considerá acortarlo.
+            <p style={{ fontSize: 11, color: '#f87171', margin: '4px 0 0' }}>
+              ⚠️ Superás el límite de {portal.charLimit} caracteres. Considerá acortarlo.
             </p>
           )}
         </div>
 
-        {/* Campos individuales copiables */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {[
-            { label: 'Título del puesto', value: vacancy.title },
-            { label: 'Área / Departamento', value: vacancy.department },
-            { label: 'Modalidad', value: vacancy.modality },
-            { label: 'Ubicación', value: vacancy.location ?? (vacancy.modality === 'Remoto' ? 'Remoto / Argentina' : 'Argentina') },
-          ].map(field => (
-            <div
-              key={field.label}
-              style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
-            >
-              <div style={{ minWidth: 0 }}>
+        {/* Campos copiables */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, boxSizing: 'border-box', width: '100%' }}>
+          {fields.map(field => (
+            <div key={field.label} style={{
+              boxSizing: 'border-box', minWidth: 0,
+              padding: '7px 10px', borderRadius: 8,
+              background: 'var(--surface2)', border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0 }}>{field.label}</p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.value}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.value}</p>
               </div>
-              <button
-                onClick={() => handleCopy(field.value, field.label)}
-                style={{ flexShrink: 0, padding: 4, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: copied === field.label ? '#34d399' : 'var(--muted)' }}
-              >
+              <button onClick={() => handleCopy(field.value, field.label)} style={{
+                flexShrink: 0, padding: 4, borderRadius: 4, border: 'none',
+                background: 'transparent', cursor: 'pointer',
+                color: copied === field.label ? '#34d399' : 'var(--muted)',
+              }}>
                 {copied === field.label ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
               </button>
             </div>
           ))}
         </div>
 
-        <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', paddingTop: 4 }}>
-          Copiá el texto → abrí el portal → pegá en la descripción. Así de simple.
-        </div>
+        <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', margin: 0 }}>
+          Copiá el texto → abrí el portal → pegá en la descripción.
+        </p>
       </div>
     </DraggableModal>
   )
