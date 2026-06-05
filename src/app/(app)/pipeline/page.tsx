@@ -348,8 +348,9 @@ function EmailModal({
   const previewSubject = applyExtraVars(subject)
   const previewBody = applyExtraVars(body)
 
-  // Gmail compose URL — works in-browser without needing a default mail client
-  const gmailHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(candidate.email)}${previewSubject ? `&su=${encodeURIComponent(previewSubject)}` : ''}${previewBody ? `&body=${encodeURIComponent(previewBody)}` : ''}`
+  // mailto: lets the OS pick the right email app (Gmail app, Outlook, Mail, etc.)
+  // both on mobile and desktop — avoids forcing Gmail web in a new browser tab
+  const mailtoHref = `mailto:${encodeURIComponent(candidate.email)}${previewSubject || previewBody ? '?' : ''}${previewSubject ? `subject=${encodeURIComponent(previewSubject)}` : ''}${previewSubject && previewBody ? '&' : ''}${previewBody ? `body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -589,14 +590,14 @@ function EmailModal({
           </button>
           <button
             onClick={() => {
-              window.open(gmailHref, '_blank', 'noopener,noreferrer')
+              window.location.href = mailtoHref
               onClose()
               onStagePrompt?.()
             }}
             style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Mail style={{ width: 13, height: 13 }} />
-            Abrir en Gmail
+            Enviar email
           </button>
         </div>
       </div>

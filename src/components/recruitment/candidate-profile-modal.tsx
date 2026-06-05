@@ -595,7 +595,7 @@ export function CandidateProfileModal({
               const body = encodeURIComponent(
                 `Estimado/a ${candidate.fullName},\n\nNos comunicamos de ConectAr Talento...`
               )
-              window.open(`mailto:${candidate.email}?subject=${subject}&body=${body}`)
+              window.location.href = `mailto:${candidate.email}?subject=${subject}&body=${body}`
             }}
             className="gap-1.5"
           >
