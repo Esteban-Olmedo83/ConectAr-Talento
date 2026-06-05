@@ -5,7 +5,7 @@ import {
   Plus, Search, Briefcase, Users, Clock, BarChart2,
   ChevronDown, MapPin, Laptop, Building2, Pencil,
   Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2,
-  FileText, Calendar, AlertTriangle,
+  FileText, Calendar, AlertTriangle, Copy, ExternalLink, Share2,
 } from 'lucide-react'
 import { cn, formatRelativeDate, generateId } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -614,14 +614,305 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
   )
 }
 
+// ─── Publicar en Portales Modal ───────────────────────────────────────────────
+const PORTALS = [
+  {
+    key: 'linkedin',
+    name: 'LinkedIn',
+    color: '#0A66C2',
+    url: 'https://www.linkedin.com/jobs/post/',
+    charLimit: 2000,
+    formatHint: 'LinkedIn valora descripciones con emojis, bullets y secciones claras.',
+  },
+  {
+    key: 'computrabajo',
+    name: 'Computrabajo',
+    color: '#E8003D',
+    url: 'https://ar.computrabajo.com/empresa/publicar-empleo/',
+    charLimit: 3000,
+    formatHint: 'Computrabajo prefiere texto plano sin HTML. Incluí franja salarial para más visibilidad.',
+  },
+  {
+    key: 'zonajobs',
+    name: 'ZonaJobs',
+    color: '#FF6B00',
+    url: 'https://empresa.zonajobs.com.ar/',
+    charLimit: 3000,
+    formatHint: 'ZonaJobs indexa mejor con palabras clave del puesto en el título y primer párrafo.',
+  },
+  {
+    key: 'bumeran',
+    name: 'Bumeran',
+    color: '#0066CC',
+    url: 'https://www.bumeran.com.ar/empleos-publicar.html',
+    charLimit: 2500,
+    formatHint: 'Bumeran recomienda títulos cortos (máx. 60 caracteres) y descripción estructurada.',
+  },
+  {
+    key: 'getonboard',
+    name: 'GetOnBoard',
+    color: '#00B4A2',
+    url: 'https://www.getonbrd.com/employers',
+    charLimit: 4000,
+    formatHint: 'GetOnBoard es técnico — detallá el stack, metodología y cultura de trabajo.',
+  },
+  {
+    key: 'indeed',
+    name: 'Indeed',
+    color: '#2164F3',
+    url: 'https://employers.indeed.com/jobposting',
+    charLimit: 5000,
+    formatHint: 'Indeed rankea mejor con títulos estándar (sin creatividad). Incluí ubicación exacta.',
+  },
+]
+
+function formatVacancyForPortal(vacancy: Vacancy, portalKey: string): string {
+  const salary = vacancy.salaryMin
+    ? `${vacancy.currency ?? 'ARS'} ${(vacancy.salaryMin / 1000).toFixed(0)}K${vacancy.salaryMax ? ` – ${(vacancy.salaryMax / 1000).toFixed(0)}K` : '+'}`
+    : 'A convenir'
+
+  const location = vacancy.location ?? (vacancy.modality === 'Remoto' ? 'Remoto / Argentina' : 'Argentina')
+  const reqs = vacancy.requirements.length > 0
+    ? vacancy.requirements.map(r => `• ${r}`).join('\n')
+    : '• Se detallarán en la entrevista'
+
+  const desc = vacancy.description?.trim() || 'Nos encontramos en búsqueda de un/a profesional con ganas de sumarse a nuestro equipo.'
+
+  if (portalKey === 'linkedin') {
+    return `🚀 ${vacancy.title}
+📍 ${location} | ${vacancy.modality}
+💰 ${salary}
+🏢 ${vacancy.department}
+
+📋 DESCRIPCIÓN DEL PUESTO
+${desc}
+
+✅ REQUISITOS
+${reqs}
+
+📩 ¿Te interesa? Postulate directamente por LinkedIn o escribinos.
+
+#${vacancy.department.replace(/\s/g, '')} #Empleos #Argentina #RRHH`
+  }
+
+  if (portalKey === 'getonboard') {
+    return `## ${vacancy.title}
+
+**Modalidad:** ${vacancy.modality} | **Ubicación:** ${location}
+**Área:** ${vacancy.department} | **Salario:** ${salary}
+
+### Sobre el rol
+${desc}
+
+### Requisitos
+${reqs}
+
+### ¿Por qué sumarte?
+Formá parte de un equipo comprometido con el crecimiento profesional y personal.
+
+*Postulaciones abiertas — revisamos todos los perfiles recibidos.*`
+  }
+
+  // Formato genérico para Computrabajo, ZonaJobs, Bumeran, Indeed
+  return `PUESTO: ${vacancy.title}
+ÁREA: ${vacancy.department}
+MODALIDAD: ${vacancy.modality}
+UBICACIÓN: ${location}
+SALARIO: ${salary}
+
+DESCRIPCIÓN:
+${desc}
+
+REQUISITOS:
+${reqs}
+
+CONDICIONES:
+- Modalidad: ${vacancy.modality}
+- Ubicación: ${location}
+- Remuneración: ${salary}
+
+Interesados enviar CV actualizado. ¡Esperamos tu postulación!`
+}
+
+function PublicarPortalesModal({ vacancy, onClose }: { vacancy: Vacancy; onClose: () => void }) {
+  const [activePortal, setActivePortal] = React.useState(PORTALS[0].key)
+  const [copied, setCopied] = React.useState<string | null>(null)
+
+  const portal = PORTALS.find(p => p.key === activePortal)!
+  const text = formatVacancyForPortal(vacancy, activePortal)
+
+  const handleCopy = async (content: string, field: string) => {
+    await navigator.clipboard.writeText(content)
+    setCopied(field)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <DraggableModal open onClose={onClose} title="Publicar en portales de empleo" maxWidth="54rem">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Vacante resumida */}
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--accent-soft)', border: '1px solid var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{vacancy.title}</span>
+            <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>{vacancy.department} · {vacancy.modality}</span>
+          </div>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            {vacancy.salaryMin ? `${vacancy.currency ?? 'ARS'} ${(vacancy.salaryMin / 1000).toFixed(0)}K${vacancy.salaryMax ? `–${(vacancy.salaryMax / 1000).toFixed(0)}K` : '+'}` : 'Salario a convenir'}
+          </span>
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
+          Seleccioná el portal, copiá el texto generado y pegalo directamente al publicar la vacante.
+        </p>
+
+        {/* Tabs portales */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {PORTALS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => setActivePortal(p.key)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: activePortal === p.key ? `2px solid ${p.color}` : '2px solid transparent',
+                background: activePortal === p.key ? `${p.color}18` : 'var(--surface2)',
+                color: activePortal === p.key ? p.color : 'var(--muted)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Hint */}
+        <div style={{ padding: '8px 12px', borderRadius: 8, background: `${portal.color}10`, border: `1px solid ${portal.color}30`, fontSize: 12, color: 'var(--muted)' }}>
+          💡 {portal.formatHint}
+        </div>
+
+        {/* Texto generado */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+              Texto para {portal.name} · {text.length} / {portal.charLimit} caracteres
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => handleCopy(text, 'text')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: copied === 'text' ? '#34d39920' : 'var(--accent-soft)',
+                  border: `1px solid ${copied === 'text' ? '#34d399' : 'rgba(93,80,214,0.3)'}`,
+                  color: copied === 'text' ? '#34d399' : 'var(--accent-2)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {copied === 'text' ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
+                {copied === 'text' ? '¡Copiado!' : 'Copiar texto'}
+              </button>
+              <a
+                href={portal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: `${portal.color}15`,
+                  border: `1px solid ${portal.color}40`,
+                  color: portal.color,
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink style={{ width: 12, height: 12 }} />
+                Ir a {portal.name}
+              </a>
+            </div>
+          </div>
+
+          <textarea
+            readOnly
+            value={text}
+            rows={14}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface2)',
+              color: 'var(--text)',
+              fontSize: 13,
+              fontFamily: 'monospace',
+              resize: 'vertical',
+              lineHeight: 1.6,
+              outline: 'none',
+            }}
+            onClick={e => (e.target as HTMLTextAreaElement).select()}
+          />
+
+          {/* Barra de progreso de caracteres */}
+          <div style={{ marginTop: 4, height: 3, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.min((text.length / portal.charLimit) * 100, 100)}%`,
+              background: text.length > portal.charLimit ? '#f87171' : text.length > portal.charLimit * 0.8 ? '#fbbf24' : portal.color,
+              transition: 'width 0.3s',
+            }} />
+          </div>
+          {text.length > portal.charLimit && (
+            <p style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
+              ⚠️ El texto supera el límite recomendado de {portal.charLimit} caracteres. Considerá acortarlo.
+            </p>
+          )}
+        </div>
+
+        {/* Campos individuales copiables */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[
+            { label: 'Título del puesto', value: vacancy.title },
+            { label: 'Área / Departamento', value: vacancy.department },
+            { label: 'Modalidad', value: vacancy.modality },
+            { label: 'Ubicación', value: vacancy.location ?? (vacancy.modality === 'Remoto' ? 'Remoto / Argentina' : 'Argentina') },
+          ].map(field => (
+            <div
+              key={field.label}
+              style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0 }}>{field.label}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.value}</p>
+              </div>
+              <button
+                onClick={() => handleCopy(field.value, field.label)}
+                style={{ flexShrink: 0, padding: 4, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: copied === field.label ? '#34d399' : 'var(--muted)' }}
+              >
+                {copied === field.label ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', paddingTop: 4 }}>
+          Copiá el texto → abrí el portal → pegá en la descripción. Así de simple.
+        </div>
+      </div>
+    </DraggableModal>
+  )
+}
+
 // ─── Vacancy Card ─────────────────────────────────────────────────────────────
-function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary, onCloseVacancy }: {
+function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary, onCloseVacancy, onPublish }: {
   vacancy: Vacancy
   onEdit: () => void
   onArchive: () => void | Promise<void>
   onAssign: () => void
   onViewSummary: () => void
   onCloseVacancy: () => void | Promise<void>
+  onPublish: () => void
 }) {
   const { t } = useLanguage()
   const isClosed = vacancy.status === 'Contratado'
@@ -770,6 +1061,16 @@ function VacancyCard({ vacancy, onEdit, onArchive, onAssign, onViewSummary, onCl
               </Button>
               <Button size="sm" className="flex-1 text-xs h-7 gap-1" onClick={e => { e.stopPropagation(); onAssign() }}>
                 <UserPlus className="h-3 w-3" /> {t.vacancies.actions.assign}
+              </Button>
+              <Button
+                size="sm"
+                className="text-xs h-7 px-2"
+                variant="outline"
+                title="Publicar en portales"
+                onClick={e => { e.stopPropagation(); onPublish() }}
+                style={{ borderColor: 'rgba(93,80,214,0.4)', color: 'var(--accent-2)' }}
+              >
+                <Share2 className="h-3 w-3" />
               </Button>
             </>
           )}
@@ -1020,6 +1321,7 @@ export default function VacanciesPage() {
   const [filterClient, setFilterClient] = React.useState('all')
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
   const [summaryVacancy, setSummaryVacancy] = React.useState<Vacancy | undefined>()
+  const [publishVacancy, setPublishVacancy] = React.useState<Vacancy | undefined>()
 
   const { user } = useUser()
   const { t } = useLanguage()
@@ -1248,6 +1550,7 @@ export default function VacanciesPage() {
               onAssign={() => setAssignVacancy(v)}
               onViewSummary={() => setSummaryVacancy(v)}
               onCloseVacancy={() => handleCloseVacancy(v.id)}
+              onPublish={() => setPublishVacancy(v)}
             />
           ))}
         </div>
@@ -1272,6 +1575,13 @@ export default function VacanciesPage() {
         <VacancyProcessSummaryModal
           vacancy={summaryVacancy}
           onClose={() => setSummaryVacancy(undefined)}
+        />
+      )}
+
+      {publishVacancy && (
+        <PublicarPortalesModal
+          vacancy={publishVacancy}
+          onClose={() => setPublishVacancy(undefined)}
         />
       )}
     </div>

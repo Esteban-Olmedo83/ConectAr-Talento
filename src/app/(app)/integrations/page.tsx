@@ -379,14 +379,14 @@ function JobBoardModal({
 
 /* ─── section config ─────────────────────────────────────────── */
 const JOB_BOARDS: { platform: IntegrationPlatform; name: string; countries: string; color: string; url?: string }[] = [
-  { platform: 'computrabajo', name: 'Computrabajo', countries: 'AR/MX/CO/PE/CL', color: '#E8003D', url: 'https://www.computrabajo.com.ar/empresa/publicar-empleo' },
-  { platform: 'zonajobs', name: 'ZonaJobs', countries: 'AR', color: '#FF6B00', url: 'https://empresa.zonajobs.com.ar' },
-  { platform: 'bumeran', name: 'Bumeran', countries: 'AR/MX/PE', color: '#0066CC', url: 'https://www.bumeran.com.ar/empleos-publicar.html' },
-  { platform: 'occ', name: 'OCC Mundial', countries: 'MX', color: '#ED1C24', url: 'https://www.occ.com.mx/publicar-vacante' },
-  { platform: 'indeed', name: 'Indeed', countries: 'Global', color: '#2164F3', url: 'https://employers.indeed.com/jobposting' },
-  { platform: 'linkedin_jobs', name: 'LinkedIn Jobs', countries: 'Global', color: '#0A66C2', url: 'https://www.linkedin.com/talent/post-a-job' },
-  { platform: 'getonboard', name: 'GetOnBoard', countries: 'CL/CO/AR', color: '#00B4A2', url: 'https://www.getonbrd.com/employers/publish' },
-  { platform: 'infojobs', name: 'InfoJobs', countries: 'AR/ES', color: '#36B37E' },
+  { platform: 'computrabajo', name: 'Computrabajo', countries: 'AR/MX/CO/PE/CL', color: '#E8003D', url: 'https://ar.computrabajo.com/empresa/' },
+  { platform: 'zonajobs', name: 'ZonaJobs', countries: 'AR', color: '#FF6B00', url: 'https://empresa.zonajobs.com.ar/' },
+  { platform: 'bumeran', name: 'Bumeran', countries: 'AR/MX/PE', color: '#0066CC', url: 'https://www.bumeran.com.ar/' },
+  { platform: 'occ', name: 'OCC Mundial', countries: 'MX', color: '#ED1C24', url: 'https://www.occ.com.mx/' },
+  { platform: 'indeed', name: 'Indeed', countries: 'Global', color: '#2164F3', url: 'https://employers.indeed.com/' },
+  { platform: 'linkedin_jobs', name: 'LinkedIn Jobs', countries: 'Global', color: '#0A66C2', url: 'https://www.linkedin.com/jobs/post/' },
+  { platform: 'getonboard', name: 'GetOnBoard', countries: 'CL/CO/AR', color: '#00B4A2', url: 'https://www.getonbrd.com/' },
+  { platform: 'infojobs', name: 'InfoJobs', countries: 'AR/ES', color: '#36B37E', url: 'https://www.infojobs.com.ar/' },
 ]
 
 /* ─── OAuth platform configs ─────────────────────────────────── */
@@ -813,12 +813,12 @@ export default function IntegrationsPage() {
         </Section>
 
         {/* 6. Job Boards LATAM */}
-        <Section icon={<Briefcase className="h-5 w-5 text-indigo-600" />} title="Job Boards LATAM" subtitle="Acceso directo para publicar tus vacantes">
+        <Section icon={<Briefcase className="h-5 w-5 text-indigo-600" />} title="Job Boards LATAM" subtitle="Publicá tus vacantes en los portales más usados de la región">
           <div className="space-y-3">
-            <div className="rounded-lg p-3 flex gap-2.5" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
-              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--gold, #f59e0b)' }} />
+            <div className="rounded-lg p-3 flex gap-2.5" style={{ background: 'rgba(93,80,214,0.06)', border: '1px solid rgba(93,80,214,0.15)' }}>
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent-2)' }} />
               <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-                Las APIs de estos portales requieren contratos enterprise. Por eso te ofrecemos acceso directo: hacé clic en "Publicar" para ir al portal y cargar tu vacante manualmente.
+                <strong style={{ color: 'var(--text)' }}>Flujo recomendado:</strong> andá a <strong style={{ color: 'var(--text)' }}>Vacantes</strong>, hacé clic en el botón <strong style={{ color: 'var(--text)' }}>Publicar</strong> (ícono compartir) de la vacante que quieras difundir, copiá el texto generado y pegalo en el portal. Luego usá el acceso directo de abajo para abrirlo.
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
