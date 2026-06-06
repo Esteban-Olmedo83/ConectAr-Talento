@@ -2,33 +2,10 @@
 
 import * as React from 'react'
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import {
-  AlertTriangle,
-  CheckCircle2,
   ChevronDown,
-  Clock3,
   Download,
-  FileText,
   Filter,
   Printer,
-  Target,
-  TrendingUp,
   Users,
 } from 'lucide-react'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
@@ -44,30 +21,15 @@ type DateRange = 'month' | 'quarter' | 'year'
 type SourceRow = { name: string; value: number }
 type FunnelRow = { stage: string; total: number }
 type ScoreRow = { name: string; score: number }
-type WeekRow = { week: string; entrevistas: number }
-type MonthlyRow = { mes: string; abiertas: number; cerradas: number }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
 
-const SOURCE_COLORS: Record<string, string> = {
-  LinkedIn: '#2563eb',
-  Portal: '#1f4a8b',
-  'Portal web': '#1f4a8b',
-  Referido: '#0f766e',
-  Indeed: '#0ea5e9',
-  Computrabajo: '#f59e0b',
-  ZonaJobs: '#14b8a6',
-  Bumeran: '#4f46e5',
-  Manual: '#6b7280',
-  WhatsApp: '#22c55e',
-}
-
-// V2 palette — purple gradient for print charts
+// V2 palette — purple gradient for CSS funnel & bars
 const V2 = ['#5D50D6', '#7C6FE8', '#9D91FF', '#BDB5FF', '#DDD9FF'] as const
 
-// V2 color tokens for print layout
+// Print palette (white background)
 const P = {
   accent:      '#5D50D6',
   accent2:     '#8B7EFF',
@@ -86,6 +48,28 @@ const P = {
   gray:        '#6b7280',
   grayBg:      '#f3f4f6',
   red:         '#dc2626',
+} as const
+
+// Screen palette (dark background — app theme)
+const S = {
+  surface:     '#13131F',
+  surface2:    '#1C1C2E',
+  accent:      '#5D50D6',
+  accent2:     '#8B7EFF',
+  accentLight: 'rgba(93,80,214,0.18)',
+  text:        '#E8E8F0',
+  textSoft:    '#C4C4D8',
+  muted:       '#6B6B8A',
+  border:      'rgba(255,255,255,0.07)',
+  border2:     'rgba(255,255,255,0.13)',
+  green:       '#4ade80',
+  greenBg:     'rgba(74,222,128,0.14)',
+  blue:        '#60a5fa',
+  blueBg:      'rgba(96,165,250,0.14)',
+  amber:       '#fbbf24',
+  amberBg:     'rgba(251,191,36,0.14)',
+  gray:        '#9ca3af',
+  grayBg:      'rgba(156,163,175,0.12)',
 } as const
 
 // ─── Print CSS ────────────────────────────────────────────────────────────────
@@ -107,15 +91,40 @@ const PRINT_CSS = `
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
       background: #fff !important;
       color: #1a1a2e !important;
       font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif !important;
       margin: 0 !important;
       padding: 0 !important;
+      height: auto !important;
+      overflow: visible !important;
     }
 
-    /* Toggle layouts */
+    /* ── Hide app chrome (sidebar + topbar) ─────────────────────── */
+    aside  { display: none !important; }
+    header { display: none !important; }
+
+    /* ── Reset layout container constraints ──────────────────────── */
+    .h-screen        { height: auto !important; }
+    .overflow-hidden  { overflow: visible !important; }
+    .overflow-y-auto  { overflow: visible !important; }
+    .flex             { display: block !important; }
+
+    /* ── Reset main content area ─────────────────────────────────── */
+    #main-content {
+      padding: 0 !important;
+      margin: 0 !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    /* ── Hide anything in main-content that is not our print layout ─ */
+    #main-content > *:not(.rpt-print):not(.rpt-screen):not(style) {
+      display: none !important;
+    }
+
+    /* ── Toggle layouts ──────────────────────────────────────────── */
     .rpt-screen { display: none !important; }
     .rpt-print  { display: block !important; }
 
@@ -239,50 +248,44 @@ function PrintSectionTitle({ icon, children }: { icon: string; children: React.R
 
 // ─── Screen-only subcomponents ────────────────────────────────────────────────
 
-function KpiCard({
-  icon,
-  title,
-  value,
-  detail,
-}: {
-  icon: React.ReactNode
-  title: string
-  value: string | number
-  detail: string
-}) {
+function ScreenSectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-accent/12 text-accent">
-        {icon}
-      </div>
-      <p className="type-caption text-text-secondary">{title}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">{value}</p>
-      <p className="mt-1 text-xs text-text-secondary">{detail}</p>
-    </article>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <span style={{ fontSize: 15 }}>{icon}</span>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: S.text, letterSpacing: '-0.3px' }}>
+        {children}
+      </h2>
+    </div>
   )
 }
 
-function ChartCard({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string
-  subtitle: string
-  children: React.ReactNode
-}) {
+function ScreenStatusBadge({ estado }: { estado: string }) {
+  const map: Record<string, { bg: string; color: string }> = {
+    'Abierta':        { bg: S.greenBg, color: S.green  },
+    'En Proceso':     { bg: S.blueBg,  color: S.blue   },
+    'Entrevistas':    { bg: S.blueBg,  color: S.blue   },
+    'Oferta Enviada': { bg: S.amberBg, color: S.amber  },
+    'Contratado':     { bg: S.greenBg, color: S.green  },
+    'Cerrada':        { bg: S.grayBg,  color: S.gray   },
+  }
+  const s = map[estado] ?? { bg: S.grayBg, color: S.gray }
   return (
-    <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
-        <p className="mt-1 text-xs text-text-secondary">{subtitle}</p>
-      </div>
-      {children}
-    </article>
+    <span style={{ background: s.bg, color: s.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {estado}
+    </span>
   )
 }
 
-// ─── jsPDF export (kept for programmatic export) ──────────────────────────────
+function ScreenScorePill({ score }: { score: number }) {
+  const color = score >= 80 ? S.green : score >= 70 ? S.accent2 : '#f87171'
+  return (
+    <span style={{ background: color + '22', color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+      {score}%
+    </span>
+  )
+}
+
+// ─── jsPDF export (programmatic, separate from print dialog) ─────────────────
 
 async function exportExecutivePdf({
   periodLabel,
@@ -533,33 +536,8 @@ export default function ReportsPage() {
     })
   }, [filteredApplications, filteredCandidates, vacancies])
 
-  const interviewsPerWeek = React.useMemo<WeekRow[]>(() => {
-    const rows: WeekRow[] = []
-    for (let offset = 7; offset >= 0; offset--) {
-      const from = new Date()
-      from.setDate(from.getDate() - offset * 7)
-      from.setHours(0, 0, 0, 0)
-      const to = new Date(from)
-      to.setDate(to.getDate() + 7)
-      const count = filteredInterviews.filter(i => {
-        const d = new Date(i.scheduledAt)
-        return d >= from && d < to
-      }).length
-      rows.push({ week: `S${8 - offset}`, entrevistas: count })
-    }
-    return rows
-  }, [filteredInterviews])
-
-  const monthlyData = React.useMemo<MonthlyRow[]>(() => {
-    const now = new Date()
-    return Array.from({ length: 6 }, (_, idx) => {
-      const month = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1)
-      const label = month.toLocaleDateString('es-AR', { month: 'short' })
-      const abiertas = vacancies.filter(v => new Date(v.createdAt) <= month && v.status !== 'Contratado').length
-      const cerradas = vacancies.filter(v => new Date(v.createdAt) <= month && v.status === 'Contratado').length
-      return { mes: label, abiertas, cerradas }
-    })
-  }, [vacancies])
+  // Keep interview data available for future charts
+  const _interviewsRef = filteredInterviews.length
 
   const totalApps = filteredApplications.length
   const hired = filteredApplications.filter(a => a.status === 'Contratado').length
@@ -685,13 +663,14 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex h-full w-full max-w-[1680px] flex-col gap-5 px-4 py-4 md:px-6 md:py-6">
-        <div className="flex h-64 items-center justify-center text-sm text-text-secondary">
-          Cargando datos...
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 14, color: S.muted }}>
+        Cargando datos...
       </div>
     )
   }
+
+  // Suppress unused variable warning — interviews data kept for future charts
+  void _interviewsRef
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -700,209 +679,277 @@ export default function ReportsPage() {
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
 
       {/* ════════════════════════════════════════════════════════════════
-          SCREEN LAYOUT — dark app theme
+          SCREEN LAYOUT — V2 design, dark app theme
       ════════════════════════════════════════════════════════════════ */}
-      <div className="rpt-screen mx-auto flex h-full w-full max-w-[1680px] flex-col gap-5 px-4 py-4 md:px-6 md:py-6">
+      <div
+        className="rpt-screen"
+        style={{ color: S.text, fontFamily: "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" }}
+      >
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Header */}
-        <header className="rounded-[var(--radius-xl)] border border-border bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--surface-muted))_100%)] p-6 shadow-[var(--shadow-md)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <h1 className="type-h2 text-text-primary">Informes de Reclutamiento</h1>
-              <p className="type-body text-text-secondary">
-                Resumen ejecutivo, rendimiento del pipeline y acciones recomendadas.
-              </p>
-            </div>
+          {/* ── Controls bar ──────────────────────────────────────────── */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 4 }}>
+            {/* Period */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 12px', fontSize: 13, color: S.muted, cursor: 'pointer' }}>
+              <Filter style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <select
+                value={range}
+                onChange={e => setRange(e.target.value as DateRange)}
+                style={{ background: 'transparent', fontSize: 13, color: S.text, outline: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <option value="month">Este mes</option>
+                <option value="quarter">Últimos 3 meses</option>
+                <option value="year">Este año</option>
+              </select>
+            </label>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Period */}
-              <label className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-sm text-text-secondary">
-                <Filter className="h-4 w-4" />
+            {/* Source */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 12px', fontSize: 13, color: S.muted, cursor: 'pointer' }}>
+              <Users style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <select
+                value={selectedSource}
+                onChange={e => setSelectedSource(e.target.value)}
+                style={{ background: 'transparent', fontSize: 13, color: S.text, outline: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                {sourceOptions.map(s => (
+                  <option key={s} value={s}>{s === 'all' ? 'Todas las fuentes' : s}</option>
+                ))}
+              </select>
+            </label>
+
+            {/* Client */}
+            {clients.length > 0 && (
+              <div style={{ position: 'relative' }}>
                 <select
-                  value={range}
-                  onChange={e => setRange(e.target.value as DateRange)}
-                  className="bg-transparent text-sm text-text-primary outline-none"
+                  value={filterClient}
+                  onChange={e => setFilterClient(e.target.value)}
+                  style={{ appearance: 'none', borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 32px 7px 12px', fontSize: 13, color: S.text, outline: 'none', cursor: 'pointer' }}
                 >
-                  <option value="month">Este mes</option>
-                  <option value="quarter">Últimos 3 meses</option>
-                  <option value="year">Este año</option>
+                  <option value="all">Todos los clientes</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-              </label>
+                <ChevronDown style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: S.muted, pointerEvents: 'none' }} />
+              </div>
+            )}
 
-              {/* Source */}
-              <label className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-sm text-text-secondary">
-                <Users className="h-4 w-4" />
-                <select
-                  value={selectedSource}
-                  onChange={e => setSelectedSource(e.target.value)}
-                  className="bg-transparent text-sm text-text-primary outline-none"
-                >
-                  {sourceOptions.map(s => (
-                    <option key={s} value={s}>{s === 'all' ? 'Todas las fuentes' : s}</option>
-                  ))}
-                </select>
-              </label>
-
-              {/* Client */}
-              {clients.length > 0 && (
-                <div className="relative">
-                  <select
-                    value={filterClient}
-                    onChange={e => setFilterClient(e.target.value)}
-                    className="w-full appearance-none rounded-[var(--radius)] border border-border bg-surface py-2 pl-3 pr-8 text-sm text-text-primary outline-none"
-                  >
-                    <option value="all">Todos los clientes</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary" />
-                </div>
-              )}
-
-              {/* Print button */}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-muted"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 14px', fontSize: 13, color: S.muted, cursor: 'pointer' }}
               >
-                <Printer className="h-4 w-4" />
+                <Printer style={{ width: 14, height: 14 }} />
                 Imprimir / PDF
               </button>
-
-              {/* jsPDF export */}
               <button
                 type="button"
                 onClick={onExportPdf}
                 disabled={exporting}
-                className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-70"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, background: S.accent, border: 'none', padding: '7px 14px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.7 : 1 }}
               >
-                <Download className="h-4 w-4" />
+                <Download style={{ width: 14, height: 14 }} />
                 {exporting ? 'Generando...' : t.reports.export}
               </button>
             </div>
           </div>
-        </header>
 
-        {isEmpty && (
-          <section className="rounded-[var(--radius-lg)] border border-warning/35 bg-warning/10 p-4">
-            <div className="flex items-start gap-3">
-              <FileText className="mt-0.5 h-5 w-5 text-warning" />
+          {/* Empty state */}
+          {isEmpty && (
+            <div style={{ borderRadius: 10, border: `1px solid rgba(251,191,36,0.3)`, background: 'rgba(251,191,36,0.08)', padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 16 }}>⚠️</span>
               <div>
-                <p className="text-sm font-semibold text-text-primary">{t.reports.noData}</p>
-                <p className="mt-1 text-sm text-text-secondary">Crea vacantes y candidatos para activar los reportes.</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: S.text }}>{t.reports.noData}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: S.muted }}>Crea vacantes y candidatos para activar los reportes.</p>
               </div>
             </div>
-          </section>
-        )}
+          )}
 
-        {/* KPIs */}
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard icon={<Users className="h-5 w-5" />} title="Total Postulaciones" value={totalApps} detail={rangeLabel(range)} />
-          <KpiCard icon={<Clock3 className="h-5 w-5" />} title="Tiempo Promedio" value={avgDays} detail="Días hasta cobertura" />
-          <KpiCard icon={<Target className="h-5 w-5" />} title="Score ATS Promedio" value={avgScore} detail="Calidad promedio de perfil" />
-          <KpiCard icon={<TrendingUp className="h-5 w-5" />} title="Tasa de Conversión" value={conversion} detail="Postulación a contratado" />
-        </section>
+          {/* ── Cover ─────────────────────────────────────────────────── */}
+          <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, borderLeft: `4px solid ${S.accent}`, padding: '20px 24px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: S.muted, textTransform: 'uppercase', marginBottom: 6 }}>
+              ConectAr Talento · Sistema ATS
+            </div>
+            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: S.accent, letterSpacing: '-0.5px', lineHeight: 1.2 }}>
+              INFORME DE RECLUTAMIENTO
+            </h1>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: S.muted }}>
+              {clientName} · {rangePeriodText(range)}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {([['Cliente', clientName], ['Industria', clientIndustry], ['Período', rangeLabel(range)]] as [string, string][]).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 6, fontSize: 12 }}>
+                    <span style={{ color: S.muted, minWidth: 72 }}>{k}:</span>
+                    <span style={{ fontWeight: 600, color: S.text }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {([['Preparado por', userDisplayName], ['Fecha', todayFormatted()]] as [string, string][]).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 6, fontSize: 12 }}>
+                    <span style={{ color: S.muted, minWidth: 88 }}>{k}:</span>
+                    <span style={{ fontWeight: 600, color: S.text }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-        {/* Charts row 1 */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <ChartCard title={t.reports.sections.funnel} subtitle="Conversión por etapa">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={funnelData} layout="vertical" margin={{ left: 8, right: 16, top: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <YAxis dataKey="stage" type="category" width={88} tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10 }} />
-                <Bar dataKey="total" fill="#5D50D6" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title={t.reports.sections.sources} subtitle="Distribución por canal">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={54} outerRadius={88} paddingAngle={2}>
-                  {sourceData.map((entry, i) => (
-                    <Cell key={`${entry.name}-${i}`} fill={SOURCE_COLORS[entry.name] ?? '#6b7280'} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10 }} />
-                <Legend iconSize={10} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </section>
-
-        {/* Charts row 2 */}
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <ChartCard title={t.reports.sections.performance} subtitle="Score promedio por posición activa">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={scoreByVacancy} margin={{ bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} angle={-28} textAnchor="end" />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <Tooltip formatter={v => [`${v}%`, 'Score ATS']} contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10 }} />
-                <Bar dataKey="score" fill="#8B7EFF" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Entrevistas por Semana" subtitle="Últimas 8 semanas">
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={interviewsPerWeek}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10 }} />
-                <Line type="monotone" dataKey="entrevistas" stroke="#5D50D6" strokeWidth={2.5} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </section>
-
-        {/* Charts row 3 */}
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.5fr_1fr]">
-          <ChartCard title="Vacantes Abiertas vs Cerradas" subtitle="Evolución mensual">
-            <ResponsiveContainer width="100%" height={230}>
-              <AreaChart data={monthlyData}>
-                <defs>
-                  <linearGradient id="openG" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#5D50D6" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="#5D50D6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="closedG" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B7EFF" stopOpacity={0.28} />
-                    <stop offset="95%" stopColor="#8B7EFF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--text-secondary))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 10 }} />
-                <Legend iconSize={10} iconType="circle" />
-                <Area type="monotone" dataKey="abiertas" stroke="#5D50D6" fill="url(#openG)" name="Abiertas" />
-                <Area type="monotone" dataKey="cerradas" stroke="#8B7EFF" fill="url(#closedG)" name="Cerradas" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <article className="rounded-[var(--radius-lg)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)]">
-            <h3 className="text-sm font-semibold text-text-primary">Recomendaciones Ejecutivas</h3>
-            <p className="mt-1 text-xs text-text-secondary">Acciones sugeridas para el próximo ciclo</p>
-            <ul className="mt-4 space-y-3 text-sm text-text-primary">
-              {recommendations.map(item => (
-                <li key={item} className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  <span>{item}</span>
-                </li>
+          {/* ── Executive Summary + KPI Strip ─────────────────────────── */}
+          <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '16px 22px' }}>
+            <ScreenSectionTitle icon="🔖">Resumen Ejecutivo</ScreenSectionTitle>
+            <p style={{ margin: '0 0 14px', fontSize: 12, lineHeight: 1.75, color: S.textSoft, borderLeft: `3px solid ${S.accentLight}`, paddingLeft: 10 }}>
+              {executiveSummary}
+            </p>
+            {/* KPI Strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: S.border2, borderRadius: 6, overflow: 'hidden' }}>
+              {[
+                { val: String(totalApps), label: 'Postulaciones', icon: '👥', hl: true  },
+                { val: String(avgDays),   label: 'Días promedio',  icon: '⏱', hl: false },
+                { val: avgScore === 'N/A' ? '—' : avgScore, label: 'Score ATS', icon: '🎯', hl: false },
+                { val: conversion,        label: 'Conversión',     icon: '📈', hl: false },
+              ].map((k, i) => (
+                <div key={i} style={{ background: k.hl ? S.accent : S.surface2, color: k.hl ? '#fff' : S.text, padding: '14px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>{k.icon}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{k.val}</div>
+                  <div style={{ fontSize: 10, marginTop: 4, color: k.hl ? 'rgba(255,255,255,0.75)' : S.muted, fontWeight: 500 }}>{k.label}</div>
+                </div>
               ))}
-            </ul>
-            <div className="mt-5 rounded-[var(--radius)] border border-warning/35 bg-warning/10 p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                <p className="text-xs text-text-secondary">{executiveSummary}</p>
+            </div>
+          </div>
+
+          {/* ── Embudo + Canales ────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* Embudo */}
+            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '14px 18px' }}>
+              <ScreenSectionTitle icon="📊">Embudo del proceso</ScreenSectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                {funnelWithPct.map((f, i) => (
+                  <div key={i} style={{
+                    width: `${Math.max(f.pct, 20)}%`,
+                    minWidth: 120,
+                    background: V2[i] ?? V2[V2.length - 1],
+                    borderRadius: i === 0 ? '4px 4px 0 0' : i === funnelWithPct.length - 1 ? '0 0 4px 4px' : 0,
+                    padding: '7px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: i < 3 ? '#fff' : S.accent, whiteSpace: 'nowrap' }}>{f.stage}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: i < 3 ? '#fff' : S.accent, background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: '0 6px' }}>{f.total}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 11, color: S.muted, textAlign: 'center' }}>
+                Tasa de paso: <span style={{ color: S.accent2, fontWeight: 700 }}>{conversion}</span>
               </div>
             </div>
-          </article>
-        </section>
+
+            {/* Canales */}
+            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '14px 18px' }}>
+              <ScreenSectionTitle icon="📡">Canales de sourcing</ScreenSectionTitle>
+              {sourceWithPct.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {sourceWithPct.map((s, i) => (
+                    <div key={i}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                        <span style={{ fontWeight: 500, color: S.text }}>{s.name}</span>
+                        <span style={{ fontWeight: 700, color: S.accent2 }}>{s.pct}%</span>
+                      </div>
+                      <div style={{ background: S.surface2, borderRadius: 3, height: 7, overflow: 'hidden' }}>
+                        <div style={{ width: `${s.pct}%`, height: '100%', background: s.color, borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 4, fontSize: 11, color: S.muted }}>
+                    Total: {filteredCandidates.length} candidatos · {rangePeriodText(range)}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: S.muted }}>Sin datos de sourcing para el período.</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Vacantes Table ─────────────────────────────────────────── */}
+          {printVacantes.length > 0 && (
+            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 18px 8px' }}>
+                <ScreenSectionTitle icon="📋">Estado de Vacantes</ScreenSectionTitle>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: S.accent }}>
+                    {['Posición', 'Estado', 'Candidatos', 'ATS Prom.', 'Días'].map(h => (
+                      <th key={h} style={{ padding: '9px 14px', textAlign: 'left', color: '#fff', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {printVacantes.map((v, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${S.border}`, background: i % 2 === 1 ? S.surface2 : S.surface }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600, color: S.text }}>{v.posicion}</td>
+                      <td style={{ padding: '9px 14px' }}><ScreenStatusBadge estado={v.estado} /></td>
+                      <td style={{ padding: '9px 14px', color: S.text, textAlign: 'center' }}>{v.candidatos}</td>
+                      <td style={{ padding: '9px 14px', textAlign: 'center' }}><ScreenScorePill score={v.ats} /></td>
+                      <td style={{ padding: '9px 14px', color: S.muted, textAlign: 'center' }}>{v.dias}d</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ── Candidatos + Recommendations ──────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: topCandidatos.length > 0 ? '1fr 1fr' : '1fr', gap: 12 }}>
+            {/* Top Candidatos */}
+            {topCandidatos.length > 0 && (
+              <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 18px 8px' }}>
+                  <ScreenSectionTitle icon="👤">Top Candidatos ATS</ScreenSectionTitle>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: S.accentLight }}>
+                      {['Nombre', 'Vacante', 'Score'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: S.accent2, fontWeight: 700, fontSize: 11, borderBottom: `2px solid ${S.accent}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topCandidatos.slice(0, 6).map((c, i) => (
+                      <tr key={i} style={{ borderBottom: `1px solid ${S.border}`, background: i % 2 === 1 ? S.surface2 : S.surface }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600, color: S.text }}>{c.nombre}</td>
+                        <td style={{ padding: '8px 12px', color: S.muted, fontSize: 11 }}>{c.vacante}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}><ScreenScorePill score={c.score} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '14px 18px' }}>
+              <ScreenSectionTitle icon="💡">Recomendaciones Ejecutivas</ScreenSectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recommendations.map((rec, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: S.accentLight, borderRadius: 8, border: `1px solid rgba(139,126,255,0.18)` }}>
+                    <div style={{ width: 24, height: 24, minWidth: 24, background: S.accent, borderRadius: '50%', color: '#fff', fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: S.textSoft, lineHeight: 1.65 }}>{rec}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Executive summary */}
+              <div style={{ marginTop: 12, borderTop: `1px solid ${S.border}`, paddingTop: 12 }}>
+                <p style={{ margin: 0, fontSize: 11, color: S.muted, lineHeight: 1.6 }}>{executiveSummary}</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════
