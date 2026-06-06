@@ -44,8 +44,12 @@ function AparienciaTab() {
   const [palette, setPalette] = React.useState('')
 
   React.useEffect(() => {
+    if (!user?.id) return
     try {
-      const keys = getThemeKeys(user?.id)
+      // Limpiar claves globales legacy para evitar contaminación entre usuarios
+      localStorage.removeItem('ct_theme')
+      localStorage.removeItem('ct_palette')
+      const keys = getThemeKeys(user.id)
       const savedTheme = localStorage.getItem(keys.theme) || 'dark'
       const savedPalette = localStorage.getItem(keys.palette) || ''
       setTheme(savedTheme)
@@ -54,21 +58,23 @@ function AparienciaTab() {
   }, [user?.id])
 
   function handleThemeChange(newTheme: string) {
+    if (!user?.id) return
     setTheme(newTheme)
     try {
-      const keys = getThemeKeys(user?.id)
+      const keys = getThemeKeys(user.id)
       localStorage.setItem(keys.theme, newTheme)
     } catch { /* noop */ }
-    applyStoredTheme(user?.id)
+    applyStoredTheme(user.id)
   }
 
   function handlePaletteChange(newPalette: string) {
+    if (!user?.id) return
     setPalette(newPalette)
     try {
-      const keys = getThemeKeys(user?.id)
+      const keys = getThemeKeys(user.id)
       localStorage.setItem(keys.palette, newPalette)
     } catch { /* noop */ }
-    applyStoredTheme(user?.id)
+    applyStoredTheme(user.id)
   }
 
   return (
