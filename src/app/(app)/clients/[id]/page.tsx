@@ -605,14 +605,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <div className="flex items-start gap-4 flex-wrap">
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <div
-              className="shrink-0 flex items-center justify-center rounded-2xl text-white text-2xl font-bold"
+              className="shrink-0 flex items-center justify-center rounded-2xl text-white text-2xl font-bold overflow-hidden"
               style={{
                 width: 64,
                 height: 64,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                background: client.logoUrl
+                  ? 'transparent'
+                  : 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               }}
             >
-              {client.name.charAt(0).toUpperCase()}
+              {client.logoUrl
+                ? <img src={client.logoUrl} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : client.name.charAt(0).toUpperCase()
+              }
             </div>
             <div className="min-w-0">
               <h1 className="text-2xl font-bold truncate" style={{ color: 'var(--text)' }}>
