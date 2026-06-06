@@ -104,7 +104,8 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
         }
         setUser(loadedUser)
         // Aplicar preferencias de UI del usuario autenticado
-        // (aísla tema y paleta por userId)
+        // (aísla tema y paleta por userId; limpiar claves globales legacy)
+        try { localStorage.removeItem('ct_theme'); localStorage.removeItem('ct_palette') } catch { /* noop */ }
         setUserId(sessionUser.id)
         applyStoredTheme(sessionUser.id)
       } catch {
