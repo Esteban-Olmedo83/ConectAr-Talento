@@ -58,7 +58,7 @@ export function FeatureGate({ feature, hasAccess, children, variant = 'blur' }: 
   // blur variant
   return (
     <>
-      <div className="relative">
+      <div className="relative" style={{ background: 'var(--bg)' }}>
         <div className="pointer-events-none select-none" style={{ filter: 'blur(4px)', opacity: 0.4 }}>
           {children}
         </div>
@@ -66,7 +66,7 @@ export function FeatureGate({ feature, hasAccess, children, variant = 'blur' }: 
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl px-8 py-6 text-center shadow-2xl backdrop-blur-sm transition-all hover:scale-[1.02]"
-            style={{ background: 'rgba(11,11,20,0.85)', border: '1px solid rgba(93,80,214,0.4)' }}
+            style={{ background: 'var(--surface)', border: '1px solid rgba(93,80,214,0.4)' }}
             onClick={() => setModalOpen(true)}
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}>

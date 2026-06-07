@@ -94,11 +94,13 @@ function ProfileCard({
   onEdit,
   onDelete,
   onPersonalizar,
+  personalizarLocked = false,
 }: {
   profile: DisplayProfile
   onEdit?: (p: CustomJobProfile) => void
   onDelete?: (id: string) => void
   onPersonalizar?: (p: SkillProfile) => void
+  personalizarLocked?: boolean
 }) {
   const isCustom = profile.kind === 'custom'
   const data = profile.data
@@ -208,6 +210,23 @@ function ProfileCard({
                 <Trash2 size={13} />
               </button>
             </>
+          ) : personalizarLocked ? (
+            <LockedButton
+              feature="customJobProfiles"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '4px 8px',
+                fontSize: '0.72rem',
+                fontWeight: 500,
+                color: 'var(--muted)',
+                gap: 4,
+              }}
+            >
+              <Copy size={11} />
+              Personalizar
+            </LockedButton>
           ) : (
             <button
               onClick={() => onPersonalizar?.(profile.data as SkillProfile)}
@@ -1320,6 +1339,7 @@ export default function JobProfilesPage() {
                 onEdit={handleEditProfile}
                 onDelete={handleDeleteProfile}
                 onPersonalizar={handlePersonalizar}
+                personalizarLocked={!features.customJobProfiles}
               />
             )
           })}

@@ -1090,12 +1090,18 @@ export default function TemplatesPage() {
                         <Edit2 className="h-3.5 w-3.5" />
                       </LockedButton>
                     )}
-                    <button
-                      onClick={() => handleDuplicate(t)}
-                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
+                    {features.customTemplates ? (
+                      <button
+                        onClick={() => handleDuplicate(t)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    ) : (
+                      <LockedButton feature="customTemplates" className="p-1.5 text-muted-foreground/40 rounded-lg">
+                        <Copy className="h-3.5 w-3.5" />
+                      </LockedButton>
+                    )}
                     {!t.isDefault && features.customTemplates && (
                       <button
                         onClick={() => handleDelete(t.id)}
