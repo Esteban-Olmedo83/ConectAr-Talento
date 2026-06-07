@@ -3,7 +3,6 @@
 import * as React from 'react'
 import {
   ChevronDown,
-  Download,
   Filter,
   Printer,
   Users,
@@ -101,15 +100,32 @@ const PRINT_CSS = `
       overflow: visible !important;
     }
 
-    /* ── Hide app chrome (sidebar + topbar) ─────────────────────── */
-    aside  { display: none !important; }
-    header { display: none !important; }
+    /* ── Collapse the app shell to zero size ─────────────────────── */
+    /* Use class+element combos (specificity 0,1,1) to beat .flex (0,1,0) */
+    aside.flex, aside.fixed,
+    aside[class] { display: none !important; width: 0 !important; }
 
-    /* ── Reset layout container constraints ──────────────────────── */
-    .h-screen        { height: auto !important; }
-    .overflow-hidden  { overflow: visible !important; }
-    .overflow-y-auto  { overflow: visible !important; }
-    .flex             { display: block !important; }
+    header.glass, header.flex,
+    header[class] { display: none !important; height: 0 !important; overflow: hidden !important; }
+
+    /* Mobile overlay */
+    .fixed.z-30, .fixed.inset-0 { display: none !important; }
+
+    /* Collapse the outer flex row that holds sidebar + content */
+    .h-screen  { height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
+    .overflow-hidden { overflow: visible !important; }
+    .overflow-y-auto { overflow: visible !important; }
+
+    /* ── The print container breaks out of the collapsed shell ────── */
+    .rpt-print {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      display: block !important;
+      background: #fff !important;
+      z-index: 9999 !important;
+    }
 
     /* ── Reset main content area ─────────────────────────────────── */
     #main-content {
@@ -126,7 +142,6 @@ const PRINT_CSS = `
 
     /* ── Toggle layouts ──────────────────────────────────────────── */
     .rpt-screen { display: none !important; }
-    .rpt-print  { display: block !important; }
 
     /* Cards: avoid breaking across pages */
     .rpt-card {
@@ -285,116 +300,6 @@ function ScreenScorePill({ score }: { score: number }) {
   )
 }
 
-// ─── jsPDF export (programmatic, separate from print dialog) ─────────────────
-
-async function exportExecutivePdf({
-  periodLabel,
-  kpis,
-  summary,
-  funnel,
-  topSources,
-  topVacancies,
-  recommendations,
-}: {
-  periodLabel: string
-  kpis: Array<{ label: string; value: string | number }>
-  summary: string
-  funnel: FunnelRow[]
-  topSources: SourceRow[]
-  topVacancies: ScoreRow[]
-  recommendations: string[]
-}) {
-  const { default: jsPDF } = await import('jspdf')
-  const doc = new jsPDF('p', 'mm', 'a4')
-  const pageW = doc.internal.pageSize.getWidth()
-
-  doc.setFillColor(93, 80, 214)
-  doc.rect(0, 0, pageW, 34, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(18)
-  doc.text('ConectAr Talento', 14, 14)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Informe Ejecutivo de Reclutamiento', 14, 22)
-  doc.setFontSize(9)
-  doc.text(`Periodo: ${periodLabel}  |  Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 29)
-
-  doc.setTextColor(26, 26, 46)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.text('Resumen Ejecutivo', 14, 45)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(doc.splitTextToSize(summary, 180), 14, 51)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.text('KPIs Principales', 14, 70)
-  let y = 78
-  kpis.forEach((kpi, i) => {
-    const col = i % 2
-    const row = Math.floor(i / 2)
-    const x = col === 0 ? 14 : 108
-    const boxY = y + row * 18
-    doc.setFillColor(237, 233, 255)
-    doc.rect(x, boxY - 5, 88, 14, 'F')
-    doc.setFontSize(8)
-    doc.setTextColor(107, 114, 128)
-    doc.text(kpi.label, x + 3, boxY)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.setTextColor(26, 26, 46)
-    doc.text(String(kpi.value), x + 3, boxY + 6)
-    doc.setFont('helvetica', 'normal')
-  })
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(26, 26, 46)
-  doc.text('Embudo de Contratacion', 14, 120)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  funnel.slice(0, 5).forEach((row, i) => {
-    doc.text(`${row.stage}: ${row.total}`, 18, 127 + i * 6)
-  })
-
-  doc.text('Top Fuentes', 108, 120)
-  topSources.slice(0, 5).forEach((row, i) => {
-    doc.text(`${row.name}: ${row.value}`, 112, 127 + i * 6)
-  })
-
-  doc.addPage()
-  doc.setFillColor(244, 244, 248)
-  doc.rect(0, 0, pageW, 297, 'F')
-  doc.setTextColor(26, 26, 46)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.text('Detalle Operativo', 14, 20)
-
-  doc.setFontSize(10)
-  doc.text('Vacantes con mejor score ATS', 14, 30)
-  doc.setFont('helvetica', 'normal')
-  topVacancies.slice(0, 8).forEach((row, i) => {
-    doc.text(`${i + 1}. ${row.name} - ${row.score}%`, 18, 37 + i * 6)
-  })
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.text('Acciones recomendadas', 14, 95)
-  doc.setFont('helvetica', 'normal')
-  recommendations.forEach((line, i) => {
-    doc.text(`- ${line}`, 18, 102 + i * 8)
-  })
-
-  doc.setDrawColor(229, 231, 235)
-  doc.line(14, 272, pageW - 14, 272)
-  doc.setFontSize(8)
-  doc.setTextColor(107, 114, 128)
-  doc.text('ConectAr Talento — Sistema ATS', pageW / 2, 278, { align: 'center' })
-
-  doc.save(`informe-${new Date().toISOString().slice(0, 10)}.pdf`)
-}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -413,7 +318,6 @@ export default function ReportsPage() {
   const [applications, setApplications] = React.useState<Application[]>([])
   const [interviews, setInterviews] = React.useState<Interview[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [exporting, setExporting] = React.useState(false)
 
   const load = React.useCallback(async () => {
     if (user === null) return
@@ -635,30 +539,6 @@ export default function ReportsPage() {
 
   const isEmpty = !loading && totalApps === 0 && filteredCandidates.length === 0 && vacancies.length === 0
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  async function onExportPdf() {
-    setExporting(true)
-    try {
-      await exportExecutivePdf({
-        periodLabel: rangeLabel(range),
-        kpis: [
-          { label: 'Total Postulaciones', value: totalApps },
-          { label: 'Tiempo Promedio (dias)', value: avgDays },
-          { label: 'Score ATS Promedio', value: avgScore },
-          { label: 'Tasa de Conversion', value: conversion },
-        ],
-        summary: executiveSummary,
-        funnel: funnelData,
-        topSources: sourceData,
-        topVacancies: scoreByVacancy.filter(x => x.score > 0),
-        recommendations,
-      })
-    } finally {
-      setExporting(false)
-    }
-  }
-
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -740,15 +620,6 @@ export default function ReportsPage() {
               >
                 <Printer style={{ width: 14, height: 14 }} />
                 Imprimir / PDF
-              </button>
-              <button
-                type="button"
-                onClick={onExportPdf}
-                disabled={exporting}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, background: S.accent, border: 'none', padding: '7px 14px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.7 : 1 }}
-              >
-                <Download style={{ width: 14, height: 14 }} />
-                {exporting ? 'Generando...' : t.reports.export}
               </button>
             </div>
           </div>
