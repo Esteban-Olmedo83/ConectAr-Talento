@@ -49,18 +49,19 @@ const P = {
   red:         '#dc2626',
 } as const
 
-// Screen palette (dark background — app theme)
+// Screen palette — CSS vars so the report adapts to the user's chosen theme
 const S = {
-  surface:     '#13131F',
-  surface2:    '#1C1C2E',
-  accent:      '#5D50D6',
-  accent2:     '#8B7EFF',
-  accentLight: 'rgba(93,80,214,0.18)',
-  text:        '#E8E8F0',
-  textSoft:    '#C4C4D8',
-  muted:       '#6B6B8A',
-  border:      'rgba(255,255,255,0.07)',
-  border2:     'rgba(255,255,255,0.13)',
+  surface:     'var(--surface)',
+  surface2:    'var(--surface2)',
+  accent:      'var(--accent)',
+  accent2:     'var(--accent-2)',
+  accentLight: 'var(--accent-soft)',
+  text:        'var(--text)',
+  textSoft:    'var(--muted2)',
+  muted:       'var(--muted)',
+  border:      'var(--border)',
+  border2:     'var(--border2)',
+  // Semantic status colors — fixed, these are meaningful regardless of theme
   green:       '#4ade80',
   greenBg:     'rgba(74,222,128,0.14)',
   blue:        '#60a5fa',
@@ -267,9 +268,10 @@ function ScreenStatusBadge({ estado }: { estado: string }) {
 }
 
 function ScreenScorePill({ score }: { score: number }) {
-  const color = score >= 80 ? S.green : score >= 70 ? S.accent2 : '#f87171'
+  const bg    = score >= 80 ? 'rgba(74,222,128,0.14)'  : score >= 70 ? 'var(--accent-soft)' : 'rgba(248,113,113,0.14)'
+  const color = score >= 80 ? '#4ade80' : score >= 70 ? 'var(--accent-2)' : '#f87171'
   return (
-    <span style={{ background: color + '22', color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+    <span style={{ background: bg, color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
       {score}%
     </span>
   )
