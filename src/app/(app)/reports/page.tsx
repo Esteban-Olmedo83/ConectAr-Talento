@@ -100,48 +100,23 @@ const PRINT_CSS = `
       overflow: visible !important;
     }
 
-    /* ── Collapse the app shell to zero size ─────────────────────── */
-    /* Use class+element combos (specificity 0,1,1) to beat .flex (0,1,0) */
-    aside.flex, aside.fixed,
-    aside[class] { display: none !important; width: 0 !important; }
+    /* ── Hide EVERYTHING via visibility (keeps layout, hides pixels) ── */
+    body * { visibility: hidden !important; }
 
-    header.glass, header.flex,
-    header[class] { display: none !important; height: 0 !important; overflow: hidden !important; }
+    /* ── Show only the print layout and its descendants ────────────── */
+    .rpt-print,
+    .rpt-print * { visibility: visible !important; }
 
-    /* Mobile overlay */
-    .fixed.z-30, .fixed.inset-0 { display: none !important; }
-
-    /* Collapse the outer flex row that holds sidebar + content */
-    .h-screen  { height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
-    .overflow-hidden { overflow: visible !important; }
-    .overflow-y-auto { overflow: visible !important; }
-
-    /* ── The print container breaks out of the collapsed shell ────── */
+    /* ── Position print layout at page origin so it starts at top ──── */
+    /* position:absolute paginates correctly; position:fixed does not   */
     .rpt-print {
-      position: fixed !important;
+      display: block !important;
+      position: absolute !important;
       top: 0 !important;
       left: 0 !important;
       width: 100% !important;
-      display: block !important;
       background: #fff !important;
-      z-index: 9999 !important;
     }
-
-    /* ── Reset main content area ─────────────────────────────────── */
-    #main-content {
-      padding: 0 !important;
-      margin: 0 !important;
-      height: auto !important;
-      overflow: visible !important;
-    }
-
-    /* ── Hide anything in main-content that is not our print layout ─ */
-    #main-content > *:not(.rpt-print):not(.rpt-screen):not(style) {
-      display: none !important;
-    }
-
-    /* ── Toggle layouts ──────────────────────────────────────────── */
-    .rpt-screen { display: none !important; }
 
     /* Cards: avoid breaking across pages */
     .rpt-card {
@@ -494,7 +469,7 @@ export default function ReportsPage() {
     return `Durante el período analizado, ${clientName} registró ${totalApps} postulaciones y ${hired} contrataciones. La tasa de conversión fue del ${conversion}, con un score ATS ${scoreStatus} (${avgScore === 'N/A' ? '—' : avgScore}) y un tiempo promedio de cobertura de ${avgDays} días.`
   }, [clientName, totalApps, hired, conversion, avgScore, avgDays])
 
-  const funnelTotal = funnelData[0]?.total || 1
+  const funnelTotal = Math.max(...funnelData.map(r => r.total), 1)
   const funnelWithPct = funnelData.map(r => ({
     ...r,
     pct: Math.round((r.total / funnelTotal) * 100),
@@ -691,23 +666,24 @@ export default function ReportsPage() {
 
           {/* ── Embudo + Canales ────────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {/* Embudo */}
-            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '14px 18px' }}>
-              <ScreenSectionTitle icon="📊">Embudo del proceso</ScreenSectionTitle>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            {/* Detalle del Proceso */}
+            <div style={{ background: S.surface, borderRadius: 10, border: `1px solid ${S.border}`, padding: '14px 18px', overflow: 'hidden' }}>
+              <ScreenSectionTitle icon="📊">Detalle del Proceso</ScreenSectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {funnelWithPct.map((f, i) => (
                   <div key={i} style={{
-                    width: `${Math.max(f.pct, 20)}%`,
-                    minWidth: 120,
+                    width: `${Math.max(f.pct, 14)}%`,
+                    maxWidth: '100%',
                     background: V2[i] ?? V2[V2.length - 1],
-                    borderRadius: i === 0 ? '4px 4px 0 0' : i === funnelWithPct.length - 1 ? '0 0 4px 4px' : 0,
-                    padding: '7px 10px',
+                    borderRadius: 4,
+                    padding: '6px 10px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    minWidth: 0,
                   }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: i < 3 ? '#fff' : S.accent, whiteSpace: 'nowrap' }}>{f.stage}</span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: i < 3 ? '#fff' : S.accent, background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: '0 6px' }}>{f.total}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: i < 3 ? '#fff' : S.accent, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.stage}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: i < 3 ? '#fff' : S.accent, background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: '0 6px', flexShrink: 0 }}>{f.total}</span>
                   </div>
                 ))}
               </div>
@@ -916,23 +892,24 @@ export default function ReportsPage() {
 
         {/* Embudo + Canales */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-          {/* Embudo */}
-          <div className="rpt-card" style={{ background: P.white, borderRadius: 7, border: `1px solid ${P.border}`, padding: '14px 18px' }}>
-            <PrintSectionTitle icon="📊">Embudo del proceso</PrintSectionTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          {/* Detalle del Proceso */}
+          <div className="rpt-card" style={{ background: P.white, borderRadius: 7, border: `1px solid ${P.border}`, padding: '14px 18px', overflow: 'hidden' }}>
+            <PrintSectionTitle icon="📊">Detalle del Proceso</PrintSectionTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {funnelWithPct.map((f, i) => (
                 <div key={i} style={{
-                  width: `${Math.max(f.pct, 16)}%`,
-                  minWidth: 110,
+                  width: `${Math.max(f.pct, 14)}%`,
+                  maxWidth: '100%',
                   background: V2[i] ?? V2[V2.length - 1],
-                  borderRadius: i === 0 ? '4px 4px 0 0' : i === funnelWithPct.length - 1 ? '0 0 4px 4px' : 0,
-                  padding: '6px 8px',
+                  borderRadius: 4,
+                  padding: '5px 8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  minWidth: 0,
                 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: i < 3 ? '#fff' : P.accent, whiteSpace: 'nowrap' }}>{f.stage}</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: i < 3 ? '#fff' : P.accent, background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: '0 5px' }}>{f.total}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: i < 3 ? '#fff' : P.accent, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.stage}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: i < 3 ? '#fff' : P.accent, background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: '0 5px', flexShrink: 0 }}>{f.total}</span>
                 </div>
               ))}
             </div>
