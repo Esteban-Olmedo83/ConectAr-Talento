@@ -545,32 +545,34 @@ export default function ReportsPage() {
           {/* ── Controls bar ──────────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 4 }}>
             {/* Period */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 12px', fontSize: 13, color: S.muted, cursor: 'pointer' }}>
-              <Filter style={{ width: 14, height: 14, flexShrink: 0 }} />
+            <div style={{ position: 'relative' }}>
+              <Filter style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: S.muted, pointerEvents: 'none' }} />
               <select
                 value={range}
                 onChange={e => setRange(e.target.value as DateRange)}
-                style={{ background: 'transparent', fontSize: 13, color: S.text, outline: 'none', border: 'none', cursor: 'pointer' }}
+                style={{ appearance: 'none', borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 32px 7px 32px', fontSize: 13, color: S.text, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="month">Este mes</option>
                 <option value="quarter">Últimos 3 meses</option>
                 <option value="year">Este año</option>
               </select>
-            </label>
+              <ChevronDown style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: S.muted, pointerEvents: 'none' }} />
+            </div>
 
             {/* Source */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 12px', fontSize: 13, color: S.muted, cursor: 'pointer' }}>
-              <Users style={{ width: 14, height: 14, flexShrink: 0 }} />
+            <div style={{ position: 'relative' }}>
+              <Users style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: S.muted, pointerEvents: 'none' }} />
               <select
                 value={selectedSource}
                 onChange={e => setSelectedSource(e.target.value)}
-                style={{ background: 'transparent', fontSize: 13, color: S.text, outline: 'none', border: 'none', cursor: 'pointer' }}
+                style={{ appearance: 'none', borderRadius: 8, border: `1px solid ${S.border2}`, background: S.surface, padding: '7px 32px 7px 32px', fontSize: 13, color: S.text, outline: 'none', cursor: 'pointer' }}
               >
                 {sourceOptions.map(s => (
                   <option key={s} value={s}>{s === 'all' ? 'Todas las fuentes' : s}</option>
                 ))}
               </select>
-            </label>
+              <ChevronDown style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: S.muted, pointerEvents: 'none' }} />
+            </div>
 
             {/* Client */}
             {clients.length > 0 && (

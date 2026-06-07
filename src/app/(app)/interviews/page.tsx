@@ -1110,7 +1110,7 @@ function InterviewCard({
                 </button>
               </div>
             )}
-            {interview.status === 'Completada' && appStatus === 'Entrevistas' && (
+            {interview.status === 'Completada' && (
               <div
                 className="mt-3 pt-3 space-y-2"
                 style={{ borderTop: '1px solid var(--border)' }}
@@ -1328,7 +1328,7 @@ function CandidateRoundRow({
       </div>
       </div>
 
-      {canAddNext && appStatus === 'Entrevistas' && (
+      {canAddNext && (
         <div
           className="mt-2 pt-2 space-y-1.5"
           style={{ borderTop: '1px solid var(--border)' }}
@@ -1371,13 +1371,18 @@ function VacancyInterviewGroup({
   appByCandidateVacancy: Map<string, Application>
 }) {
   const { t } = useLanguage()
+  const [collapsed, setCollapsed] = React.useState(false)
   const totalInterviews = Array.from(candidateGroups.values()).reduce((s, a) => s + a.length, 0)
   const pending = Array.from(candidateGroups.values()).flat().filter(i => i.status === 'Programada').length
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Vacancy header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b cursor-pointer select-none"
+        style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}
+        onClick={() => setCollapsed(c => !c)}
+      >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: 'rgba(var(--accent-rgb),0.15)' }}>
@@ -1393,31 +1398,47 @@ function VacancyInterviewGroup({
             </p>
           </div>
         </div>
-        {vacancy?.department && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full hidden sm:inline"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)' }}>
-            {vacancy.department}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {vacancy?.department && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full hidden sm:inline"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)' }}>
+              {vacancy.department}
+            </span>
+          )}
+          <button
+            type="button"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-opacity hover:opacity-70"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+            onClick={e => { e.stopPropagation(); setCollapsed(c => !c) }}
+          >
+            {collapsed ? 'Ver' : 'Ocultar'}
+            <ChevronDown
+              className="h-3 w-3 transition-transform"
+              style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Candidate rows */}
-      <div className="px-4">
-        {Array.from(candidateGroups.entries()).map(([candId, rounds]) => (
-          <CandidateRoundRow
-            key={candId}
-            candidateId={candId}
-            rounds={rounds}
-            candidateMap={candidateMap}
-            vacancyTitle={vacancy?.title ?? ''}
-            onComplete={onComplete}
-            onCancel={onCancel}
-            onScheduleNext={onScheduleNext}
-            onDecide={onDecide}
-            appStatus={appByCandidateVacancy.get(`${candId}_${vacancy?.id ?? ''}`)?.status}
-          />
-        ))}
-      </div>
+      {!collapsed && (
+        <div className="px-4">
+          {Array.from(candidateGroups.entries()).map(([candId, rounds]) => (
+            <CandidateRoundRow
+              key={candId}
+              candidateId={candId}
+              rounds={rounds}
+              candidateMap={candidateMap}
+              vacancyTitle={vacancy?.title ?? ''}
+              onComplete={onComplete}
+              onCancel={onCancel}
+              onScheduleNext={onScheduleNext}
+              onDecide={onDecide}
+              appStatus={appByCandidateVacancy.get(`${candId}_${vacancy?.id ?? ''}`)?.status}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
