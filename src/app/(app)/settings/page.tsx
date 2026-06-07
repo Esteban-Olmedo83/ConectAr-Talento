@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive, CreditCard, Zap, Shield, Building2, Bell } from 'lucide-react'
+import { Monitor, Sun, Moon, Check, Eye, EyeOff, Plus, Pencil, Trash2, Loader2, X, Search, HardDrive, CreditCard, Zap, Shield, Building2, Bell, Camera } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { AUTO_NOTIFY_KEY } from '@/lib/auto-notify'
 import { cn } from '@/lib/utils'
@@ -194,7 +194,7 @@ function AparienciaTab() {
 
 // ─── Cuenta Tab ───────────────────────────────────────────────────────────────
 const PLAN_INFO: Record<string, { label: string; features: string }> = {
-  free: { label: 'Free', features: '1 integración, 3 vacantes activas, 50 candidatos' },
+  free: { label: 'Free', features: '1 integración, 1 vacante activa, 5 candidatos' },
   starter: { label: 'Starter', features: '2 integraciones, 10 vacantes activas, 200 candidatos' },
   pro: { label: 'Pro', features: '3 integraciones, vacantes ilimitadas, candidatos ilimitados' },
   business: { label: 'Business', features: 'Todo en Pro + soporte prioritario' },
@@ -218,13 +218,44 @@ function CuentaTab() {
   const [saving, setSaving] = React.useState(false)
   const [saveMsg, setSaveMsg] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [signingOut, setSigningOut] = React.useState(false)
+  const [avatarUrl, setAvatarUrl] = React.useState<string | undefined>(undefined)
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
+  const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (user) {
       setFullName(user.fullName || '')
       setCompanyName(user.companyName || '')
+      setAvatarUrl(user.avatarUrl)
     }
   }, [user])
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploadingAvatar(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `user-avatars/${user.id}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('cvs')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id)
+      if (updateError) throw updateError
+      setAvatarUrl(publicUrl)
+    } catch {
+      setSaveMsg({ type: 'error', text: 'No se pudo subir la foto. Intentá de nuevo.' })
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
 
   async function handleSavePerfil() {
     if (!user) return
@@ -278,11 +309,43 @@ function CuentaTab() {
 
         {/* Avatar */}
         <div className="flex items-center gap-4">
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold shrink-0"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-          >
-            {getInitials(fullName || user?.fullName || 'U')}
+          <div className="relative shrink-0">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Foto de perfil"
+                className="w-14 h-14 rounded-full object-cover"
+                style={{ border: '2px solid var(--border)' }}
+              />
+            ) : (
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                {getInitials(fullName || user?.fullName || 'U')}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-lg transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ background: 'var(--accent)', border: '2px solid var(--surface2)' }}
+              title="Cambiar foto"
+            >
+              {uploadingAvatar ? (
+                <span className="w-3 h-3 rounded-full border border-white/30 border-t-white animate-spin" />
+              ) : (
+                <Camera className="w-3 h-3 text-white" />
+              )}
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
@@ -291,6 +354,14 @@ function CuentaTab() {
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
               {user?.email}
             </p>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              className="text-xs mt-1 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--accent-2)' }}
+            >
+              Cambiar foto
+            </button>
           </div>
         </div>
 
@@ -1512,7 +1583,7 @@ const PLANS: PlanDef[] = [
     period: 'para siempre',
     description: 'Para empezar a reclutar',
     icon: Shield,
-    features: ['3 vacantes activas', '50 candidatos', '10 llamadas de IA / hora', '1 integración', '1 cliente'],
+    features: ['1 vacante activa', '5 candidatos', 'Carga de 1 CV con IA', '10 llamadas de IA / hora', '1 integración', '1 cliente'],
   },
   {
     id: 'starter',
