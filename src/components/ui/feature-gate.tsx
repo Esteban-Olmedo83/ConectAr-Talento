@@ -55,35 +55,36 @@ export function FeatureGate({ feature, hasAccess, children, variant = 'blur' }: 
     )
   }
 
-  // blur variant
+  // blur variant — banner at top matching page-level banners, content blurred below
   return (
     <>
-      <div className="relative" style={{ background: 'var(--bg)' }}>
+      <div>
+        {/* Banner — same style as inline page banners (e.g. templates, job-profiles) */}
+        <div
+          className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3 mb-4 transition-opacity hover:opacity-90"
+          style={{ background: 'rgba(93,80,214,0.08)', border: '1px solid rgba(93,80,214,0.25)' }}
+          onClick={() => setModalOpen(true)}
+        >
+          <Lock size={16} className="shrink-0" style={{ color: '#8B7EFF' }} />
+          <div className="flex-1 min-w-0">
+            <p className="m-0 text-sm font-semibold" style={{ color: '#8B7EFF' }}>
+              {info.title}
+            </p>
+            <p className="m-0 mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
+              Actualizá al plan {info.requiredPlan} para desbloquear esta función.
+            </p>
+          </div>
+          <button
+            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}
+          >
+            <Sparkles size={11} />
+            Ver planes
+          </button>
+        </div>
+        {/* Blurred content preview */}
         <div className="pointer-events-none select-none" style={{ filter: 'blur(4px)', opacity: 0.4 }}>
           {children}
-        </div>
-        {/* Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div
-            className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl px-8 py-6 text-center shadow-2xl backdrop-blur-sm transition-all hover:scale-[1.02]"
-            style={{ background: 'var(--surface)', border: '1px solid rgba(93,80,214,0.4)' }}
-            onClick={() => setModalOpen(true)}
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}>
-              <Lock size={24} className="text-white" />
-            </div>
-            <div>
-              <p className="text-base font-bold text-white">{info.title}</p>
-              <p className="mt-1 text-sm text-gray-400">Disponible desde el plan {info.requiredPlan}</p>
-            </div>
-            <button
-              className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #5D50D6, #8B7EFF)' }}
-            >
-              <Sparkles size={14} />
-              Ver planes y precios
-            </button>
-          </div>
         </div>
       </div>
       <UpgradeModal

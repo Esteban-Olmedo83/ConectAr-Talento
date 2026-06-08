@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCvText } from '@/lib/cv/extract-text'
-import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
+import { checkAiRateLimit, checkAiDailyLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { logAiUsage } from '@/lib/ai/log-usage'
 
 export const runtime = 'nodejs'
@@ -324,11 +324,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq('id', user.id)
       .single()
 
-    const rateLimit = await checkAiRateLimit(user.id, profile?.plan ?? 'free')
+    const plan = profile?.plan ?? 'free'
+
+    const rateLimit = await checkAiRateLimit(user.id, plan)
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: `Límite de análisis de IA alcanzado. Reinicia en ${rateLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` },
         { status: 429, headers: rateLimitHeaders(rateLimit) }
+      )
+    }
+
+    const dailyLimit = await checkAiDailyLimit(user.id, plan, 'analyze-cv')
+    if (!dailyLimit.allowed) {
+      const resetTime = dailyLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      return NextResponse.json(
+        { error: plan === 'free'
+            ? `Plan gratuito: 1 análisis de CV por día. Se renueva a las ${resetTime}. Actualizá tu plan para análisis ilimitados.`
+            : `Límite diario de análisis alcanzado. Se renueva a las ${resetTime}.` },
+        { status: 429, headers: rateLimitHeaders(dailyLimit) }
       )
     }
 
@@ -379,7 +392,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
-    const plan = profile?.plan ?? 'free'
     const tenantId = (profile?.tenant_id as string | null) ?? null
     if (!apiKey) {
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
