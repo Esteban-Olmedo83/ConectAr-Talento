@@ -50,6 +50,7 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Nuevas Vacantes': '#94a3b8',
   'En Proceso': '#38bdf8',
   'Entrevistas': '#a78bfa',
+  'A considerar': '#fb923c',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
   'Descartado': '#6b7280',

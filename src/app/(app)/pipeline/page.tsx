@@ -68,6 +68,7 @@ const STAGES: VacancyStatus[] = [
   'Nuevas Vacantes',
   'En Proceso',
   'Entrevistas',
+  'A considerar',
   'Oferta Enviada',
   'Contratado',
 ]
@@ -76,6 +77,7 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Nuevas Vacantes': '#94a3b8',
   'En Proceso': '#38bdf8',
   'Entrevistas': '#a78bfa',
+  'A considerar': '#fb923c',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
   'Descartado': '#6b7280',
@@ -1580,7 +1582,7 @@ function StagePromptDialog({
   onDecide: (appId: string, action: DecisionAction) => void
   onClose: () => void
 }) {
-  const STAGE_ORDER_FULL: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+  const STAGE_ORDER_FULL: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'A considerar', 'Oferta Enviada', 'Contratado']
   const currentIdx = STAGE_ORDER_FULL.indexOf(currentStage)
   const nextStages = STAGE_ORDER_FULL.slice(currentIdx + 1)
 
@@ -1844,24 +1846,6 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
             }}
           >
             Scorecard: {app.recommendation}
-          </span>
-        </div>
-      )}
-
-      {/* Disposition badge */}
-      {app.disposition === 'a_considerar' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-          <span
-            style={{
-              fontSize: 10,
-              padding: '2px 8px',
-              borderRadius: 99,
-              fontWeight: 600,
-              background: 'rgba(251,191,36,0.15)',
-              color: '#fbbf24',
-            }}
-          >
-            A considerar
           </span>
         </div>
       )}
@@ -2510,6 +2494,7 @@ function ClientSection({
     'Nuevas Vacantes': t.stages.newVacancies,
     'En Proceso': t.stages.inProcess,
     'Entrevistas': t.stages.interviews,
+    'A considerar': 'A considerar',
     'Oferta Enviada': t.stages.offerSent,
     'Contratado': t.stages.hired,
     'Descartado': t.stages.discarded,
@@ -3165,6 +3150,7 @@ export default function PipelinePage() {
       'Nuevas Vacantes': 0,
       'En Proceso': 0,
       'Entrevistas': 0,
+      'A considerar': 0,
       'Oferta Enviada': 0,
       'Contratado': 0,
       'Descartado': 0,
@@ -3258,9 +3244,9 @@ export default function PipelinePage() {
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: null } : a))
       if (!isVirtual) setRejectDialog({ appId, candidateName })
     } else if (action === 'a_considerar') {
-      setApplications(prev => prev.map(a => a.id === appId ? { ...a, disposition: 'a_considerar' as CandidateDisposition } : a))
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'A considerar' as VacancyStatus, disposition: null } : a))
       if (!isVirtual) {
-        await provider.updateApplicationDisposition(appId, 'a_considerar')
+        await provider.updateApplicationStatus(appId, 'A considerar')
         window.dispatchEvent(new CustomEvent('application:stage-changed'))
       }
     } else if (action === 'descartar_cv') {
@@ -3269,7 +3255,7 @@ export default function PipelinePage() {
       setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'Descartado' as VacancyStatus, disposition: 'descartar_cv' as CandidateDisposition } : a))
       if (!isVirtual) setRejectDialog({ appId, candidateName })
     } else if (action === 'avanzar_etapa') {
-      const STAGE_ORDER: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+      const STAGE_ORDER: VacancyStatus[] = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'A considerar', 'Oferta Enviada', 'Contratado']
       const app = applications.find(a => a.id === appId)
       if (!app) return
       const idx = STAGE_ORDER.indexOf(app.status)

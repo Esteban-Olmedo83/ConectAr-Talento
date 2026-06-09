@@ -23,7 +23,7 @@ type ScoreRow = { name: string; score: number }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'Oferta Enviada', 'Contratado']
+const STAGE_ORDER = ['Nuevas Vacantes', 'En Proceso', 'Entrevistas', 'A considerar', 'Oferta Enviada', 'Contratado']
 
 // V2 palette — purple gradient for CSS funnel & bars
 const V2 = ['#5D50D6', '#7C6FE8', '#9D91FF', '#BDB5FF', '#DDD9FF'] as const
@@ -209,6 +209,7 @@ function PrintStatusBadge({ estado }: { estado: string }) {
     'Abierta':        { bg: P.greenBg, color: P.green  },
     'En Proceso':     { bg: P.blueBg,  color: P.blue   },
     'Entrevistas':    { bg: P.blueBg,  color: P.blue   },
+    'A considerar':   { bg: P.amberBg, color: P.amber  },
     'Oferta Enviada': { bg: P.amberBg, color: P.amber  },
     'Contratado':     { bg: P.greenBg, color: P.green  },
     'Cerrada':        { bg: P.grayBg,  color: P.gray   },
@@ -255,6 +256,7 @@ function ScreenStatusBadge({ estado }: { estado: string }) {
     'Abierta':        { bg: S.greenBg, color: S.green  },
     'En Proceso':     { bg: S.blueBg,  color: S.blue   },
     'Entrevistas':    { bg: S.blueBg,  color: S.blue   },
+    'A considerar':   { bg: S.amberBg, color: S.amber  },
     'Oferta Enviada': { bg: S.amberBg, color: S.amber  },
     'Contratado':     { bg: S.greenBg, color: S.green  },
     'Cerrada':        { bg: S.grayBg,  color: S.gray   },

@@ -42,6 +42,7 @@ const STAGE_COLORS: Record<VacancyStatus, string> = {
   'Nuevas Vacantes': '#94a3b8',
   'En Proceso': '#38bdf8',
   'Entrevistas': '#a78bfa',
+  'A considerar': '#fb923c',
   'Oferta Enviada': '#fbbf24',
   'Contratado': '#34d399',
   'Descartado': '#6b7280',
@@ -346,8 +347,9 @@ export default function DashboardPage() {
     'Nuevas Vacantes': 1,
     'En Proceso': 2,
     'Entrevistas': 3,
-    'Oferta Enviada': 4,
-    'Contratado': 5,
+    'A considerar': 4,
+    'Oferta Enviada': 5,
+    'Contratado': 6,
     'Descartado': 0,
   }
   const avgDaysPerStage = (() => {
@@ -379,6 +381,7 @@ export default function DashboardPage() {
     'Nuevas Vacantes': 0,
     'En Proceso': 0,
     'Entrevistas': 0,
+    'A considerar': 0,
     'Oferta Enviada': 0,
     'Contratado': 0,
     'Descartado': 0,

@@ -2,6 +2,7 @@ export type VacancyStatus =
   | 'Nuevas Vacantes'
   | 'En Proceso'
   | 'Entrevistas'
+  | 'A considerar'
   | 'Oferta Enviada'
   | 'Contratado'
   | 'Descartado'
