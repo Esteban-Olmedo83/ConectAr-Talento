@@ -1028,6 +1028,7 @@ function InterviewCard({
   const [showDetail, setShowDetail] = React.useState(false)
   const candidate = candidateMap.get(interview.candidateId)
   const vacancy   = vacancyMap.get(interview.vacancyId)
+  const vacancyClosed = vacancy?.status === 'Contratado' || vacancy?.status === 'Descartado'
   const StatusIcon = STATUS_CONFIG[interview.status].icon
   const statusLabel = interview.status === 'Programada' ? t.interviews.statuses.scheduled
     : interview.status === 'Completada' ? t.interviews.statuses.completed
@@ -1110,7 +1111,7 @@ function InterviewCard({
                 </button>
               </div>
             )}
-            {interview.status === 'Completada' && (
+            {interview.status === 'Completada' && !vacancyClosed && (
               <div
                 className="mt-3 pt-3 space-y-2"
                 style={{ borderTop: '1px solid var(--border)' }}
@@ -1244,7 +1245,7 @@ function RoundChip({
 
 // ─── Por Vacante: Candidate row ───────────────────────────────────────────────
 function CandidateRoundRow({
-  candidateId, rounds, candidateMap, vacancyTitle, onComplete, onCancel, onScheduleNext, onDecide, appStatus,
+  candidateId, rounds, candidateMap, vacancyTitle, onComplete, onCancel, onScheduleNext, onDecide, appStatus, vacancyClosed,
 }: {
   candidateId: string
   rounds: Interview[]
@@ -1255,6 +1256,7 @@ function CandidateRoundRow({
   onScheduleNext: (candidateId: string, vacancyId: string) => void
   onDecide: (candidateId: string, vacancyId: string, action: DecisionAction) => void
   appStatus?: string
+  vacancyClosed?: boolean
 }) {
   const candidate = candidateMap.get(candidateId)
   const lastRound = rounds[rounds.length - 1]
@@ -1328,7 +1330,7 @@ function CandidateRoundRow({
       </div>
       </div>
 
-      {canAddNext && (
+      {canAddNext && !vacancyClosed && (
         <div
           className="mt-2 pt-2 space-y-1.5"
           style={{ borderTop: '1px solid var(--border)' }}
@@ -1435,6 +1437,7 @@ function VacancyInterviewGroup({
               onScheduleNext={onScheduleNext}
               onDecide={onDecide}
               appStatus={appByCandidateVacancy.get(`${candId}_${vacancy?.id ?? ''}`)?.status}
+              vacancyClosed={vacancy?.status === 'Contratado' || vacancy?.status === 'Descartado'}
             />
           ))}
         </div>
@@ -1570,8 +1573,8 @@ export default function InterviewsPage() {
       await provider.updateApplicationStatus(app.id, 'Descartado')
       setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'Descartado' as const, disposition: null } : a))
     } else if (action === 'a_considerar') {
-      await provider.updateApplicationDisposition(app.id, 'a_considerar')
-      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, disposition: 'a_considerar' as const } : a))
+      await provider.updateApplicationStatus(app.id, 'A considerar')
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'A considerar' as VacancyStatus, disposition: null } : a))
     } else if (action === 'descartar_cv') {
       await provider.updateApplicationDisposition(app.id, 'descartar_cv')
       await provider.updateApplicationStatus(app.id, 'Descartado')
