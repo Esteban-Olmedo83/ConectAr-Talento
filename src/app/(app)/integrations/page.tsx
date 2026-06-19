@@ -10,15 +10,15 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  Plus,
   Trash2,
   RefreshCw,
   X,
   Loader2,
   Lock,
-  Globe,
   ExternalLink,
   ChevronDown,
+  CloudUpload,
+  Database,
 } from 'lucide-react'
 
 /* LinkedIn pseudo-icon since lucide-react doesn't export Linkedin */
@@ -478,6 +478,9 @@ export default function IntegrationsPage() {
   const [toast, setToast] = React.useState<string | null>(null)
   const [limitToast, setLimitToast] = React.useState<string | null>(null)
   const [errorBanner, setErrorBanner] = React.useState<string | null>(null)
+  const [backupLoading, setBackupLoading] = React.useState(false)
+  const [backupResult, setBackupResult] = React.useState<{ syncedAt: string; candidates: number; vacancies: number; applications: number } | null>(null)
+  const [backupError, setBackupError] = React.useState<string | null>(null)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // Handle ?connected= and ?error= query params
@@ -535,6 +538,30 @@ export default function IntegrationsPage() {
     if (!confirm('¿Desconectar esta integración?')) return
     await provider.deleteIntegration(id)
     setIntegrations((prev) => prev.filter((i) => i.id !== id))
+  }
+
+  async function handleBackup() {
+    setBackupLoading(true)
+    setBackupError(null)
+    setBackupResult(null)
+    try {
+      const res = await fetch('/api/google/sync', { method: 'POST' })
+      const data = await res.json() as { ok?: boolean; error?: string; syncedAt?: string; synced?: { candidates: number; vacancies: number; applications: number } }
+      if (!res.ok || !data.ok) {
+        setBackupError(data.error ?? 'Error al realizar el backup.')
+      } else {
+        setBackupResult({
+          syncedAt: data.syncedAt!,
+          candidates: data.synced!.candidates,
+          vacancies: data.synced!.vacancies,
+          applications: data.synced!.applications,
+        })
+      }
+    } catch {
+      setBackupError('Error de conexión. Verificá tu internet e intentá de nuevo.')
+    } finally {
+      setBackupLoading(false)
+    }
   }
 
   function handleReconnect(platform: IntegrationPlatform) {
@@ -695,6 +722,76 @@ export default function IntegrationsPage() {
             {/* Connect button */}
             <OAuthConnectButton platformKey="gmail" disabled={!canConnect('gmail' as IntegrationPlatform)} />
 
+            {/* Backup panel — only when Google is connected */}
+            {getByPlatform('gmail').length > 0 && (
+              <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                {/* header */}
+                <div className="flex items-center gap-3 px-4 py-3" style={{ background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(93,80,214,0.15)' }}>
+                    <Database className="h-4 w-4" style={{ color: 'var(--accent-2)' }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Backup a Google Drive</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>Exporta candidatos, vacantes y aplicaciones a Google Sheets</p>
+                  </div>
+                </div>
+
+                {/* body */}
+                <div className="p-4 space-y-3" style={{ background: 'var(--surface)' }}>
+                  {/* last result */}
+                  {backupResult && (
+                    <div className="flex items-start gap-2.5 rounded-lg p-3 text-xs" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                      <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: '#34d399' }} />
+                      <div style={{ color: 'var(--text)' }}>
+                        <p className="font-medium">Backup completado</p>
+                        <p style={{ color: 'var(--muted)' }}>
+                          {backupResult.candidates} candidatos · {backupResult.vacancies} vacantes · {backupResult.applications} aplicaciones
+                        </p>
+                        <p style={{ color: 'var(--muted)' }}>
+                          {new Date(backupResult.syncedAt).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* error */}
+                  {backupError && (
+                    <div className="flex items-start gap-2.5 rounded-lg p-3 text-xs" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)' }}>
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+                      <p style={{ color: '#f87171' }}>{backupError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                      Los datos se guardan en la carpeta <strong style={{ color: 'var(--text)' }}>ConectAr Talento</strong> de tu Drive.
+                      {user?.googleDriveFolderId && (
+                        <> · <a
+                          href={`https://drive.google.com/drive/folders/${user.googleDriveFolderId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline underline-offset-2 hover:opacity-70"
+                          style={{ color: 'var(--accent-2)' }}
+                        >Abrir carpeta</a></>
+                      )}
+                    </p>
+
+                    <button
+                      onClick={handleBackup}
+                      disabled={backupLoading}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 shrink-0"
+                      style={{ background: 'var(--accent)', color: '#fff' }}
+                    >
+                      {backupLoading
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <CloudUpload className="h-3.5 w-3.5" />}
+                      {backupLoading ? 'Exportando...' : 'Realizar backup ahora'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Feature list */}
             <div
               className="rounded-lg p-4 space-y-2.5"
@@ -706,7 +803,7 @@ export default function IntegrationsPage() {
               <ul className="space-y-1.5">
                 {[
                   { icon: '📧', label: 'Gmail', desc: 'Enviá emails a candidatos directamente desde la app' },
-                  { icon: '💾', label: 'Google Drive', desc: 'Almacená CVs y documentos de candidatos en tu Drive' },
+                  { icon: '💾', label: 'Google Drive', desc: 'Backup de candidatos, vacantes y aplicaciones en tu Drive' },
                   { icon: '📅', label: 'Google Calendar', desc: 'Creá eventos de entrevistas automáticamente' },
                   { icon: '🎥', label: 'Google Meet', desc: 'Generá links de videollamada al agendar entrevistas' },
                 ].map((f) => (
