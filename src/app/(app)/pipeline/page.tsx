@@ -30,6 +30,7 @@ import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
 import { isAutoNotifyEnabled } from '@/lib/auto-notify'
 import { useLanguage } from '@/lib/context/language-context'
+import { StorageImg } from '@/components/ui/storage-img'
 import type {
   Application,
   Candidate,
@@ -1760,7 +1761,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
               overflow: 'hidden',
             }}
           >
-            {c.avatarUrl ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
+            {c.avatarUrl ? <StorageImg src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
           </div>
           {score > 0 && (
             <div
@@ -2148,7 +2149,7 @@ function ProcessDetailModal({
                 overflow: 'hidden',
               }}
             >
-              {c.avatarUrl ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
+              {c.avatarUrl ? <StorageImg src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
             </div>
             <div>
               <h2 style={{ fontWeight: 700, fontSize: 18, color: 'var(--text)', margin: 0 }}>{c.fullName}</h2>
@@ -2373,7 +2374,7 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
       {/* Avatar */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: avatarGradient(c.fullName), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-nunito, Nunito, sans-serif)', overflow: 'hidden' }}>
-          {c.avatarUrl ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
+          {c.avatarUrl ? <StorageImg src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(c.fullName)}
         </div>
         {score > 0 && (
           <div style={{ position: 'absolute', bottom: -3, right: -4, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 5, padding: '0 3px', fontSize: 9, fontWeight: 900, color: scoreColor, lineHeight: 1.4 }}>

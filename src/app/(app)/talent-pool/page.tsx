@@ -8,6 +8,8 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
 import { getInitials, formatRelativeDate } from '@/lib/utils'
+import { StorageImg } from '@/components/ui/storage-img'
+import { StorageLink } from '@/components/ui/storage-link'
 import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview, RejectionReason } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -564,7 +566,7 @@ function ProfileDrawer({
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
             >
               {candidate.avatarUrl
-                ? <img src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
+                ? <StorageImg src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
                 : getInitials(editMode ? editName : candidate.fullName)
               }
             </div>
@@ -685,16 +687,14 @@ function ProfileDrawer({
 
               {/* CV link */}
               {candidate.cvUrl && (
-                <a
+                <StorageLink
                   href={candidate.cvUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-opacity hover:opacity-80"
                   style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'rgba(var(--accent-rgb),0.06)' }}
                 >
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                   {candidate.cvFileName ?? 'Ver CV adjunto'}
-                </a>
+                </StorageLink>
               )}
 
               {/* Process history */}
@@ -941,7 +941,7 @@ function CandidateCard({
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
           >
             {candidate.avatarUrl
-              ? <img src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ? <StorageImg src={candidate.avatarUrl} alt="" className="w-full h-full object-cover" />
               : getInitials(candidate.fullName)
             }
           </div>
