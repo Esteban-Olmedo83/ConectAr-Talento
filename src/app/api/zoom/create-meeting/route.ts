@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { encryptToken, decryptToken } from '@/lib/crypto/token-encrypt'
 
 export const runtime = 'nodejs'
 
@@ -43,8 +44,8 @@ async function refreshZoomToken(
     : undefined
 
   await supabase.from('integrations').update({
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token ?? refreshToken,
+    access_token: encryptToken(tokens.access_token),
+    refresh_token: encryptToken(tokens.refresh_token ?? refreshToken),
     token_expires_at: tokenExpiresAt ?? null,
   }).eq('tenant_id', tenantId).eq('platform', 'zoom')
 
@@ -77,13 +78,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Zoom no está conectado. Conectalo en Integraciones.' }, { status: 400 })
   }
 
-  let accessToken = integration.access_token as string
+  const rawAccessToken = integration.access_token as string
+  const rawRefreshToken = integration.refresh_token as string | null
+  let accessToken = decryptToken(rawAccessToken)
 
   // Refresh if expired (with 60-second buffer)
   if (integration.token_expires_at) {
     const expiresAt = new Date(integration.token_expires_at as string).getTime()
-    if (Date.now() >= expiresAt - 60_000 && integration.refresh_token) {
-      const newToken = await refreshZoomToken(supabase, tenantId, integration.refresh_token as string)
+    if (Date.now() >= expiresAt - 60_000 && rawRefreshToken) {
+      const newToken = await refreshZoomToken(supabase, tenantId, decryptToken(rawRefreshToken))
       if (!newToken) {
         return NextResponse.json({ error: 'Sesión de Zoom expirada. Reconectalo en Integraciones.' }, { status: 401 })
       }
