@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { encryptToken, decryptToken } from '@/lib/crypto/token-encrypt'
 
 export const runtime = 'nodejs'
 
@@ -29,7 +30,7 @@ async function refreshGoogleToken(
 
   await supabase
     .from('integrations')
-    .update({ access_token: data.access_token, token_expires_at: tokenExpiresAt, status: 'connected' })
+    .update({ access_token: encryptToken(data.access_token), token_expires_at: tokenExpiresAt, status: 'connected' })
     .eq('tenant_id', tenantId)
     .eq('platform', 'gmail')
 
@@ -103,8 +104,10 @@ export async function POST(): Promise<NextResponse> {
     return NextResponse.json({ error: 'Google no está conectado. Conectá tu cuenta en Integraciones.' }, { status: 400 })
   }
 
-  let accessToken = integration.access_token as string | null
-  const refreshToken = integration.refresh_token as string | null
+  const rawAccessToken = integration.access_token as string | null
+  const rawRefreshToken = integration.refresh_token as string | null
+  let accessToken = rawAccessToken ? decryptToken(rawAccessToken) : null
+  const refreshToken = rawRefreshToken ? decryptToken(rawRefreshToken) : null
   const expiresAt = integration.token_expires_at as string | null
 
   // Refresh if missing or expired (with 5-minute buffer)

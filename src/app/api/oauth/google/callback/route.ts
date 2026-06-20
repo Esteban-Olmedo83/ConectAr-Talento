@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto/token-encrypt'
 
 export const runtime = 'nodejs'
 
@@ -118,8 +119,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       account_name: accountName,
       account_email: accountEmail ?? null,
       status: 'connected',
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token ?? null,
+      access_token: encryptToken(tokens.access_token),
+      refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
       token_expires_at: tokenExpiresAt ?? null,
     },
     { onConflict: 'tenant_id,platform' }
