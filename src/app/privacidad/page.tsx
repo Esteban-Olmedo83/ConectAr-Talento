@@ -19,6 +19,12 @@ const S = {
   accentSoft: '#8B7EFF',
 }
 
+function renderInline(text: string) {
+  return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? <strong key={i} style={{ color: '#fff' }}>{part}</strong> : part
+  )
+}
+
 function renderMarkdown(content: string) {
   const lines = content.split('\n')
   const elements: React.ReactNode[] = []
@@ -66,10 +72,10 @@ function renderMarkdown(content: string) {
     } else if (line.trim() === '') {
       elements.push(<div key={key++} style={{ height: 8 }} />)
     } else {
-      const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#fff">$1</strong>')
       elements.push(
-        <p key={key++} style={{ fontSize: 14, color: S.textSec, lineHeight: 1.7, marginBottom: 4 }}
-          dangerouslySetInnerHTML={{ __html: formatted }} />
+        <p key={key++} style={{ fontSize: 14, color: S.textSec, lineHeight: 1.7, marginBottom: 4 }}>
+          {renderInline(line)}
+        </p>
       )
     }
   }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,6 +16,10 @@ export async function GET() {
     .single()
 
   const tenantId = profile?.tenant_id ?? user.id
+  if (!UUID_RE.test(tenantId)) {
+    return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
+  }
+
   const admin = createAdminClient()
 
   const { data: updates, error } = await admin
