@@ -1,9 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+
+export const runtime = 'nodejs'
+
+// ─── Drive / Sheets helpers ────────────────────────────────────────────────────
+
+async function createDriveFolder(accessToken: string, name: string): Promise<string | null> {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' }),
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { id?: string }
+  return data.id ?? null
+}
+
+async function createSheetsFile(accessToken: string, name: string, folderId: string): Promise<string | null> {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      mimeType: 'application/vnd.google-apps.spreadsheet',
+      parents: [folderId],
+    }),
+  })
+  if (!res.ok) return null
+  const data = await res.json() as { id?: string }
+  return data.id ?? null
+}
+
+// ─── Integration-only callback (C3: dead admin-login branch removed) ──────────
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!
-  const { searchParams } = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin
+  const { searchParams } = requestUrl
+
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const errorParam = searchParams.get('error')
@@ -21,19 +55,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL('/integrations?error=google_no_code', appUrl))
   }
 
-  // Extract userId from state (format: "userId:nonce") — avoids double-refresh on rotating tokens
-  const userId = state.split(':')[0]
-  if (!userId || !/^[0-9a-f-]{36}$/.test(userId)) {
-    return NextResponse.redirect(new URL('/integrations?error=google_state_invalid', appUrl))
-  }
-
-  const adminClient = createAdminClient()
-
   const clientId = process.env.GOOGLE_CLIENT_ID!
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
   const redirectUri = `${appUrl}/api/oauth/google/callback`
 
-  // Exchange code for tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -56,36 +81,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user profile
+  // Require an authenticated session — this callback is only for workspace integration
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.redirect(new URL('/login', appUrl))
+  }
+
   const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
 
   let accountName = 'Google Account'
   let accountEmail: string | undefined
-
   if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      name?: string
-      email?: string
-    }
+    const profile = await profileRes.json() as { name?: string; email?: string }
     accountName = profile.name ?? accountName
     accountEmail = profile.email
   }
 
-  // Get tenant_id from profiles table (consistent with other OAuth callbacks)
-  const { data: tenantProfile } = await adminClient
+  const { data: tenantProfile } = await supabase
     .from('profiles')
-    .select('tenant_id, google_drive_folder_id, google_sheets_db_id')
-    .eq('id', userId)
+    .select('tenant_id, company_name, google_drive_folder_id')
+    .eq('id', user.id)
     .single()
 
-  const tenantId = tenantProfile?.tenant_id ?? userId
+  const tenantId = tenantProfile?.tenant_id ?? user.id
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : undefined
 
-  await adminClient.from('integrations').upsert(
+  await supabase.from('integrations').upsert(
     {
       tenant_id: tenantId,
       platform: 'gmail',
@@ -99,107 +125,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     { onConflict: 'tenant_id,platform' }
   )
 
-  // ── Crear carpeta y hoja de Google Drive (solo si no existen aún) ──────────
-  let driveFolderId = tenantProfile?.google_drive_folder_id as string | null | undefined
-  let sheetsId = tenantProfile?.google_sheets_db_id as string | null | undefined
-
-  const accessToken = tokens.access_token
-
-  try {
-    // 1. Crear carpeta "ConectAr Talento" en Drive (si no existe aún)
-    if (!driveFolderId) {
-      const folderRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'ConectAr Talento',
-          mimeType: 'application/vnd.google-apps.folder',
-        }),
-      })
-      if (folderRes.ok) {
-        const folderData = await folderRes.json() as { id?: string }
-        driveFolderId = folderData.id
-      } else {
-        const errorText = await folderRes.text()
-        console.error(`[Google Drive] Folder creation failed: ${folderRes.status}`, errorText)
-        await adminClient.from('error_logs').insert({
-          tenant_id: tenantId,
-          user_id: userId,
-          endpoint: 'oauth/google/callback',
-          error_message: `Google Drive folder creation failed: HTTP ${folderRes.status}`,
-          error_stack: errorText,
-        })
-      }
+  if (!tenantProfile?.google_drive_folder_id) {
+    const companyName = (tenantProfile?.company_name as string | null) ?? 'Mi Empresa'
+    const folderId = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`)
+    if (folderId) {
+      const sheetsId = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId)
+      await supabase.from('profiles').update({
+        google_drive_folder_id: folderId,
+        google_sheets_db_id: sheetsId ?? null,
+      }).eq('id', user.id)
     }
-
-    // 2. Crear hoja de cálculo "ConectAr Talento — Base de datos" (si no existe aún)
-    if (!sheetsId) {
-      const sheetsRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          properties: { title: 'ConectAr Talento — Base de datos' },
-          sheets: [
-            { properties: { title: 'Candidatos' } },
-            { properties: { title: 'Vacantes' } },
-            { properties: { title: 'Aplicaciones' } },
-          ],
-        }),
-      })
-      if (sheetsRes.ok) {
-        const sheetsData = await sheetsRes.json() as { spreadsheetId?: string }
-        sheetsId = sheetsData.spreadsheetId
-
-        // 3. Mover la hoja a la carpeta de Drive (si ambas existen)
-        if (driveFolderId && sheetsId) {
-          await fetch(
-            `https://www.googleapis.com/drive/v3/files/${sheetsId}?addParents=${driveFolderId}&removeParents=root&fields=id,parents`,
-            {
-              method: 'PATCH',
-              headers: { Authorization: `Bearer ${accessToken}` },
-            }
-          )
-        }
-      } else {
-        const errorText = await sheetsRes.text()
-        console.error(`[Google Sheets] Spreadsheet creation failed: ${sheetsRes.status}`, errorText)
-        await adminClient.from('error_logs').insert({
-          tenant_id: tenantId,
-          user_id: userId,
-          endpoint: 'oauth/google/callback',
-          error_message: `Google Sheets spreadsheet creation failed: HTTP ${sheetsRes.status}`,
-          error_stack: errorText,
-        })
-      }
-    }
-
-    // 4. Guardar los IDs en el perfil del usuario
-    if (driveFolderId || sheetsId) {
-      const updates: Record<string, string> = {}
-      if (driveFolderId) updates.google_drive_folder_id = driveFolderId
-      if (sheetsId) updates.google_sheets_db_id = sheetsId
-
-      await adminClient
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId)
-    }
-  } catch (err) {
-    console.error('[Google OAuth Callback] Unexpected error during Drive/Sheets setup:', err)
-    await adminClient.from('error_logs').insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      endpoint: 'oauth/google/callback',
-      error_message: `Drive/Sheets setup failed: ${err instanceof Error ? err.message : String(err)}`,
-      error_stack: err instanceof Error ? err.stack : undefined,
-      request_body: { driveFolderId, sheetsId },
-    })
   }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))

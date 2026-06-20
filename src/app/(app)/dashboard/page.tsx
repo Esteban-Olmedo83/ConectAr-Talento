@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/context/language-context'
 import type { Candidate, Application, VacancyStatus, Interview, Vacancy, Client } from '@/types'
 import { getPlanLimits } from '@/lib/plan-limits'
 import { Zap } from 'lucide-react'
+import { StorageImg } from '@/components/ui/storage-img'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name: string): string {
@@ -795,7 +796,7 @@ export default function DashboardPage() {
                     }}
                   >
                     {c.avatarUrl
-                      ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <StorageImg src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : getInitials(c.fullName)
                     }
                   </div>

@@ -70,9 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Error al subir la imagen: ' + uploadErr.message }, { status: 500 })
     }
 
-    const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
-
-    return NextResponse.json({ ok: true, url: publicUrl })
+    return NextResponse.json({ ok: true, url: path })
   } catch (error) {
     console.error('[upload-image] unexpected error:', error)
     return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 })
