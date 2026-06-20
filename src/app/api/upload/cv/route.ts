@@ -203,8 +203,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           upsert: false,
         })
       if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(storagePath)
-        cvUrl = publicUrl
+        cvUrl = storagePath
         cvFileName = file.name
       } else {
         console.warn('[upload-cv] storage warning:', uploadErr.message)
@@ -224,8 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             .from('cvs')
             .upload(avatarPath, jpegBuffer, { contentType: 'image/jpeg', upsert: false })
           if (!avatarErr) {
-            const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(avatarPath)
-            avatarUrl = publicUrl
+            avatarUrl = avatarPath
           }
         }
       } catch { /* non-fatal */ }

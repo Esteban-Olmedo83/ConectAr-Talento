@@ -47,9 +47,8 @@ export async function checkAiRateLimit(userId: string, plan: string): Promise<Ra
     })
 
     if (error) {
-      // Fail open: don't block users if rate limit check fails
       console.error('Rate limit check error:', error)
-      return { allowed: true, limit, remaining: limit, resetAt }
+      return { allowed: false, limit, remaining: 0, resetAt }
     }
 
     const count = data as number

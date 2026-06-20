@@ -14,6 +14,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
+import { StorageImg } from '@/components/ui/storage-img'
 import type { Client, Vacancy, Application, Candidate } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -386,7 +387,7 @@ function CandidateRow({ application, candidate, vacancyTitle }: {
         }}
       >
         {avatarUrl
-          ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          ? <StorageImg src={avatarUrl} alt="" className="w-full h-full object-cover" />
           : name.charAt(0).toUpperCase()
         }
       </div>
@@ -832,7 +833,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     }}
                   >
                     {c?.avatarUrl
-                      ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <StorageImg src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : initials
                     }
                   </div>

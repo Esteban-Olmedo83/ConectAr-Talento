@@ -2,6 +2,28 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
   'https://www.conectartalento.com'
 
+// H3 FIX: escape all user-controlled strings before HTML interpolation
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+// Validate and sanitize URLs — only allow https:// to prevent javascript: injection
+function safeUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:') return undefined
+    return url
+  } catch {
+    return undefined
+  }
+}
+
 const ACCENT = '#5D50D6'
 const ACCENT2 = '#8B7EFF'
 const BG = '#0B0B14'
@@ -357,8 +379,9 @@ export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): 
     ? data.meetingPlatform.charAt(0).toUpperCase() + data.meetingPlatform.slice(1)
     : 'Virtual'
 
-  const meetingButton = data.meetingLink
-    ? `<a href="${data.meetingLink}"
+  const safeMeetingLink = safeUrl(data.meetingLink)
+  const meetingButton = safeMeetingLink
+    ? `<a href="${safeMeetingLink}"
          style="display:inline-block;background-color:${ACCENT};color:${TEXT};text-decoration:none;
                 font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;">
          Unirse a la entrevista →
@@ -369,8 +392,8 @@ export function interviewScheduledEmailHtml(data: InterviewScheduledEmailData): 
     ? `<tr>
          <td style="border-top:1px solid ${BORDER};padding-top:12px;padding-bottom:12px;">
            <span style="font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Dirección</span><br/>
-           <span style="font-size:15px;color:${TEXT};font-weight:600;">${data.interviewAddress}</span>
-           ${data.arrivalDetails ? `<br/><span style="font-size:13px;color:${TEXT_SECONDARY};">${data.arrivalDetails}</span>` : ''}
+           <span style="font-size:15px;color:${TEXT};font-weight:600;">${escapeHtml(data.interviewAddress)}</span>
+           ${data.arrivalDetails ? `<br/><span style="font-size:13px;color:${TEXT_SECONDARY};">${escapeHtml(data.arrivalDetails)}</span>` : ''}
          </td>
        </tr>`
     : ''
@@ -465,7 +488,7 @@ export function stageChangedEmailHtml(data: StageChangedEmailData): string {
          <tr>
            <td style="background:rgba(255,255,255,0.04);border-left:3px solid ${ACCENT};border-radius:0 8px 8px 0;padding:16px 20px;">
              <p style="margin:0 0 4px;font-size:12px;color:${TEXT_SECONDARY};text-transform:uppercase;letter-spacing:1px;">Mensaje</p>
-             <p style="margin:0;font-size:14px;color:${TEXT};line-height:1.6;">${data.recruiterMessage}</p>
+             <p style="margin:0;font-size:14px;color:${TEXT};line-height:1.6;">${escapeHtml(data.recruiterMessage)}</p>
            </td>
          </tr>
        </table>`

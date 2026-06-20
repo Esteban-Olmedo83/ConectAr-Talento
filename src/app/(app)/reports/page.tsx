@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/context/language-context'
 import type { Application, Candidate, Interview, Vacancy } from '@/types'
 import { FeatureGate } from '@/components/ui/feature-gate'
 import { getPlanFeatures } from '@/lib/plan-features'
+import { StorageImg } from '@/components/ui/storage-img'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1036,7 +1037,7 @@ export default function ReportsPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={userDisplayName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                <StorageImg src={user.avatarUrl} alt={userDisplayName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 28, height: 28, background: P.accent, borderRadius: '50%', color: '#fff', fontWeight: 700, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {userInitials}

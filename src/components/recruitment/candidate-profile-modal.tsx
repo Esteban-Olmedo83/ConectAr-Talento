@@ -37,6 +37,8 @@ import { AtsScoreBadge } from './ats-score-badge'
 import { cn, formatDate, getInitials } from '@/lib/utils'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { createClient } from '@/lib/supabase/client'
+import { StorageImg } from '@/components/ui/storage-img'
+import { StorageLink } from '@/components/ui/storage-link'
 import type { Candidate, Vacancy, VacancyStatus, Interview } from '@/types'
 
 interface CandidateProfileModalProps {
@@ -218,13 +220,12 @@ export function CandidateProfileModal({
     try {
       const supabase = createClient()
       const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `avatars/${candidate.id}/${Date.now()}.${ext}`
+      const storagePath = `${candidate.tenantId}/avatars/${candidate.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('cvs')
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(storagePath, file, { upsert: true, contentType: file.type })
       if (uploadError) { console.error(uploadError); return }
-      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
-      const result = await provider.updateCandidate(candidate.id, { avatarUrl: publicUrl })
+      const result = await provider.updateCandidate(candidate.id, { avatarUrl: storagePath })
       if (result.data) {
         setCandidate(result.data)
         onUpdate(result.data)
@@ -249,7 +250,7 @@ export function CandidateProfileModal({
                 onChange={handleAvatarUpload}
               />
               {candidate.avatarUrl ? (
-                <img
+                <StorageImg
                   src={candidate.avatarUrl}
                   alt={candidate.fullName}
                   className="h-14 w-14 rounded-full object-cover"
@@ -488,16 +489,12 @@ export function CandidateProfileModal({
                     </p>
                     <p className="text-xs text-muted-foreground">Archivo del candidato</p>
                   </div>
-                  <a
-                    href={candidate.cvUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <StorageLink href={candidate.cvUrl}>
                     <Button variant="outline" size="sm" className="gap-1.5">
                       <ExternalLink className="h-3.5 w-3.5" />
                       Ver CV
                     </Button>
-                  </a>
+                  </StorageLink>
                 </div>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
