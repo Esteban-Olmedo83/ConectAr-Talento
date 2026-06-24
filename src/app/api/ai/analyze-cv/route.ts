@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { extractCvText } from '@/lib/cv/extract-text'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 export const runtime = 'nodejs'
 
@@ -308,6 +310,9 @@ FORMATO JSON REQUERIDO:
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('analyze-cv')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const contentType = request.headers.get('content-type') ?? ''
     let cvText = ''
@@ -415,7 +420,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       summary: String(parsed.summary ?? '').trim(),
     })
   } catch (error) {
-    console.error('analyze-cv route error:', error)
+    await logError({ endpoint: 'analyze-cv', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al analizar el CV.' }, { status: 500 })
   }
 }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 interface GenerateJdRequest {
   title: string
@@ -65,6 +67,9 @@ FORMATO JSON REQUERIDO:
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('generate-jd')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = (await request.json()) as GenerateJdRequest
 
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       whatsappMessage: String(parsed.whatsappMessage ?? '').trim(),
     })
   } catch (error) {
-    console.error('generate-jd route error:', error)
+    await logError({ endpoint: 'generate-jd', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al generar la descripción.' }, { status: 500 })
   }
 }

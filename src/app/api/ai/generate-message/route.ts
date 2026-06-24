@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('generate-message')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { context, type } = (await request.json()) as { context?: string; type?: string }
 
@@ -41,7 +46,8 @@ Respondé ÚNICAMENTE con el texto del mensaje adicional, sin comillas, sin expl
     const data = await groqRes.json()
     const message: string = data.choices?.[0]?.message?.content?.trim() ?? ''
     return NextResponse.json({ message })
-  } catch {
+  } catch (error) {
+    await logError({ endpoint: 'generate-message', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ message: '' }, { status: 500 })
   }
 }

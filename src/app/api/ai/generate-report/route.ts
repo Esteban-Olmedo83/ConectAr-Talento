@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Recommendation } from '@/types'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 interface GenerateReportRequest {
   overallRating: 1 | 2 | 3 | 4 | 5
@@ -59,6 +61,9 @@ INSTRUCCIONES PARA EL INFORME:
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('generate-report')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = (await request.json()) as GenerateReportRequest
 
@@ -103,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ report: reportText.trim() } as GenerateReportResponse)
   } catch (error) {
-    console.error('generate-report route error:', error)
+    await logError({ endpoint: 'generate-report', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al generar el informe.' }, { status: 500 })
   }
 }
