@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 interface LogErrorParams {
@@ -9,14 +10,23 @@ interface LogErrorParams {
 }
 
 /**
- * Persists errors to the error_logs table (written via service role, no RLS restriction).
+ * Sends errors to Sentry and persists them to error_logs table.
  * Never throws — logging must not break the request handler.
  */
 export async function logError(params: LogErrorParams): Promise<void> {
-  try {
-    const message = params.error instanceof Error ? params.error.message : String(params.error)
-    const stack = params.error instanceof Error ? params.error.stack : undefined
+  const message = params.error instanceof Error ? params.error.message : String(params.error)
+  const stack = params.error instanceof Error ? params.error.stack : undefined
 
+  // Report to Sentry
+  Sentry.withScope((scope) => {
+    scope.setTag('endpoint', params.endpoint)
+    if (params.tenantId) scope.setTag('tenant_id', params.tenantId)
+    if (params.userId) scope.setUser({ id: params.userId })
+    Sentry.captureException(params.error instanceof Error ? params.error : new Error(message))
+  })
+
+  // Persist to Supabase for in-app visibility
+  try {
     const supabase = createAdminClient()
     await supabase.from('error_logs').insert({
       endpoint: params.endpoint,
@@ -27,7 +37,6 @@ export async function logError(params: LogErrorParams): Promise<void> {
       request_body: params.requestBody ? JSON.parse(JSON.stringify(params.requestBody)) : null,
     })
   } catch {
-    // Intentionally silent — logging failure must never surface to the user
-    console.error('[error-logger] Failed to persist error:', params.endpoint, params.error)
+    console.error('[error-logger] Failed to persist error to DB:', params.endpoint)
   }
 }
