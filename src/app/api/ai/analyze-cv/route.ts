@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { extractCvText } from '@/lib/cv/extract-text'
-import { checkAiRateLimit, checkAiDailyLimit, rateLimitHeaders } from '@/lib/rate-limit'
-import { logAiUsage } from '@/lib/ai/log-usage'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 export const runtime = 'nodejs'
 
@@ -266,85 +265,19 @@ function buildFallbackAnalysis(cvText: string, vacancyRequirements?: string[], f
 }
 
 function buildPrompt(cvText: string, vacancyRequirements?: string[]): string {
-  const safeCvText = cvText.slice(0, 12000) // prevent prompt injection via oversized CVs
   const requirementsSection =
     vacancyRequirements && vacancyRequirements.length > 0
       ? `\n\nREQUISITOS DE LA VACANTE (para calcular el ATS score):\n${vacancyRequirements.map((r) => `- ${r}`).join('\n')}`
       : ''
 
-  return `Eres un sistema ATS (Applicant Tracking System) experto en análisis de CVs para el mercado latinoamericano.
-
-Analiza el siguiente CV y extrae la información estructurada. Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.${requirementsSection}
-
-CV A ANALIZAR:
----
-${safeCvText}
----
-
-INSTRUCCIONES:
-1. Extrae el nombre completo, email y teléfono del candidato.
-2. Identifica todas las habilidades técnicas y blandas mencionadas.
-3. Calcula los años totales de experiencia laboral relevante.
-4. Identifica el nivel de educación más alto alcanzado.
-5. Calcula el ATS score (0-100):
-   ${
-     vacancyRequirements && vacancyRequirements.length > 0
-       ? '- Basa el score en qué tan bien las habilidades del candidato coinciden con los requisitos de la vacante.\n   - 85-100: Excelente match (≥80% de requisitos cubiertos)\n   - 70-84: Buen match (60-79% cubiertos)\n   - 50-69: Match regular (40-59% cubiertos)\n   - 30-49: Match bajo (20-39% cubiertos)\n   - 0-29: Muy bajo match (<20% cubiertos)'
-       : '- Basa el score en la calidad general del CV: experiencia, habilidades, educación, claridad.'
-   }
-6. Identifica 2-3 fortalezas principales del candidato.
-7. Identifica 1-3 brechas o áreas de mejora.
-8. Escribe un resumen profesional en español de 2-3 oraciones.
-
-FORMATO JSON REQUERIDO:
-{
-  "fullName": "string",
-  "email": "string",
-  "phone": "string o null",
-  "atsScore": número entre 0 y 100,
-  "skills": ["array de strings"],
-  "experienceYears": número o null,
-  "education": "string o null",
-  "strengths": ["array de 2-3 strings"],
-  "gaps": ["array de 1-3 strings"],
-  "summary": "string"
-}`
+  return `Eres un sistema ATS (Applicant Tracking System) experto en análisis de CVs para el mercado latinoamericano.\n\nAnaliza el siguiente CV y extrae la información estructurada. Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.${requirementsSection}\n\nCV A ANALIZAR:\n---\n${cvText}\n---\n\nINSTRUCCIONES:\n1. Extrae el nombre completo, email y teléfono del candidato.\n2. Identifica todas las habilidades técnicas y blandas mencionadas.\n3. Calcula los años totales de experiencia laboral relevante.\n4. Identifica el nivel de educación más alto alcanzado.\n5. Calcula el ATS score (0-100):\n   ${vacancyRequirements && vacancyRequirements.length > 0 ? '- Basa el score en qué tan bien las habilidades del candidato coinciden con los requisitos de la vacante.\n   - 85-100: Excelente match (≥80% de requisitos cubiertos)\n   - 70-84: Buen match (60-79% cubiertos)\n   - 50-69: Match regular (40-59% cubiertos)\n   - 30-49: Match bajo (20-39% cubiertos)\n   - 0-29: Muy bajo match (<20% cubiertos)' : '- Basa el score en la calidad general del CV: experiencia, habilidades, educación, claridad.'}\n6. Identifica 2-3 fortalezas principales del candidato.\n7. Identifica 1-3 brechas o áreas de mejora.\n8. Escribe un resumen profesional en español de 2-3 oraciones.\n\nFORMATO JSON REQUERIDO:\n{\n  "fullName": "string",\n  "email": "string",\n  "phone": "string o null",\n  "atsScore": número entre 0 y 100,\n  "skills": ["array de strings"],\n  "experienceYears": número o null,\n  "education": "string o null",\n  "strengths": ["array de 2-3 strings"],\n  "gaps": ["array de 1-3 strings"],\n  "summary": "string"\n}`
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('analyze-cv')
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('groq_api_key, plan, tenant_id')
-      .eq('id', user.id)
-      .single()
-
-    const plan = profile?.plan ?? 'free'
-
-    const rateLimit = await checkAiRateLimit(user.id, plan)
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: `Límite de análisis de IA alcanzado. Reinicia en ${rateLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` },
-        { status: 429, headers: rateLimitHeaders(rateLimit) }
-      )
-    }
-
-    const dailyLimit = await checkAiDailyLimit(user.id, plan, 'analyze-cv')
-    if (!dailyLimit.allowed) {
-      const resetTime = dailyLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-      return NextResponse.json(
-        { error: plan === 'free'
-            ? `Plan gratuito: 1 análisis de CV por día. Se renueva a las ${resetTime}. Actualizá tu plan para análisis ilimitados.`
-            : `Límite diario de análisis alcanzado. Se renueva a las ${resetTime}.` },
-        { status: 429, headers: rateLimitHeaders(dailyLimit) }
-      )
-    }
-
     const contentType = request.headers.get('content-type') ?? ''
     let cvText = ''
     let vacancyRequirements: string[] | undefined
@@ -391,13 +324,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'El texto del CV es demasiado corto o está vacío.' }, { status: 400 })
     }
 
-    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
-    const tenantId = (profile?.tenant_id as string | null) ?? null
+    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
 
-    const groqStart = Date.now()
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -419,15 +350,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
       console.error('Groq API error:', errorText)
-      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan })
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
 
-    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
+    const groqData = await groqRes.json()
     const rawText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     if (!rawText) {
-      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'empty_response', plan })
       return NextResponse.json({ error: 'Respuesta vacía de Groq.' }, { status: 502 })
     }
 
@@ -439,17 +368,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parsed = JSON.parse(jsonText) as AnalyzeCvResponse
     } catch {
       console.error('JSON parse error. Raw text:', rawText)
-      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'json_parse_error', plan })
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
-
-    logAiUsage({
-      userId: user.id, tenantId, route: 'analyze-cv',
-      promptTokens: groqData.usage?.prompt_tokens ?? null,
-      completionTokens: groqData.usage?.completion_tokens ?? null,
-      latencyMs: Date.now() - groqStart,
-      success: true, plan,
-    })
 
     return NextResponse.json({
       fullName: String(parsed.fullName ?? '').trim() || 'Nombre no identificado',
@@ -464,7 +384,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       summary: String(parsed.summary ?? '').trim(),
     })
   } catch (error) {
-    console.error('analyze-cv route error:', error)
+    await logError({ endpoint: 'analyze-cv', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al analizar el CV.' }, { status: 500 })
   }
 }

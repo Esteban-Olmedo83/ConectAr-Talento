@@ -2,26 +2,16 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pdf-parse', 'pdf2json', 'mammoth', 'jspdf', 'xlsx', 'googleapis'],
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-          { key: 'X-DNS-Prefetch-Control', value: 'on' },
-        ],
-      },
-    ]
-  },
+  serverExternalPackages: ['pdf-parse', 'pdf2json', 'mammoth'],
+  productionBrowserSourceMaps: false,
 }
 
 export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+  org: 'conectar-talento',
+  project: 'conectar-talento',
   silent: true,
   widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
 })

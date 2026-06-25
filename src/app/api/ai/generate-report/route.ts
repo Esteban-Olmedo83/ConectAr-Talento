@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import type { Recommendation } from '@/types'
-import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
-import { logAiUsage } from '@/lib/ai/log-usage'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 interface GenerateReportRequest {
   overallRating: 1 | 2 | 3 | 4 | 5
@@ -34,54 +33,14 @@ const recommendationLabels: Record<Recommendation, string> = {
 }
 
 function buildReportPrompt(scorecard: GenerateReportRequest): string {
-  return `Eres un especialista en Recursos Humanos con amplia experiencia en evaluación de candidatos para el mercado latinoamericano.
-
-Genera un informe profesional de entrevista en español basado en la siguiente scorecard de evaluación.
-
-DATOS DE LA EVALUACIÓN:
-- Calificación general: ${ratingLabels[scorecard.overallRating]}
-- Habilidades técnicas: ${scorecard.technicalSkills}/10
-- Comunicación: ${scorecard.communication}/10
-- Fit cultural: ${scorecard.culturalFit}/10
-- Fortalezas identificadas: ${scorecard.strengths}
-- Debilidades / áreas de mejora: ${scorecard.weaknesses}
-- Recomendación del entrevistador: ${recommendationLabels[scorecard.recommendation]}
-${scorecard.notes ? `- Notas adicionales: ${scorecard.notes}` : ''}
-
-INSTRUCCIONES PARA EL INFORME:
-1. Escribe exactamente 300 palabras en español formal latinoamericano.
-2. Estructura el informe con los siguientes párrafos (sin subtítulos, fluido y narrativo):
-   - Párrafo 1: Presentación del candidato y contexto de la entrevista. Calificación general.
-   - Párrafo 2: Análisis de habilidades técnicas con ejemplos concretos basados en las notas.
-   - Párrafo 3: Comunicación, trabajo en equipo, alineación con la cultura organizacional.
-   - Párrafo 4: Síntesis de puntos fuertes y oportunidades de mejora.
-   - Párrafo 5: Recomendación final clara y fundamentada.
-3. Usa lenguaje profesional y objetivo.
-4. La recomendación final debe ser: "${recommendationLabels[scorecard.recommendation]}".
-5. Responde ÚNICAMENTE con el texto del informe, sin JSON, sin markdown, sin títulos adicionales.`
+  return `Eres un especialista en Recursos Humanos con amplia experiencia en evaluación de candidatos para el mercado latinoamericano.\n\nGenera un informe profesional de entrevista en español basado en la siguiente scorecard de evaluación.\n\nDATOS DE LA EVALUACIÓN:\n- Calificación general: ${ratingLabels[scorecard.overallRating]}\n- Habilidades técnicas: ${scorecard.technicalSkills}/10\n- Comunicación: ${scorecard.communication}/10\n- Fit cultural: ${scorecard.culturalFit}/10\n- Fortalezas identificadas: ${scorecard.strengths}\n- Debilidades / áreas de mejora: ${scorecard.weaknesses}\n- Recomendación del entrevistador: ${recommendationLabels[scorecard.recommendation]}\n${scorecard.notes ? `- Notas adicionales: ${scorecard.notes}` : ''}\n\nINSTRUCCIONES PARA EL INFORME:\n1. Escribe exactamente 300 palabras en español formal latinoamericano.\n2. Estructura el informe con los siguientes párrafos (sin subtítulos, fluido y narrativo):\n   - Párrafo 1: Presentación del candidato y contexto de la entrevista. Calificación general.\n   - Párrafo 2: Análisis de habilidades técnicas con ejemplos concretos basados en las notas.\n   - Párrafo 3: Comunicación, trabajo en equipo, alineación con la cultura organizacional.\n   - Párrafo 4: Síntesis de puntos fuertes y oportunidades de mejora.\n   - Párrafo 5: Recomendación final clara y fundamentada.\n3. Usa lenguaje profesional y objetivo.\n4. La recomendación final debe ser: "${recommendationLabels[scorecard.recommendation]}".\n5. Responde ÚNICAMENTE con el texto del informe, sin JSON, sin markdown, sin títulos adicionales.`
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('generate-report')
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('groq_api_key, plan, tenant_id')
-      .eq('id', user.id)
-      .single()
-
-    const rateLimit = await checkAiRateLimit(user.id, profile?.plan ?? 'free')
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: `Límite de generación de IA alcanzado. Reinicia en ${rateLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` },
-        { status: 429, headers: rateLimitHeaders(rateLimit) }
-      )
-    }
-
     const body = (await request.json()) as GenerateReportRequest
 
     if (typeof body.overallRating !== 'number' || body.overallRating < 1 || body.overallRating > 5) {
@@ -91,14 +50,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'El campo recommendation es requerido.' }, { status: 400 })
     }
 
-    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
-    const plan = profile?.plan ?? 'free'
-    const tenantId = (profile?.tenant_id as string | null) ?? null
+    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada.' }, { status: 500 })
     }
 
-    const groqStart = Date.now()
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -116,29 +72,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
       console.error('Groq API error:', errorText)
-      logAiUsage({ userId: user.id, tenantId, route: 'generate-report', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan })
       return NextResponse.json({ error: `Error al llamar a Groq: ${groqRes.statusText}` }, { status: 502 })
     }
 
-    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
+    const groqData = await groqRes.json()
     const reportText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     if (!reportText) {
-      logAiUsage({ userId: user.id, tenantId, route: 'generate-report', latencyMs: Date.now() - groqStart, success: false, errorCode: 'empty_response', plan })
       return NextResponse.json({ error: 'Respuesta vacía de Groq.' }, { status: 502 })
     }
 
-    logAiUsage({
-      userId: user.id, tenantId, route: 'generate-report',
-      promptTokens: groqData.usage?.prompt_tokens ?? null,
-      completionTokens: groqData.usage?.completion_tokens ?? null,
-      latencyMs: Date.now() - groqStart,
-      success: true, plan,
-    })
-
     return NextResponse.json({ report: reportText.trim() } as GenerateReportResponse)
   } catch (error) {
-    console.error('generate-report route error:', error)
+    await logError({ endpoint: 'generate-report', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al generar el informe.' }, { status: 500 })
   }
 }
