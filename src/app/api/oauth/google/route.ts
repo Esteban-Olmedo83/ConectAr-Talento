@@ -18,7 +18,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     )
   }
 
-  const state = crypto.randomUUID()
+  const state = `${user.id}:${crypto.randomUUID()}`
   const redirectUri = `${appUrl}/api/oauth/google/callback`
 
   const params = new URLSearchParams({

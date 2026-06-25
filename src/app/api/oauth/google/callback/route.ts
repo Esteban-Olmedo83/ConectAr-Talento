@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!
@@ -21,12 +21,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL('/integrations?error=google_no_code', appUrl))
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.redirect(new URL('/login', appUrl))
+  // Extract userId from state (format: "userId:nonce") — avoids double-refresh on rotating tokens
+  const userId = state.split(':')[0]
+  if (!userId || !/^[0-9a-f-]{36}$/.test(userId)) {
+    return NextResponse.redirect(new URL('/integrations?error=google_state_invalid', appUrl))
   }
+
+  const adminClient = createAdminClient()
 
   const clientId = process.env.GOOGLE_CLIENT_ID!
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
@@ -72,12 +73,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     accountEmail = profile.email
   }
 
-  const tenantId = (user.user_metadata?.tenant_id as string) ?? user.id
+  const { data: userData } = await adminClient.auth.admin.getUserById(userId)
+  const tenantId = (userData?.user?.user_metadata?.tenant_id as string) ?? userId
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : undefined
 
-  await supabase.from('integrations').upsert(
+  await adminClient.from('integrations').upsert(
     {
       tenant_id: tenantId,
       platform: 'gmail',
