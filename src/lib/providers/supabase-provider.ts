@@ -241,7 +241,7 @@ export class SupabaseProvider implements DataProvider {
   async getClients(tenantId: string): Promise<DataResult<Client[]>> {
     const { data, error } = await this.sb
       .from('clients')
-      .select('*')
+      .select('id, tenant_id, name, industry, contact_name, contact_email, recruitment_email, contact_phone, whatsapp_phone, address, interview_address, interview_arrival_details, website, logo_url, notes, active, deactivated_at, created_at, updated_at')
       .eq('tenant_id', tenantId)
       .order('name', { ascending: true })
     if (error) return err(error.message)
@@ -320,17 +320,18 @@ export class SupabaseProvider implements DataProvider {
       return { vacancies: 0, applications: 0, interviews: 0, scorecards: 0 }
     }
 
-    // Count applications for those vacancies
-    const { count: appCount } = await this.sb
-      .from('applications')
-      .select('id', { count: 'exact', head: true })
-      .in('vacancy_id', vacancyIds)
+    // Count applications and get interview IDs in parallel (both only depend on vacancyIds)
+    const [{ count: appCount }, { data: interviewRows }] = await Promise.all([
+      this.sb
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .in('vacancy_id', vacancyIds),
+      this.sb
+        .from('interviews')
+        .select('id')
+        .in('vacancy_id', vacancyIds),
+    ])
 
-    // Get interview IDs for those vacancies
-    const { data: interviewRows } = await this.sb
-      .from('interviews')
-      .select('id')
-      .in('vacancy_id', vacancyIds)
     const interviewIds = (interviewRows ?? []).map((i: { id: string }) => i.id)
     const interviewCount = interviewIds.length
 
@@ -406,6 +407,7 @@ export class SupabaseProvider implements DataProvider {
       .eq('tenant_id', tenantId)
       .not('client_id', 'is', null)
       .order('created_at', { ascending: false })
+      .limit(200)
     if (error) return err(error.message)
     return ok((data ?? []).map(mapVacancy))
   }
@@ -476,6 +478,7 @@ export class SupabaseProvider implements DataProvider {
       .select('*, client:clients(*)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
+      .limit(300)
     if (error) return err(error.message)
     return ok((data ?? []).map(mapCandidate))
   }
@@ -553,6 +556,7 @@ export class SupabaseProvider implements DataProvider {
       .from('applications')
       .select('*, candidate:candidates(*)')
       .order('applied_at', { ascending: false })
+      .limit(500)
     if (vacancyId) q = q.eq('vacancy_id', vacancyId)
     // Tenant isolation is handled by RLS on the applications and candidates tables
     const { data, error } = await q
@@ -688,6 +692,7 @@ export class SupabaseProvider implements DataProvider {
       .not('vacancy_id', 'is', null)
       .not('vacancy.client_id', 'is', null)
       .order('scheduled_at', { ascending: false })
+      .limit(200)
     if (candidateId) q = q.eq('candidate_id', candidateId)
     if (tenantId) q = q.eq('candidate.tenant_id', tenantId)
     const { data, error } = await q
