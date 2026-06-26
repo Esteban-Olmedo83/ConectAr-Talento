@@ -73,8 +73,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     accountEmail = profile.email
   }
 
-  const { data: userData } = await adminClient.auth.admin.getUserById(userId)
-  const tenantId = (userData?.user?.user_metadata?.tenant_id as string) ?? userId
+  // Get tenant_id from profiles table (consistent with other OAuth callbacks)
+  const { data: tenantProfile } = await adminClient
+    .from('profiles')
+    .select('tenant_id, google_drive_folder_id, google_sheets_db_id')
+    .eq('id', userId)
+    .single()
+
+  const tenantId = tenantProfile?.tenant_id ?? userId
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : undefined
@@ -92,6 +98,81 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     },
     { onConflict: 'tenant_id,platform' }
   )
+
+  // ── Crear carpeta y hoja de Google Drive (solo si no existen aún) ──────────
+  let driveFolderId = tenantProfile?.google_drive_folder_id as string | null | undefined
+  let sheetsId = tenantProfile?.google_sheets_db_id as string | null | undefined
+
+  const accessToken = tokens.access_token
+
+  try {
+    // 1. Crear carpeta "ConectAr Talento" en Drive (si no existe aún)
+    if (!driveFolderId) {
+      const folderRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'ConectAr Talento',
+          mimeType: 'application/vnd.google-apps.folder',
+        }),
+      })
+      if (folderRes.ok) {
+        const folderData = await folderRes.json() as { id?: string }
+        driveFolderId = folderData.id
+      }
+    }
+
+    // 2. Crear hoja de cálculo "ConectAr Talento — Base de datos" (si no existe aún)
+    if (!sheetsId) {
+      const sheetsRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          properties: { title: 'ConectAr Talento — Base de datos' },
+          sheets: [
+            { properties: { title: 'Candidatos' } },
+            { properties: { title: 'Vacantes' } },
+            { properties: { title: 'Aplicaciones' } },
+          ],
+        }),
+      })
+      if (sheetsRes.ok) {
+        const sheetsData = await sheetsRes.json() as { spreadsheetId?: string }
+        sheetsId = sheetsData.spreadsheetId
+
+        // 3. Mover la hoja a la carpeta de Drive (si ambas existen)
+        if (driveFolderId && sheetsId) {
+          await fetch(
+            `https://www.googleapis.com/drive/v3/files/${sheetsId}?addParents=${driveFolderId}&removeParents=root&fields=id,parents`,
+            {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          )
+        }
+      }
+    }
+
+    // 4. Guardar los IDs en el perfil del usuario
+    if (driveFolderId || sheetsId) {
+      const updates: Record<string, string> = {}
+      if (driveFolderId) updates.google_drive_folder_id = driveFolderId
+      if (sheetsId) updates.google_sheets_db_id = sheetsId
+
+      await adminClient
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+    }
+  } catch {
+    // No bloquear el flujo si Drive falla — la cuenta Gmail queda conectada igual
+  }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))
   response.cookies.delete('oauth_state_google')
