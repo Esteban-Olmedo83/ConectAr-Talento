@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
-import { logAiUsage } from '@/lib/ai/log-usage'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { logError } from '@/app/api/_lib/error-logger'
 
 interface GenerateJdRequest {
   title: string
@@ -24,70 +23,14 @@ function buildJdPrompt(input: GenerateJdRequest): string {
   const levelInfo = input.level ? `\nNivel de seniority: ${input.level}` : ''
   const locationInfo = input.location ? `\nUbicación: ${input.location}` : ''
 
-  return `Eres un experto en Recursos Humanos y employer branding para empresas latinoamericanas. Genera contenido profesional para una oferta de trabajo.
-
-DATOS DE LA VACANTE:
-- Puesto: ${input.title}
-- Departamento: ${input.department}
-- Modalidad: ${input.modality}${salaryInfo}${levelInfo}${locationInfo}
-- Requisitos principales: ${input.requirements.join(', ')}
-
-Genera los siguientes 3 contenidos. Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.
-
-INSTRUCCIONES POR SECCIÓN:
-
-1. JOB DESCRIPTION (jobDescription):
-Descripción completa y profesional en español con estas secciones exactas:
-- "Sobre el puesto": 2-3 párrafos describiendo el rol, su impacto y contexto de la empresa.
-- "Responsabilidades": Lista de 6-8 responsabilidades concretas con verbos de acción.
-- "Requisitos": Lista de requisitos dividida en obligatorios (5-6) y deseables (3-4).
-- "Beneficios": Lista de 5-6 beneficios atractivos acordes al mercado latinoamericano.
-- "Modalidad y condiciones": Detalle de horario, modalidad (${input.modality})${input.location ? `, ubicación (${input.location})` : ''}.
-
-2. POST DE LINKEDIN (linkedinPost):
-- Tono profesional pero cercano.
-- Usar emojis relevantes al inicio de cada sección y en puntos clave.
-- Incluir sección "¿Qué ofrecemos?" y "¿Qué buscamos?".
-- Llamada a la acción al final.
-- Terminar con exactamente 5 hashtags relevantes en español/inglés.
-- Máximo 1300 caracteres.
-
-3. MENSAJE DE WHATSAPP (whatsappMessage):
-- Tono casual y directo.
-- Máximo 300 caracteres.
-- Incluir: puesto, modalidad, 1-2 requisitos clave.
-- Sin emojis excesivos (máximo 3).
-- Terminar con instrucción simple de cómo postularse.
-
-FORMATO JSON REQUERIDO:
-{
-  "jobDescription": "texto completo con saltos de línea \\n",
-  "linkedinPost": "texto del post con saltos de línea \\n",
-  "whatsappMessage": "texto breve para WhatsApp"
-}`
+  return `Eres un experto en Recursos Humanos y employer branding para empresas latinoamericanas. Genera contenido profesional para una oferta de trabajo.\n\nDATOS DE LA VACANTE:\n- Puesto: ${input.title}\n- Departamento: ${input.department}\n- Modalidad: ${input.modality}${salaryInfo}${levelInfo}${locationInfo}\n- Requisitos principales: ${input.requirements.join(', ')}\n\nGenera los siguientes 3 contenidos. Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.\n\nINSTRUCCIONES POR SECCIÓN:\n\n1. JOB DESCRIPTION (jobDescription):\nDescripción completa y profesional en español con estas secciones exactas:\n- "Sobre el puesto": 2-3 párrafos describiendo el rol, su impacto y contexto de la empresa.\n- "Responsabilidades": Lista de 6-8 responsabilidades concretas con verbos de acción.\n- "Requisitos": Lista de requisitos dividida en obligatorios (5-6) y deseables (3-4).\n- "Beneficios": Lista de 5-6 beneficios atractivos acordes al mercado latinoamericano.\n- "Modalidad y condiciones": Detalle de horario, modalidad (${input.modality})${input.location ? `, ubicación (${input.location})` : ''}.\n\n2. POST DE LINKEDIN (linkedinPost):\n- Tono profesional pero cercano.\n- Usar emojis relevantes al inicio de cada sección y en puntos clave.\n- Incluir sección "¿Qué ofrecemos?" y "¿Qué buscamos?".\n- Llamada a la acción al final.\n- Terminar con exactamente 5 hashtags relevantes en español/inglés.\n- Máximo 1300 caracteres.\n\n3. MENSAJE DE WHATSAPP (whatsappMessage):\n- Tono casual y directo.\n- Máximo 300 caracteres.\n- Incluir: puesto, modalidad, 1-2 requisitos clave.\n- Sin emojis excesivos (máximo 3).\n- Terminar con instrucción simple de cómo postularse.\n\nFORMATO JSON REQUERIDO:\n{\n  "jobDescription": "texto completo con saltos de línea \\n",\n  "linkedinPost": "texto del post con saltos de línea \\n",\n  "whatsappMessage": "texto breve para WhatsApp"\n}`
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuthWithRateLimit('generate-jd')
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('groq_api_key, plan, tenant_id')
-      .eq('id', user.id)
-      .single()
-
-    const rateLimit = await checkAiRateLimit(user.id, profile?.plan ?? 'free')
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: `Límite de generación de IA alcanzado. Reinicia en ${rateLimit.resetAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.` },
-        { status: 429, headers: rateLimitHeaders(rateLimit) }
-      )
-    }
-
     const body = (await request.json()) as GenerateJdRequest
 
     if (!body.title || !body.department || !body.modality) {
@@ -97,14 +40,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Se requiere al menos un requisito.' }, { status: 400 })
     }
 
-    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
-    const plan = profile?.plan ?? 'free'
-    const tenantId = (profile?.tenant_id as string | null) ?? null
+    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'API key de Groq no configurada.' }, { status: 500 })
     }
 
-    const groqStart = Date.now()
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -122,15 +62,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
       console.error('Groq API error:', errorText)
-      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan })
       return NextResponse.json({ error: `Error al llamar a Groq: ${groqRes.statusText}` }, { status: 502 })
     }
 
-    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
+    const groqData = await groqRes.json()
     const rawText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     if (!rawText) {
-      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: 'empty_response', plan })
       return NextResponse.json({ error: 'Respuesta vacía de Groq.' }, { status: 502 })
     }
 
@@ -142,17 +80,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parsed = JSON.parse(jsonText) as GenerateJdResponse
     } catch {
       console.error('JSON parse error. Raw text:', rawText)
-      logAiUsage({ userId: user.id, tenantId, route: 'generate-jd', latencyMs: Date.now() - groqStart, success: false, errorCode: 'json_parse_error', plan })
       return NextResponse.json({ error: 'No se pudo parsear la respuesta de IA. Intente nuevamente.' }, { status: 502 })
     }
-
-    logAiUsage({
-      userId: user.id, tenantId, route: 'generate-jd',
-      promptTokens: groqData.usage?.prompt_tokens ?? null,
-      completionTokens: groqData.usage?.completion_tokens ?? null,
-      latencyMs: Date.now() - groqStart,
-      success: true, plan,
-    })
 
     return NextResponse.json({
       jobDescription: String(parsed.jobDescription ?? '').trim(),
@@ -160,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       whatsappMessage: String(parsed.whatsappMessage ?? '').trim(),
     })
   } catch (error) {
-    console.error('generate-jd route error:', error)
+    await logError({ endpoint: 'generate-jd', error, tenantId: auth.tenantId, userId: auth.userId })
     return NextResponse.json({ error: 'Error interno del servidor al generar la descripción.' }, { status: 500 })
   }
 }
