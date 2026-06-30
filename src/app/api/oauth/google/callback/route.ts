@@ -122,6 +122,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (folderRes.ok) {
         const folderData = await folderRes.json() as { id?: string }
         driveFolderId = folderData.id
+      } else {
+        const errorText = await folderRes.text()
+        console.error(`[Google Drive] Folder creation failed: ${folderRes.status}`, errorText)
       }
     }
 
@@ -156,6 +159,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }
           )
         }
+      } else {
+        const errorText = await sheetsRes.text()
+        console.error(`[Google Sheets] Spreadsheet creation failed: ${sheetsRes.status}`, errorText)
       }
     }
 
@@ -170,8 +176,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .update(updates)
         .eq('id', userId)
     }
-  } catch {
-    // No bloquear el flujo si Drive falla — la cuenta Gmail queda conectada igual
+  } catch (err) {
+    console.error('[Google OAuth Callback] Unexpected error during Drive/Sheets setup:', err)
   }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))
