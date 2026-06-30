@@ -125,6 +125,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         const errorText = await folderRes.text()
         console.error(`[Google Drive] Folder creation failed: ${folderRes.status}`, errorText)
+        await adminClient.from('error_logs').insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          endpoint: 'oauth/google/callback',
+          error_message: `Google Drive folder creation failed: HTTP ${folderRes.status}`,
+          error_stack: errorText,
+        })
       }
     }
 
@@ -162,6 +169,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         const errorText = await sheetsRes.text()
         console.error(`[Google Sheets] Spreadsheet creation failed: ${sheetsRes.status}`, errorText)
+        await adminClient.from('error_logs').insert({
+          tenant_id: tenantId,
+          user_id: userId,
+          endpoint: 'oauth/google/callback',
+          error_message: `Google Sheets spreadsheet creation failed: HTTP ${sheetsRes.status}`,
+          error_stack: errorText,
+        })
       }
     }
 
@@ -178,6 +192,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   } catch (err) {
     console.error('[Google OAuth Callback] Unexpected error during Drive/Sheets setup:', err)
+    await adminClient.from('error_logs').insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      endpoint: 'oauth/google/callback',
+      error_message: `Drive/Sheets setup failed: ${err instanceof Error ? err.message : String(err)}`,
+      error_stack: err instanceof Error ? err.stack : undefined,
+      request_body: { driveFolderId, sheetsId },
+    })
   }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))
