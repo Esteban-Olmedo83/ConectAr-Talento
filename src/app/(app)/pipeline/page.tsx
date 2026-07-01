@@ -350,9 +350,9 @@ function EmailModal({
   const previewSubject = applyExtraVars(subject)
   const previewBody = applyExtraVars(body)
 
-  // mailto: lets the OS pick the right email app (Gmail app, Outlook, Mail, etc.)
-  // both on mobile and desktop — avoids forcing Gmail web in a new browser tab
-  const mailtoHref = `mailto:${encodeURIComponent(candidate.email)}${previewSubject || previewBody ? '?' : ''}${previewSubject ? `subject=${encodeURIComponent(previewSubject)}` : ''}${previewSubject && previewBody ? '&' : ''}${previewBody ? `body=${encodeURIComponent(previewBody)}` : ''}`
+  // Abrir directamente en Gmail con datos pre-llenados
+  // Sin modal del navegador
+  const gmailHref = `https://mail.google.com/mail/?ui=2&fs=1&to=${encodeURIComponent(candidate.email)}${previewSubject || previewBody ? '?' : ''}${previewSubject ? `su=${encodeURIComponent(previewSubject)}` : ''}${previewSubject && previewBody ? '&' : ''}${previewBody ? `body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
@@ -592,7 +592,7 @@ function EmailModal({
           </button>
           <button
             onClick={() => {
-              window.location.href = mailtoHref
+              window.open(gmailHref, '_blank')
               onClose()
               onStagePrompt?.()
             }}
