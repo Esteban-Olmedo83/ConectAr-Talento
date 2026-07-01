@@ -352,7 +352,7 @@ function EmailModal({
 
   // Abrir directamente en Gmail con datos pre-llenados
   // Sin modal del navegador
-  const gmailHref = `https://mail.google.com/mail/?ui=2&fs=1&to=${encodeURIComponent(candidate.email)}${previewSubject || previewBody ? '?' : ''}${previewSubject ? `su=${encodeURIComponent(previewSubject)}` : ''}${previewSubject && previewBody ? '&' : ''}${previewBody ? `body=${encodeURIComponent(previewBody)}` : ''}`
+  const gmailHref = `https://mail.google.com/mail/#compose?to=${encodeURIComponent(candidate.email)}${previewSubject || previewBody ? '?' : ''}${previewSubject ? `subject=${encodeURIComponent(previewSubject)}` : ''}${previewSubject && previewBody ? '&' : ''}${previewBody ? `body=${encodeURIComponent(previewBody)}` : ''}`
 
   function handleCopyEmail() {
     navigator.clipboard.writeText(candidate.email).then(() => {
