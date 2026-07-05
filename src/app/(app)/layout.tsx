@@ -133,22 +133,23 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
     if (!connected || !user) return
 
     const supabase = createClient()
+    const currentUser = user
     async function refreshUser() {
       try {
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', currentUser.id)
           .single()
 
         if (profile) {
           const updatedUser: User = {
-            id: user.id,
-            email: user.email,
+            id: currentUser.id,
+            email: currentUser.email,
             fullName: profile.full_name,
             companyName: profile.company_name,
             plan: profile.plan,
-            tenantId: profile.tenant_id ?? user.id,
+            tenantId: profile.tenant_id ?? currentUser.id,
             avatarUrl: profile.avatar_url ?? undefined,
             googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
             googleSheetsDbId: profile.google_sheets_db_id ?? undefined,

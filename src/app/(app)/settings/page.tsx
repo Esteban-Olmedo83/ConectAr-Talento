@@ -1848,7 +1848,6 @@ export default function SettingsPage() {
     { id: 'notificaciones', label: t.settings.tabs.notifications },
     { id: 'ia', label: t.settings.tabs.ai },
     { id: 'idioma', label: t.settings.tabs.language },
-    { id: 'drive', label: 'Google Drive' },
     { id: 'billing', label: 'Facturación' },
   ]
 
@@ -1923,7 +1922,6 @@ export default function SettingsPage() {
         {activeTab === 'notificaciones' && <NotificacionesTab highlight={highlightParam} />}
         {activeTab === 'ia' && <ConexionIAsTab />}
         {activeTab === 'idioma' && <IdiomaTab />}
-        {activeTab === 'drive' && <DriveTab />}
         {activeTab === 'billing' && <BillingTab />}
       </main>
     </div>
