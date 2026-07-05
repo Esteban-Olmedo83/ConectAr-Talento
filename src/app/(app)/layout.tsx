@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Image from 'next/image'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ToastProvider } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
@@ -16,6 +16,7 @@ import type { User } from '@/types'
 function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const { t, setUserId } = useLanguage()
@@ -125,6 +126,45 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe()
   }, [router])
+
+  // Recargar usuario cuando vuelve del OAuth (detecta ?connected=google, etc)
+  React.useEffect(() => {
+    const connected = searchParams.get('connected')
+    if (!connected || !user) return
+
+    const supabase = createClient()
+    async function refreshUser() {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          const updatedUser: User = {
+            id: user.id,
+            email: user.email,
+            fullName: profile.full_name,
+            companyName: profile.company_name,
+            plan: profile.plan,
+            tenantId: profile.tenant_id ?? user.id,
+            avatarUrl: profile.avatar_url ?? undefined,
+            googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
+            googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
+            createdAt: profile.created_at,
+            groqApiKey: profile.groq_api_key ?? undefined,
+            aiProvider: profile.ai_provider ?? 'groq',
+          }
+          setUser(updatedUser)
+        }
+      } catch (err) {
+        console.error('[AppLayout] Error refreshing user profile:', err)
+      }
+    }
+
+    refreshUser()
+  }, [searchParams, user?.id])
 
   if (isLoading) {
     return (
