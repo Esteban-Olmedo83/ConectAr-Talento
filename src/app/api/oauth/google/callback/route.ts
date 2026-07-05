@@ -202,7 +202,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     })
   }
 
-  const response = NextResponse.redirect(new URL('/integrations?connected=google', appUrl))
+  const response = NextResponse.redirect(new URL('/settings?connected=google', appUrl))
   response.cookies.delete('oauth_state_google')
   return response
 }
