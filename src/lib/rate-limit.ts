@@ -84,7 +84,7 @@ export async function checkAiDailyLimit(userId: string, plan: string, route = 'a
 
     if (error) {
       console.error('Daily AI limit check error:', error)
-      return { allowed: true, limit, remaining: limit, resetAt }
+      return { allowed: false, limit, remaining: 0, resetAt }
     }
 
     const used = count ?? 0
@@ -92,7 +92,7 @@ export async function checkAiDailyLimit(userId: string, plan: string, route = 'a
     return { allowed: used < limit, limit, remaining, resetAt }
   } catch (err) {
     console.error('Daily AI limit unexpected error:', err)
-    return { allowed: true, limit, remaining: limit, resetAt }
+    return { allowed: false, limit, remaining: 0, resetAt }
   }
 }
 

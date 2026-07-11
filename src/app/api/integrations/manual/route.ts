@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto/token-encrypt'
 import type { IntegrationPlatform } from '@/types'
+
+const VALID_PLATFORMS: IntegrationPlatform[] = [
+  'linkedin', 'gmail', 'outlook', 'smtp', 'whatsapp', 'zoom', 'google_meet', 'teams', 'computrabajo',
+]
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = await createClient()
@@ -19,8 +24,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { platform, account_name, account_email, api_key } = body
 
-  if (!platform) {
-    return NextResponse.json({ error: 'Falta el campo platform' }, { status: 400 })
+  if (!platform || !VALID_PLATFORMS.includes(platform as IntegrationPlatform)) {
+    return NextResponse.json({ error: 'Plataforma inválida' }, { status: 400 })
+  }
+
+  if (account_name && account_name.length > 200) {
+    return NextResponse.json({ error: 'Nombre de cuenta demasiado largo' }, { status: 400 })
   }
 
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
@@ -35,8 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         account_name: account_name ?? platform,
         account_email: account_email ?? null,
         status: 'connected',
-        // Store api_key in metadata since there's no dedicated column
-        metadata: api_key ? { api_key } : null,
+        metadata: api_key ? { api_key: encryptToken(api_key) } : null,
       },
       { onConflict: 'tenant_id,platform' }
     )
@@ -44,7 +52,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[integrations/manual] upsert error:', error)
+    return NextResponse.json({ error: 'Error al guardar la integración' }, { status: 500 })
   }
 
   return NextResponse.json({ data })
@@ -61,8 +70,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const body = await request.json() as { platform?: string }
   const { platform } = body
 
-  if (!platform) {
-    return NextResponse.json({ error: 'Falta el campo platform' }, { status: 400 })
+  if (!platform || !VALID_PLATFORMS.includes(platform as IntegrationPlatform)) {
+    return NextResponse.json({ error: 'Plataforma inválida' }, { status: 400 })
   }
 
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
@@ -75,7 +84,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     .eq('platform', platform)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[integrations/manual] delete error:', error)
+    return NextResponse.json({ error: 'Error al eliminar la integración' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

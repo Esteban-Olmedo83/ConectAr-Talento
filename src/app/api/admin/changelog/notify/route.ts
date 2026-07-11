@@ -4,14 +4,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendSystemUpdateEmail } from '@/lib/email/send'
 import { createHmac } from 'crypto'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
   'https://www.conectartalento.com'
 
 const INACTIVE_DAYS = 30
 
-function buildUnsubscribeUrl(userId: string): string {
-  const secret = process.env.UNSUBSCRIBE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'fallback-secret'
+function buildUnsubscribeUrl(userId: string): string | null {
+  const secret = process.env.UNSUBSCRIBE_SECRET
+  if (!secret) return null
   const token = createHmac('sha256', secret).update(userId).digest('hex')
   return `${APP_URL}/api/unsubscribe?uid=${userId}&token=${token}`
 }
@@ -27,8 +30,8 @@ export async function POST(request: NextRequest) {
   if (response) return response
 
   const body = await request.json() as { updateId: string }
-  if (!body.updateId) {
-    return NextResponse.json({ error: 'updateId es requerido' }, { status: 400 })
+  if (!body.updateId || !UUID_RE.test(body.updateId)) {
+    return NextResponse.json({ error: 'updateId inválido' }, { status: 400 })
   }
 
   const admin = createAdminClient()
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
     const auth = authMap.get(profile.id)
     if (!auth?.email) continue
     const inactive = isInactive(auth.lastSignIn)
-    const unsubscribeUrl = inactive ? buildUnsubscribeUrl(profile.id) : undefined
+    const unsubscribeUrl = inactive ? (buildUnsubscribeUrl(profile.id) ?? undefined) : undefined
     const recipientName = (profile.full_name as string | null)?.split(' ')[0] ?? 'Reclutador'
 
     const result = await sendSystemUpdateEmail(auth.email, {
