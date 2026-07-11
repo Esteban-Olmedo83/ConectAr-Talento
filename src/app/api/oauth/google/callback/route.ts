@@ -126,16 +126,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     { onConflict: 'tenant_id,platform' }
   )
 
-  if (!tenantProfile?.google_drive_folder_id) {
+  // Ensure both Drive folder and Sheets file exist (even if partially configured)
+  let folderId = tenantProfile?.google_drive_folder_id ?? null
+  let sheetsId: string | null = null
+
+  if (!folderId) {
     const companyName = (tenantProfile?.company_name as string | null) ?? 'Mi Empresa'
-    const folderId = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`)
-    if (folderId) {
-      const sheetsId = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId)
-      await supabase.from('profiles').update({
-        google_drive_folder_id: folderId,
-        google_sheets_db_id: sheetsId ?? null,
-      }).eq('id', user.id)
-    }
+    folderId = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`)
+  }
+
+  if (folderId) {
+    sheetsId = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId)
+    await supabase.from('profiles').update({
+      google_drive_folder_id: folderId,
+      google_sheets_db_id: sheetsId ?? null,
+    }).eq('id', user.id)
   }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=gmail', appUrl))
