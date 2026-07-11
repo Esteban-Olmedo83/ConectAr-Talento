@@ -15,6 +15,8 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { getPlanLimits } from '@/lib/plan-limits'
+import { StorageImg } from '@/components/ui/storage-img'
+import { StorageLink } from '@/components/ui/storage-link'
 import type { Candidate, Vacancy, VacancyStatus, CandidateSource, InterviewType, MeetingPlatform, Application, Interview } from '@/types'
 import { useLanguage } from '@/lib/context/language-context'
 
@@ -271,7 +273,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
                 onChange={handleAvatarUpload}
               />
               {candidate.avatarUrl ? (
-                <img
+                <StorageImg
                   src={candidate.avatarUrl}
                   alt={candidate.fullName}
                   className="w-14 h-14 rounded-full object-cover"
@@ -475,10 +477,9 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
               <label className={labelCls} style={{ color: 'var(--muted)' }}>{t.candidates.profile.cvFile}</label>
               {candidate.cvUrl && (
                 <div className="flex items-center gap-2 mb-2">
-                  <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
+                  <StorageLink href={candidate.cvUrl} className="text-xs underline" style={{ color: 'var(--accent-2)' }}>
                     {candidate.cvFileName ?? t.candidates.cvViewCurrent}
-                  </a>
+                  </StorageLink>
                 </div>
               )}
               <input
@@ -503,17 +504,15 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
               <label className={labelCls} style={{ color: 'var(--muted)' }}>
                 <FileText className="inline h-3 w-3 mr-1" />{t.candidates.profile.cvFile}
               </label>
-              <a
+              <StorageLink
                 href={candidate.cvUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-opacity hover:opacity-80"
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent-2)', background: 'var(--accent-soft)' }}
               >
                 <FileText className="h-3.5 w-3.5" />
                 {candidate.cvFileName || t.candidates.cvView}
                 <ExternalLink className="h-3 w-3 ml-auto" />
-              </a>
+              </StorageLink>
             </div>
           ) : null}
 
@@ -1110,7 +1109,7 @@ function AddCandidateDialog({
             <div className="relative shrink-0 group">
               <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarUpload} />
               {form.avatarUrl ? (
-                <img src={form.avatarUrl} alt="foto" className="w-14 h-14 rounded-full object-cover" />
+                <StorageImg src={form.avatarUrl} alt="foto" className="w-14 h-14 rounded-full object-cover" />
               ) : (
                 <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold"
                   style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2, #a78bfa))' }}>
@@ -1231,7 +1230,7 @@ function AddCandidateDialog({
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent-2)', border: '1px solid var(--accent)' }}>
                 <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                 <span className="flex-1 truncate"><strong>{form.cvFileName}</strong></span>
-                {form.cvUrl && <a href={form.cvUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 underline hover:opacity-80">Ver</a>}
+                {form.cvUrl && <StorageLink href={form.cvUrl} className="shrink-0 underline hover:opacity-80">Ver</StorageLink>}
                 <button type="button" onClick={() => setForm(f => ({ ...f, cvUrl: '', cvFileName: '' }))} className="shrink-0 ml-1 opacity-60 hover:opacity-100" style={{ color: 'var(--coral)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>✕</button>
               </div>
             ) : (
@@ -1675,7 +1674,7 @@ export default function CandidatesPage() {
                         style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
                       >
                         {c.avatarUrl
-                          ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ? <StorageImg src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                           : getInitials(c.fullName)
                         }
                       </div>
@@ -1739,7 +1738,7 @@ export default function CandidatesPage() {
                       style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}
                     >
                       {c.avatarUrl
-                        ? <img src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ? <StorageImg src={c.avatarUrl} alt="" className="w-full h-full object-cover" />
                         : getInitials(c.fullName)
                       }
                     </div>

@@ -10,6 +10,7 @@ import { useUser } from '@/lib/context/user-context'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useLanguage } from '@/lib/context/language-context'
 import { getThemeKeys, applyStoredTheme } from '@/components/ThemeProvider'
+import { StorageImg } from '@/components/ui/storage-img'
 import { getLangKey } from '@/lib/context/language-context'
 import { LANGUAGES } from '@/lib/i18n/translations'
 import type { LangCode } from '@/lib/i18n/translations'
@@ -237,18 +238,17 @@ function CuentaTab() {
     try {
       const supabase = createClient()
       const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `user-avatars/${user.id}.${ext}`
+      const storagePath = `${user.tenantId}/user-avatars/${user.id}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('cvs')
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(storagePath, file, { upsert: true, contentType: file.type })
       if (uploadError) throw uploadError
-      const { data: { publicUrl } } = supabase.storage.from('cvs').getPublicUrl(path)
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: storagePath })
         .eq('id', user.id)
       if (updateError) throw updateError
-      setAvatarUrl(publicUrl)
+      setAvatarUrl(storagePath)
     } catch {
       setSaveMsg({ type: 'error', text: 'No se pudo subir la foto. Intentá de nuevo.' })
     } finally {
@@ -311,7 +311,7 @@ function CuentaTab() {
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
             {avatarUrl ? (
-              <img
+              <StorageImg
                 src={avatarUrl}
                 alt="Foto de perfil"
                 className="w-14 h-14 rounded-full object-cover"

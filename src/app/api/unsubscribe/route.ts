@@ -15,9 +15,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/?unsubscribe=invalid', APP_URL))
   }
 
-  const secret = process.env.UNSUBSCRIBE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'fallback-secret'
-  const expected = createHmac('sha256', secret).update(uid).digest('hex')
+  // L3 FIX: require dedicated UNSUBSCRIBE_SECRET; fail closed if not set
+  const secret = process.env.UNSUBSCRIBE_SECRET
+  if (!secret) {
+    console.error('[unsubscribe] UNSUBSCRIBE_SECRET env var not set — unsubscribe blocked')
+    return NextResponse.redirect(new URL('/?unsubscribe=invalid', APP_URL))
+  }
 
+  const expected = createHmac('sha256', secret).update(uid).digest('hex')
   if (token !== expected) {
     return NextResponse.redirect(new URL('/?unsubscribe=invalid', APP_URL))
   }
