@@ -45,11 +45,10 @@ const STATUS_CONFIG: Record<IntegrationStatus, { label: string; icon: React.Reac
 /* ─── Toast notification ─────────────────────────────────────── */
 const CONNECTED_LABELS: Record<string, string> = {
   linkedin: 'LinkedIn',
-  google: 'Google (Gmail + Meet)',
-  microsoft: 'Microsoft (Outlook + Teams)',
+  gmail: 'Google (Gmail + Meet)',
+  outlook: 'Microsoft (Outlook + Teams)',
   zoom: 'Zoom',
   whatsapp: 'WhatsApp Business',
-  meta: 'WhatsApp Business',
 }
 
 function SuccessToast({ platform, onClose }: { platform: string; onClose: () => void }) {
@@ -392,13 +391,13 @@ const OAUTH_ROUTES: Record<string, { href: string; label: string; configKey: str
   gmail: {
     href: '/api/oauth/google',
     label: 'Conectar Gmail + Google Meet',
-    configKey: 'google',
+    configKey: 'gmail',
     envVars: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
   },
   outlook: {
     href: '/api/oauth/microsoft',
     label: 'Conectar Outlook + Teams',
-    configKey: 'microsoft',
+    configKey: 'outlook',
     envVars: ['MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
   },
   zoom: {

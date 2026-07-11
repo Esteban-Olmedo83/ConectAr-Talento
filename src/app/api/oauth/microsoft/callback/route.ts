@@ -93,7 +93,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     { onConflict: 'tenant_id,platform' }
   )
 
-  const response = NextResponse.redirect(new URL('/integrations?connected=microsoft', appUrl))
+  const response = NextResponse.redirect(new URL('/integrations?connected=outlook', appUrl))
   response.cookies.delete('oauth_state_microsoft')
   return response
 }
