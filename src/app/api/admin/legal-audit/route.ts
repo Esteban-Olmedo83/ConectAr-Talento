@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '../guard'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar que el solicitante sea admin
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    const adminEmail = process.env.ADMIN_EMAIL ?? 'conectar.rrhh.ar@gmail.com'
-    if (!user || user.email !== adminEmail) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    }
+    const { response } = await requireAdmin()
+    if (response) return response
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId requerido' }, { status: 400 })
+    if (!userId || !UUID_RE.test(userId)) {
+      return NextResponse.json({ error: 'userId inválido' }, { status: 400 })
     }
 
     const supabaseAdmin = createAdminClient()

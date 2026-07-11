@@ -29,7 +29,10 @@ export async function GET() {
     .or(`target_tenant_id.is.null,target_tenant_id.eq.${tenantId}`)
     .order('published_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[api/novedades] query error:', error)
+    return NextResponse.json({ error: 'Error al obtener novedades' }, { status: 500 })
+  }
 
   return NextResponse.json({ updates: updates ?? [] })
 }
