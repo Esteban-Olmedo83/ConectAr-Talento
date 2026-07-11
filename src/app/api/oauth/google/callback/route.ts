@@ -135,6 +135,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const storedState = request.cookies.get('oauth_state_google')?.value
   if (!state || !storedState || state !== storedState) {
+    console.error('[OAuth Google] State mismatch:', {
+      hasState: !!state,
+      hasStoredState: !!storedState,
+      stateMatch: state === storedState,
+      state: state?.substring(0, 20),
+      storedState: storedState?.substring(0, 20),
+      appUrl,
+    })
     return NextResponse.redirect(new URL('/integrations?error=google_state_mismatch', appUrl))
   }
 

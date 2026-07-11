@@ -16,6 +16,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const storedState = request.cookies.get('oauth_state_zoom')?.value
   if (!state || !storedState || state !== storedState) {
+    console.error('[OAuth Zoom] State mismatch:', {
+      hasState: !!state,
+      hasStoredState: !!storedState,
+      stateMatch: state === storedState,
+      state: state?.substring(0, 20),
+      storedState: storedState?.substring(0, 20),
+      appUrl,
+    })
     return NextResponse.redirect(new URL('/integrations?error=zoom_state_mismatch', appUrl))
   }
 
