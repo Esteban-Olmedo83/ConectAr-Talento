@@ -16,10 +16,21 @@ export async function POST(request: NextRequest) {
       documentVersions?: Record<string, string>
     }
 
+    const VALID_EVENT_TYPES: LegalEventType[] = [
+      'terms_accepted', 'privacy_accepted', 'dpa_accepted',
+      'cookies_accepted', 'cookies_rejected', 'login_success',
+      'data_export', 'candidate_deleted', 'arco_request_received', 'account_deleted',
+    ]
+
     const { eventTypes, documentVersions } = body
 
     if (!Array.isArray(eventTypes) || eventTypes.length === 0) {
       return NextResponse.json({ error: 'eventTypes requerido' }, { status: 400 })
+    }
+
+    const invalidTypes = eventTypes.filter((t) => !VALID_EVENT_TYPES.includes(t))
+    if (invalidTypes.length > 0) {
+      return NextResponse.json({ error: 'eventTypes inválidos' }, { status: 400 })
     }
 
     // IP from forwarded header (informational only; never used for authz)

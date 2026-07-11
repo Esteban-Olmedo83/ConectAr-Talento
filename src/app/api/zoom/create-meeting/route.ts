@@ -96,11 +96,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body = await request.json() as CreateMeetingRequest
 
+  const topic = (body.topic ?? 'Entrevista').slice(0, 200)
+  const duration = Number.isInteger(body.duration) && body.duration! >= 5 && body.duration! <= 480
+    ? body.duration!
+    : 60
+  const startTime = body.startTime && !isNaN(Date.parse(body.startTime))
+    ? body.startTime
+    : new Date().toISOString()
+
   const meetingPayload = {
-    topic: body.topic ?? 'Entrevista',
+    topic,
     type: 2,
-    start_time: body.startTime ?? new Date().toISOString(),
-    duration: body.duration ?? 60,
+    start_time: startTime,
+    duration,
     settings: {
       host_video: true,
       participant_video: true,
