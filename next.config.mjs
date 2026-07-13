@@ -14,7 +14,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.sentry-cdn.com https://browser.sentry-cdn.com",
+      "script-src 'self' https://js.sentry-cdn.com https://browser.sentry-cdn.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com",
       "font-src 'self'",
