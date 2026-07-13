@@ -24,11 +24,16 @@ async function createDriveFolder(accessToken: string, name: string, userId?: str
 
     if (!res.ok) {
       const errorMsg = data.error?.message || `HTTP ${res.status}`
-      console.error(`[Google Drive] Failed to create folder: ${errorMsg}`)
+      const errorDetail = {
+        status: res.status,
+        error: errorMsg,
+        fullResponse: data,
+      }
+      console.error(`[Google Drive] Failed to create folder:`, errorDetail)
       if (userId) {
         await logError({
           endpoint: '/api/oauth/google/callback',
-          error: new Error(`createDriveFolder failed: ${errorMsg}`),
+          error: new Error(`createDriveFolder failed (${res.status}): ${errorMsg}`),
           userId,
         })
       }
@@ -79,11 +84,16 @@ async function createSheetsFile(accessToken: string, name: string, folderId: str
 
     if (!res.ok) {
       const errorMsg = data.error?.message || `HTTP ${res.status}`
-      console.error(`[Google Sheets] Failed to create file: ${errorMsg}`)
+      const errorDetail = {
+        status: res.status,
+        error: errorMsg,
+        fullResponse: data,
+      }
+      console.error(`[Google Sheets] Failed to create file:`, errorDetail)
       if (userId) {
         await logError({
           endpoint: '/api/oauth/google/callback',
-          error: new Error(`createSheetsFile failed: ${errorMsg}`),
+          error: new Error(`createSheetsFile failed (${res.status}): ${errorMsg}`),
           userId,
         })
       }
@@ -195,11 +205,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     accountEmail = profile.email
   }
 
-  const { data: tenantProfile } = await supabase
+  const { data: tenantProfile, error: profileError } = await supabase
     .from('profiles')
     .select('tenant_id, company_name, google_drive_folder_id')
     .eq('id', user.id)
     .single()
+
+  if (profileError) {
+    console.error(`[OAuth] Failed to fetch user profile:`, {
+      code: profileError.code,
+      message: profileError.message,
+      userId: user.id,
+    })
+    return NextResponse.redirect(new URL('/integrations?error=profile_fetch_failed', appUrl))
+  }
 
   const tenantId = tenantProfile?.tenant_id ?? user.id
   const tokenExpiresAt = tokens.expires_in
@@ -225,36 +244,86 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let sheetsId: string | null = null
   const updatePayload: Record<string, string | null> = {}
 
+  console.log(`[OAuth] Starting Google Drive/Sheets provisioning:`, {
+    userId: user.id,
+    existingFolderId: folderId,
+    companyName: tenantProfile?.company_name,
+  })
+
   // Only create folder if it doesn't exist
   if (!folderId) {
     const companyName = (tenantProfile?.company_name as string | null) ?? 'Mi Empresa'
+    console.log(`[OAuth] Creating Drive folder for: ${companyName}`)
     const folderResult = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`, user.id)
     if (folderResult.id) {
       folderId = folderResult.id
       updatePayload.google_drive_folder_id = folderId
-      console.log(`[OAuth] Drive folder created: ${folderId}`)
+      console.log(`[OAuth] Drive folder created successfully: ${folderId}`)
     } else {
-      console.warn(`[OAuth] Failed to create Drive folder: ${folderResult.error}`)
+      console.error(`[OAuth] Failed to create Drive folder:`, folderResult.error)
     }
+  } else {
+    console.log(`[OAuth] Drive folder already exists: ${folderId}`)
   }
 
   // Only create sheets if we have a folder (either existing or newly created)
   if (folderId) {
+    console.log(`[OAuth] Creating Sheets file in folder: ${folderId}`)
     const sheetsResult = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId, user.id)
     if (sheetsResult.id) {
       sheetsId = sheetsResult.id
       updatePayload.google_sheets_db_id = sheetsId
-      console.log(`[OAuth] Sheets file created: ${sheetsId}`)
+      console.log(`[OAuth] Sheets file created successfully: ${sheetsId}`)
     } else {
-      console.warn(`[OAuth] Failed to create Sheets file: ${sheetsResult.error}`)
+      console.error(`[OAuth] Failed to create Sheets file:`, sheetsResult.error)
       // Don't fail the entire flow — user can retry later
     }
+  } else {
+    console.warn(`[OAuth] No Drive folder available, skipping Sheets creation`)
   }
 
   // Only update profile if we have new values to set
   if (Object.keys(updatePayload).length > 0) {
-    await supabase.from('profiles').update(updatePayload).eq('id', user.id)
-    console.log(`[OAuth] Profile updated with Google Drive config`, updatePayload)
+    try {
+      const { data: updated, error: updateError } = await supabase
+        .from('profiles')
+        .update(updatePayload)
+        .eq('id', user.id)
+        .select()
+
+      if (updateError) {
+        console.error(`[OAuth] Supabase UPDATE error:`, {
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+        })
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error(`Supabase UPDATE failed: ${updateError.message}`),
+          userId: user.id,
+        })
+      } else if (!updated || updated.length === 0) {
+        console.warn(`[OAuth] UPDATE returned no rows. User ID: ${user.id}`)
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error(`UPDATE returned no rows for user ${user.id}`),
+          userId: user.id,
+        })
+      } else {
+        console.log(`[OAuth] Profile updated successfully with Google Drive config:`, {
+          userId: user.id,
+          payload: updatePayload,
+          updatedRow: updated[0],
+        })
+      }
+    } catch (err) {
+      console.error(`[OAuth] Exception updating profile:`, err)
+      await logError({
+        endpoint: '/api/oauth/google/callback',
+        error: err instanceof Error ? err : new Error(String(err)),
+        userId: user.id,
+      })
+    }
   } else {
     console.warn(`[OAuth] No Google Drive/Sheets resources were successfully created`)
   }
