@@ -34,8 +34,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.redirect(authUrl)
   response.cookies.set('oauth_state_meta', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true, // Always secure for OAuth state cookies
+    sameSite: 'none', // Allow cross-site cookies for OAuth redirect
     maxAge: 60 * 15,
     path: '/',
   })

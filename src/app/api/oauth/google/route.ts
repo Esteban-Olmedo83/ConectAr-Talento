@@ -31,7 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       'profile',
       'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/drive',
       'https://www.googleapis.com/auth/spreadsheets',
     ].join(' '),
     access_type: 'offline',
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.redirect(new URL(authUrl))
   response.cookies.set('oauth_state_google', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true, // Always secure for OAuth state cookies
+    sameSite: 'none', // Allow cross-site cookies for OAuth redirect from Google
     maxAge: 60 * 15,
     path: '/',
   })

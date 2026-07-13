@@ -1,35 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
+import { logError } from '@/app/api/_lib/error-logger'
 
 export const runtime = 'nodejs'
 
 // ─── Drive / Sheets helpers ────────────────────────────────────────────────────
 
-async function createDriveFolder(accessToken: string, name: string): Promise<string | null> {
-  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' }),
-  })
-  if (!res.ok) return null
-  const data = await res.json() as { id?: string }
-  return data.id ?? null
+interface DriveCreateResult {
+  id: string | null
+  error?: string
 }
 
-async function createSheetsFile(accessToken: string, name: string, folderId: string): Promise<string | null> {
-  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      mimeType: 'application/vnd.google-apps.spreadsheet',
-      parents: [folderId],
-    }),
-  })
-  if (!res.ok) return null
-  const data = await res.json() as { id?: string }
-  return data.id ?? null
+async function createDriveFolder(accessToken: string, name: string, userId?: string): Promise<DriveCreateResult> {
+  try {
+    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' }),
+    })
+
+    const data = await res.json() as { id?: string; error?: { message: string } }
+
+    if (!res.ok) {
+      const errorMsg = data.error?.message || `HTTP ${res.status}`
+      console.error(`[Google Drive] Failed to create folder: ${errorMsg}`)
+      if (userId) {
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error(`createDriveFolder failed: ${errorMsg}`),
+          userId,
+        })
+      }
+      return { id: null, error: errorMsg }
+    }
+
+    if (!data.id) {
+      console.error('[Google Drive] Created folder but no ID in response:', data)
+      if (userId) {
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error('createDriveFolder: No ID in response'),
+          userId,
+        })
+      }
+      return { id: null, error: 'No ID in response' }
+    }
+
+    console.log(`[Google Drive] Successfully created folder: ${data.id}`)
+    return { id: data.id }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    console.error(`[Google Drive] Exception creating folder: ${errorMsg}`)
+    if (userId) {
+      await logError({
+        endpoint: '/api/oauth/google/callback',
+        error: err,
+        userId,
+      })
+    }
+    return { id: null, error: errorMsg }
+  }
+}
+
+async function createSheetsFile(accessToken: string, name: string, folderId: string, userId?: string): Promise<DriveCreateResult> {
+  try {
+    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        parents: [folderId],
+      }),
+    })
+
+    const data = await res.json() as { id?: string; error?: { message: string } }
+
+    if (!res.ok) {
+      const errorMsg = data.error?.message || `HTTP ${res.status}`
+      console.error(`[Google Sheets] Failed to create file: ${errorMsg}`)
+      if (userId) {
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error(`createSheetsFile failed: ${errorMsg}`),
+          userId,
+        })
+      }
+      return { id: null, error: errorMsg }
+    }
+
+    if (!data.id) {
+      console.error('[Google Sheets] Created file but no ID in response:', data)
+      if (userId) {
+        await logError({
+          endpoint: '/api/oauth/google/callback',
+          error: new Error('createSheetsFile: No ID in response'),
+          userId,
+        })
+      }
+      return { id: null, error: 'No ID in response' }
+    }
+
+    console.log(`[Google Sheets] Successfully created spreadsheet: ${data.id}`)
+    return { id: data.id }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    console.error(`[Google Sheets] Exception creating file: ${errorMsg}`)
+    if (userId) {
+      await logError({
+        endpoint: '/api/oauth/google/callback',
+        error: err,
+        userId,
+      })
+    }
+    return { id: null, error: errorMsg }
+  }
 }
 
 // ─── Integration-only callback (C3: dead admin-login branch removed) ──────────
@@ -49,6 +135,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const storedState = request.cookies.get('oauth_state_google')?.value
   if (!state || !storedState || state !== storedState) {
+    console.error('[OAuth Google] State mismatch:', {
+      hasState: !!state,
+      hasStoredState: !!storedState,
+      stateMatch: state === storedState,
+      state: state?.substring(0, 20),
+      storedState: storedState?.substring(0, 20),
+      appUrl,
+    })
     return NextResponse.redirect(new URL('/integrations?error=google_state_mismatch', appUrl))
   }
 
@@ -129,18 +223,40 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Ensure both Drive folder and Sheets file exist (even if partially configured)
   let folderId = tenantProfile?.google_drive_folder_id ?? null
   let sheetsId: string | null = null
+  const updatePayload: Record<string, string | null> = {}
 
+  // Only create folder if it doesn't exist
   if (!folderId) {
     const companyName = (tenantProfile?.company_name as string | null) ?? 'Mi Empresa'
-    folderId = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`)
+    const folderResult = await createDriveFolder(tokens.access_token, `ConectAr Talento - ${companyName}`, user.id)
+    if (folderResult.id) {
+      folderId = folderResult.id
+      updatePayload.google_drive_folder_id = folderId
+      console.log(`[OAuth] Drive folder created: ${folderId}`)
+    } else {
+      console.warn(`[OAuth] Failed to create Drive folder: ${folderResult.error}`)
+    }
   }
 
+  // Only create sheets if we have a folder (either existing or newly created)
   if (folderId) {
-    sheetsId = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId)
-    await supabase.from('profiles').update({
-      google_drive_folder_id: folderId,
-      google_sheets_db_id: sheetsId ?? null,
-    }).eq('id', user.id)
+    const sheetsResult = await createSheetsFile(tokens.access_token, 'Base de Datos - ConectAr Talento', folderId, user.id)
+    if (sheetsResult.id) {
+      sheetsId = sheetsResult.id
+      updatePayload.google_sheets_db_id = sheetsId
+      console.log(`[OAuth] Sheets file created: ${sheetsId}`)
+    } else {
+      console.warn(`[OAuth] Failed to create Sheets file: ${sheetsResult.error}`)
+      // Don't fail the entire flow — user can retry later
+    }
+  }
+
+  // Only update profile if we have new values to set
+  if (Object.keys(updatePayload).length > 0) {
+    await supabase.from('profiles').update(updatePayload).eq('id', user.id)
+    console.log(`[OAuth] Profile updated with Google Drive config`, updatePayload)
+  } else {
+    console.warn(`[OAuth] No Google Drive/Sheets resources were successfully created`)
   }
 
   const response = NextResponse.redirect(new URL('/integrations?connected=gmail', appUrl))
