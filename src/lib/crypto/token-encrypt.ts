@@ -26,7 +26,8 @@ export function encryptToken(plaintext: string): string {
 
 export function decryptToken(value: string): string {
   if (!value.startsWith(ENC_PREFIX)) {
-    throw new Error('Invalid token format: expected encrypted token with enc: prefix')
+    // Backward compat: tokens stored before encryption was introduced are plaintext
+    return value
   }
   const key = getKey()
   const parts = value.slice(ENC_PREFIX.length).split(':')
