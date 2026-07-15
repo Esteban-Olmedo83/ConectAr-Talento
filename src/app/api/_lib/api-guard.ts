@@ -5,13 +5,14 @@ import { createClient } from '@/lib/supabase/server'
 // Upstash Redis client for distributed rate limiting
 let redisClient: Redis | null = null
 
-function getRedisClient(): Redis {
+function getRedisClient(): Redis | null {
   if (!redisClient) {
     const url = process.env.UPSTASH_REDIS_REST_URL
     const token = process.env.UPSTASH_REDIS_REST_TOKEN
 
     if (!url || !token) {
-      throw new Error('Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN environment variables')
+      console.warn('UPSTASH_REDIS_REST_URL/TOKEN not configured — rate limiting degraded to fail-open')
+      return null
     }
 
     redisClient = new Redis({ url, token })
@@ -32,6 +33,7 @@ const WINDOW_MS = 60_000 // 1 minute
 async function isRateLimited(userId: string, endpoint: string, isPaidPlan: boolean): Promise<boolean> {
   try {
     const redis = getRedisClient()
+    if (!redis) return false // degraded: allow when Redis not configured
     const key = `rate-limit:${userId}:${endpoint}`
     const now = Date.now()
 
