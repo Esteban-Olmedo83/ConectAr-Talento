@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 // H1 FIX: fail closed if ADMIN_EMAIL is not configured; no hardcoded fallback
@@ -10,12 +11,14 @@ export async function requireAdmin() {
     return { user: null, supabase: null, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
 
   if (!user || user.email !== ADMIN_EMAIL) {
     return { user: null, supabase: null, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
-  return { user, supabase, response: null }
+  // Use service_role client so admin RPCs run with elevated privileges.
+  // This allows revoking EXECUTE from the 'authenticated' role on admin functions.
+  return { user, supabase: createAdminClient(), response: null }
 }
