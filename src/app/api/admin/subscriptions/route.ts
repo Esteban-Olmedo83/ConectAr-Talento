@@ -13,7 +13,10 @@ export async function GET() {
     adminClient.from('profiles').select('id, tenant_id, full_name, company_name, plan'),
   ])
 
-  if (subsRes.error) return NextResponse.json({ error: subsRes.error.message }, { status: 500 })
+  if (subsRes.error) {
+    console.error('[admin/subscriptions] GET failed:', subsRes.error)
+    return NextResponse.json({ error: 'No se pudieron obtener las suscripciones.' }, { status: 500 })
+  }
 
   type Profile = { id: string; tenant_id: string; full_name: string; company_name: string; plan: string }
   const profileList: Profile[] = profilesRes.data ?? []
@@ -56,7 +59,10 @@ export async function PATCH(request: NextRequest) {
       .from('profiles')
       .update({ plan: body.plan, updated_at: new Date().toISOString() })
       .eq('tenant_id', body.tenantId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[admin/subscriptions] PATCH plan update failed:', error)
+      return NextResponse.json({ error: 'No se pudo actualizar el plan.' }, { status: 500 })
+    }
 
     await adminClient
       .from('subscriptions')

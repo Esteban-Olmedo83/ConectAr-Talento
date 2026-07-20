@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
   if (entityType) query = query.eq('entity_type', entityType)
 
   const { data: logs, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/activity] query failed:', error)
+    return NextResponse.json({ error: 'No se pudo obtener el registro de actividad.' }, { status: 500 })
+  }
 
   const rows = (logs ?? []).map(l => {
     const userProfile = l.user_id ? profileMap.get(l.user_id) : null

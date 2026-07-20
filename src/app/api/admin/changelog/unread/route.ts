@@ -34,7 +34,8 @@ export async function GET() {
     .order('published_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[changelog/unread] GET failed:', error)
+    return NextResponse.json({ error: 'No se pudieron obtener las novedades.' }, { status: 500 })
   }
 
   if (!updates || updates.length === 0) {
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
 
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[changelog/unread] POST failed:', error)
+    return NextResponse.json({ error: 'No se pudieron marcar como leídas.' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

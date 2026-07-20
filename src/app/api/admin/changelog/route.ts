@@ -6,7 +6,10 @@ export async function GET() {
   if (response || !supabase) return response!
 
   const { data, error } = await supabase.rpc('admin_get_changelog')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/changelog] GET failed:', error)
+    return NextResponse.json({ error: 'No se pudo obtener el changelog.' }, { status: 500 })
+  }
 
   return NextResponse.json({ updates: data ?? [] })
 }
@@ -28,7 +31,10 @@ export async function POST(request: NextRequest) {
     p_type: body.type,
     p_target_tenant: body.target_tenant_id ?? null,
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/changelog] POST failed:', error)
+    return NextResponse.json({ error: 'No se pudo crear la novedad.' }, { status: 500 })
+  }
 
   return NextResponse.json({ update: data }, { status: 201 })
 }
@@ -51,7 +57,10 @@ export async function PATCH(request: NextRequest) {
     p_target_tenant: body.target_tenant_id ?? null,
     p_is_published: body.is_published ?? null,
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/changelog] PATCH failed:', error)
+    return NextResponse.json({ error: 'No se pudo actualizar la novedad.' }, { status: 500 })
+  }
 
   return NextResponse.json({ update: data })
 }
@@ -65,7 +74,10 @@ export async function DELETE(request: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id query param is required' }, { status: 400 })
 
   const { error } = await supabase.rpc('admin_delete_changelog', { p_id: id })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/changelog] DELETE failed:', error)
+    return NextResponse.json({ error: 'No se pudo eliminar la novedad.' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

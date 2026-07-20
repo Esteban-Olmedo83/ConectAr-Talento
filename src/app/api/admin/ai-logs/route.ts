@@ -45,7 +45,10 @@ export async function GET(request: NextRequest) {
   if (route) query = query.eq('route', route)
 
   const { data: logs, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/ai-logs] query failed:', error)
+    return NextResponse.json({ error: 'No se pudieron obtener los registros de uso de IA.' }, { status: 500 })
+  }
 
   const rows = (logs ?? []).map(l => {
     const profile = profileMap.get(l.user_id)
