@@ -14,7 +14,10 @@ export async function GET(
   const { data, error } = await supabase.rpc('admin_get_tenant_detail', {
     p_tenant_id: id,
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/tenants/[id]] GET failed:', error)
+    return NextResponse.json({ error: 'No se pudo obtener el detalle del tenant.' }, { status: 500 })
+  }
   if (!data) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
 
   return NextResponse.json(data)
@@ -60,7 +63,10 @@ export async function PATCH(
       .from('profiles')
       .update({ plan: body.plan, updated_at: new Date().toISOString() })
       .eq('tenant_id', tenantId)
-    if (planErr) return NextResponse.json({ error: planErr.message }, { status: 500 })
+    if (planErr) {
+      console.error('[admin/tenants/[id]] PATCH plan update failed:', planErr)
+      return NextResponse.json({ error: 'No se pudo actualizar el plan.' }, { status: 500 })
+    }
   }
 
   // Upsert tenant_billing record
@@ -80,7 +86,10 @@ export async function PATCH(
     .from('tenant_billing')
     .upsert(billingData, { onConflict: 'tenant_id' })
 
-  if (billingErr) return NextResponse.json({ error: billingErr.message }, { status: 500 })
+  if (billingErr) {
+    console.error('[admin/tenants/[id]] PATCH billing upsert failed:', billingErr)
+    return NextResponse.json({ error: 'No se pudo actualizar la información de facturación.' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

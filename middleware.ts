@@ -22,6 +22,16 @@ const AUTH_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password']
 // Estas rutas requieren sesión activa pero no son parte de la app protegida
 const PASSWORD_RESET_PATHS = ['/reset-password']
 
+// CSRF (defense in depth): las rutas API que autentican vía cookie de sesión
+// son vulnerables a que una página maliciosa dispare un POST/PUT/PATCH/DELETE
+// aprovechando que el navegador manda la cookie automáticamente. El navegador
+// no permite que JS falsifique el header Origin, así que si viene presente y
+// no coincide con el origin real de la request, se rechaza. Si viene ausente
+// (webhooks server-to-server como Stripe, clientes no-browser) se deja pasar:
+// esos no dependen de cookies para autenticarse, así que no son vulnerables a
+// CSRF en primer lugar.
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
 function buildCsp(nonce: string): string {
   // En dev, Next necesita 'unsafe-eval' para el refresh/HMR basado en eval-source-map.
   // En producción no hace falta: se usa nonce + strict-dynamic para scripts propios y
@@ -45,6 +55,18 @@ function buildCsp(nonce: string): string {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  if (pathname.startsWith('/api/')) {
+    if (MUTATING_METHODS.has(request.method)) {
+      const origin = request.headers.get('origin')
+      if (origin && origin !== request.nextUrl.origin) {
+        return NextResponse.json({ error: 'Origin no autorizado' }, { status: 403 })
+      }
+    }
+    return NextResponse.next()
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const csp = buildCsp(nonce)
 
@@ -79,8 +101,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
 
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
@@ -120,5 +140,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|api/).*)',
+    '/api/:path*',
   ],
 }

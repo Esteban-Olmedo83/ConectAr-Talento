@@ -6,7 +6,10 @@ export async function GET() {
   if (response || !supabase) return response!
 
   const { data, error } = await supabase.rpc('admin_get_tenants')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/tenants] GET failed:', error)
+    return NextResponse.json({ error: 'No se pudieron obtener los tenants.' }, { status: 500 })
+  }
 
   return NextResponse.json({ tenants: data ?? [] })
 }
@@ -24,7 +27,10 @@ export async function PATCH(request: NextRequest) {
     p_tenant_id: body.tenantId,
     p_plan: body.plan,
   })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[admin/tenants] PATCH failed:', error)
+    return NextResponse.json({ error: 'No se pudo actualizar el plan del tenant.' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
