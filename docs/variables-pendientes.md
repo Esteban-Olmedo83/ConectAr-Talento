@@ -10,7 +10,7 @@
 ### Sentry (monitoreo de errores)
 | Variable | Valor |
 |---|---|
-| `NEXT_PUBLIC_SENTRY_DSN` | `https://b1afb492df79fc36a0218a9307abfbe7@o4511493471928320.ingest.us.sentry.io/4511493496176640` |
+| `NEXT_PUBLIC_SENTRY_DSN` | `https://bf181865feabbd44c7e6874220dd3ab4@o4511493471928320.ingest.us.sentry.io/4511622264389632` |
 
 ---
 
