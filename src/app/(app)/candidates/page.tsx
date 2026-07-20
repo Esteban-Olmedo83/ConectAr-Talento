@@ -163,15 +163,7 @@ function ViewProfileDialog({ candidate: candidateProp, open, onClose, onUpdate, 
       const formData = new FormData()
       formData.append('file', file)
       formData.append('vacancyRequirements', JSON.stringify([]))
-      const aiHeaders: Record<string, string> = {}
-      try {
-        const raw = localStorage.getItem('ct_ai_config')
-        if (raw) {
-          const cfg = JSON.parse(raw) as { apiKey?: string }
-          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
-        }
-      } catch { /* noop */ }
-      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData, headers: aiHeaders })
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData })
       const data = await res.json() as { ok?: boolean; cvUrl?: string; cvFileName?: string; avatarUrl?: string; error?: string }
       if (!res.ok || !data.ok) { console.error(data.error); return }
       const patch: { cvUrl?: string; cvFileName?: string; avatarUrl?: string } = {
@@ -1288,16 +1280,7 @@ function CvDropZone({ vacancies, clients, onCandidateAdded, onLimitReached }: { 
       formData.append('file', file)
       formData.append('vacancyRequirements', JSON.stringify([]))
 
-      const aiHeaders: Record<string, string> = {}
-      try {
-        const raw = localStorage.getItem('ct_ai_config')
-        if (raw) {
-          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
-          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
-        }
-      } catch { /* noop */ }
-
-      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData, headers: aiHeaders })
+      const res = await fetch('/api/upload/cv', { method: 'POST', body: formData })
       const data = await res.json()
 
       if (!res.ok || !data.ok) {

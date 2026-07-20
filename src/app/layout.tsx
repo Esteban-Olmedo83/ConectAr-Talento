@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { DM_Sans, Nunito } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -114,11 +115,13 @@ const jsonLd = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
   return (
     <html
       lang="es"
@@ -127,10 +130,11 @@ export default function RootLayout({
       <body className="min-h-full">
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <Analytics />
-        <CrispChat />
+        <Analytics nonce={nonce} />
+        <CrispChat nonce={nonce} />
         <CookieBanner />
         <ThemeProvider>{children}</ThemeProvider>
       </body>

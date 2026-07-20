@@ -312,18 +312,6 @@ function SendModal({
   async function handleGenerateAI() {
     setGeneratingAI(true)
     try {
-      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
-      try {
-        const raw = localStorage.getItem('ct_ai_config')
-        if (raw) {
-          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
-          if (cfg.apiKey) {
-            aiHeaders['x-ai-api-key'] = cfg.apiKey
-            aiHeaders['x-ai-provider'] = cfg.provider ?? 'groq'
-          }
-        }
-      } catch { /* noop */ }
-
       const context = [
         values.vacante ? `Vacante: ${values.vacante}` : '',
         values.nombre_candidato ? `Candidato: ${values.nombre_candidato}` : '',
@@ -333,7 +321,7 @@ function SendModal({
 
       const res = await fetch('/api/ai/generate-message', {
         method: 'POST',
-        headers: aiHeaders,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ context, type: 'mensaje_adicional' }),
       })
       if (res.ok) {

@@ -145,18 +145,9 @@ function VacancyFormDialog({
     if (!form.title) return
     setGenerating(true)
     try {
-      const aiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
-      try {
-        const raw = localStorage.getItem('ct_ai_config')
-        if (raw) {
-          const cfg = JSON.parse(raw) as { provider?: string; apiKey?: string }
-          if (cfg.apiKey) aiHeaders['x-ai-api-key'] = cfg.apiKey
-        }
-      } catch { /* noop */ }
-
       const res = await fetch('/api/ai/generate-jd', {
         method: 'POST',
-        headers: aiHeaders,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
           department: form.department,

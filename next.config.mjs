@@ -10,20 +10,8 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=63072000; includeSubDomains; preload',
   },
-  {
-    key: 'Content-Security-Policy',
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.sentry-cdn.com https://browser.sentry-cdn.com https://www.googletagmanager.com https://client.crisp.chat",
-      "style-src 'self' 'unsafe-inline' https://client.crisp.chat",
-      "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://www.google-analytics.com https://image.crisp.chat",
-      "font-src 'self' https://client.crisp.chat",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://sentry.io https://o*.ingest.sentry.io https://ingest.sentry.io https://www.google-analytics.com https://*.analytics.google.com https://region1.analytics.google.com wss://client.relay.crisp.chat https://client.crisp.chat",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join('; '),
-  },
+  // Content-Security-Policy se genera por request en middleware.ts (necesita un
+  // nonce distinto en cada respuesta para poder sacar 'unsafe-inline'/'unsafe-eval').
 ]
 
 /** @type {import('next').NextConfig} */

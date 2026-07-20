@@ -4,11 +4,11 @@ import Script from 'next/script'
 
 const CRISP_ID = process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID
 
-export function CrispChat() {
+export function CrispChat({ nonce }: { nonce?: string }) {
   if (!CRISP_ID || process.env.NODE_ENV !== 'production') return null
 
   return (
-    <Script id="crisp-chat" strategy="afterInteractive">
+    <Script id="crisp-chat" strategy="afterInteractive" nonce={nonce}>
       {`
         window.$crisp = [];
         window.CRISP_WEBSITE_ID = "${CRISP_ID}";
