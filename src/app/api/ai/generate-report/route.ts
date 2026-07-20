@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Recommendation } from '@/types'
 import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { logAiUsage } from '@/lib/ai/log-usage'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
 
 interface GenerateReportRequest {
   overallRating: 1 | 2 | 3 | 4 | 5
@@ -60,11 +61,11 @@ Recomendación del entrevistador: ${recommendationLabels[scorecard.recommendatio
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const auth = await requireAuthWithRateLimit('generate-report')
+    if (auth instanceof NextResponse) return auth
+    const user = { id: auth.userId }
+
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
     const { data: profile } = await supabase
       .from('profiles')
       .select('groq_api_key, plan, tenant_id')

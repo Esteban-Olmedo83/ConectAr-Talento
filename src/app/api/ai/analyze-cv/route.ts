@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { extractCvText } from '@/lib/cv/extract-text'
 import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
 import { logError } from '@/app/api/_lib/error-logger'
+import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
@@ -324,7 +325,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'El texto del CV es demasiado corto o está vacío.' }, { status: 400 })
     }
 
-    const apiKey = request.headers.get('x-ai-api-key') || process.env.GROQ_API_KEY
+    const supabase = await createClient()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('groq_api_key')
+      .eq('id', auth.userId)
+      .single()
+    const apiKey = (profile?.groq_api_key as string | null) || process.env.GROQ_API_KEY
     if (!apiKey) {
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }

@@ -758,14 +758,8 @@ const IA_OPTIONS: IAOption[] = [
   },
 ]
 
-interface AIConfig {
-  provider: IAProvider
-  apiKey: string
-}
-
 function ConexionIAsTab() {
   const { user } = useUser()
-  const aiConfigKey = user?.id ? `u_${user.id}_ai_config` : 'ct_ai_config'
 
   const [selected, setSelected] = React.useState<IAProvider>('groq')
   const [apiKey, setApiKey] = React.useState('')
@@ -775,56 +769,32 @@ function ConexionIAsTab() {
   const [testing, setTesting] = React.useState(false)
   const [testResult, setTestResult] = React.useState<{ ok: boolean; message: string } | null>(null)
 
-  // Cargar desde Supabase (contexto de usuario) primero, luego localStorage
+  // La API key vive únicamente en el perfil (Supabase); nunca se persiste
+  // en el cliente (localStorage) para que no quede expuesta ante un XSS.
   React.useEffect(() => {
     if (user?.groqApiKey) {
       setSelected((user.aiProvider as IAProvider) || 'groq')
       setApiKey(user.groqApiKey)
       setHasSavedKey(true)
-      // Sincronizar a localStorage con clave del usuario
-      try {
-        localStorage.setItem(aiConfigKey, JSON.stringify({ provider: user.aiProvider || 'groq', apiKey: user.groqApiKey }))
-      } catch { /* noop */ }
-      return
     }
-    try {
-      const raw = localStorage.getItem(aiConfigKey)
-      if (raw) {
-        const config = JSON.parse(raw) as AIConfig
-        setSelected(config.provider || 'groq')
-        setApiKey(config.apiKey || '')
-        setHasSavedKey(!!config.apiKey)
-      }
-    } catch { /* noop */ }
-  }, [user?.groqApiKey, user?.aiProvider, aiConfigKey])
+  }, [user?.groqApiKey, user?.aiProvider])
 
   function handleSelectIA(id: IAProvider) {
     setSelected(id)
     setSaved(false)
     setTestResult(null)
-    // Cargar la clave guardada para este proveedor si existe
-    try {
-      const raw = localStorage.getItem(aiConfigKey)
-      if (raw) {
-        const config = JSON.parse(raw) as AIConfig
-        if (config.provider === id) {
-          setApiKey(config.apiKey || '')
-          setHasSavedKey(!!config.apiKey)
-        } else {
-          setApiKey('')
-          setHasSavedKey(false)
-        }
-      } else {
-        setApiKey('')
-        setHasSavedKey(false)
-      }
-    } catch { /* noop */ }
+    // Sin storage persistido en el cliente: solo se conserva la key visible
+    // si coincide con el proveedor ya guardado en el perfil.
+    if (user?.groqApiKey && ((user.aiProvider as IAProvider) || 'groq') === id) {
+      setApiKey(user.groqApiKey)
+      setHasSavedKey(true)
+    } else {
+      setApiKey('')
+      setHasSavedKey(false)
+    }
   }
 
   async function handleSaveKey() {
-    // Guardar en localStorage inmediatamente con clave del usuario
-    const config: AIConfig = { provider: selected, apiKey }
-    try { localStorage.setItem(aiConfigKey, JSON.stringify(config)) } catch { /* noop */ }
     setTestResult(null)
 
     // Save to Supabase
