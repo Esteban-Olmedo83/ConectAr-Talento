@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { logAiUsage } from '@/lib/ai/log-usage'
+import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const auth = await requireAuthWithRateLimit('generate-message')
+    if (auth instanceof NextResponse) return auth
+    const user = { id: auth.userId }
+
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
     const { data: profile } = await supabase
       .from('profiles')
       .select('groq_api_key, plan, tenant_id')
