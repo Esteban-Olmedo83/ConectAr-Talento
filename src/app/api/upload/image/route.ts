@@ -67,7 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (uploadErr) {
       console.error('[upload-image]', uploadErr)
-      return NextResponse.json({ error: 'Error al subir la imagen: ' + uploadErr.message }, { status: 500 })
+      return NextResponse.json({ error: 'No se pudo subir la imagen.' }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true, url: path })
