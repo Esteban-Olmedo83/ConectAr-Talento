@@ -7,7 +7,7 @@ import {
   Archive, Rocket, MoreVertical, Globe, UserPlus, Check, X, Loader2,
   FileText, Calendar, AlertTriangle,
 } from 'lucide-react'
-import { cn, formatRelativeDate, generateId } from '@/lib/utils'
+import { cn, formatRelativeDate, generateId, escapeHtml } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -395,7 +395,7 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid ${stageColor}55;">
               <div style="width:10px;height:10px;border-radius:50%;background:${stageColor};flex-shrink:0;"></div>
               <h3 style="font-size:13px;font-weight:700;color:${stageColor};text-transform:uppercase;letter-spacing:0.06em;margin:0;">
-                ${stage} — ${byStage[stage].length} candidato${byStage[stage].length !== 1 ? 's' : ''}
+                ${escapeHtml(stage)} — ${byStage[stage].length} candidato${byStage[stage].length !== 1 ? 's' : ''}
               </h3>
             </div>
             ${byStage[stage].map(app => {
@@ -406,12 +406,12 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
                 <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;">
                   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;">
                     <div>
-                      <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${c.fullName}</p>
-                      <p style="font-size:12px;color:#6b7280;margin:3px 0 0;">${c.email}${c.phone ? ' · ' + c.phone : ''}</p>
+                      <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${escapeHtml(c.fullName)}</p>
+                      <p style="font-size:12px;color:#6b7280;margin:3px 0 0;">${escapeHtml(c.email)}${c.phone ? ' · ' + escapeHtml(c.phone) : ''}</p>
                     </div>
                     ${c.atsScore ? `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;background:${scoreColorUI(c.atsScore)}22;color:${scoreColorUI(c.atsScore)};white-space:nowrap;flex-shrink:0;">${c.atsScore} pts</span>` : ''}
                   </div>
-                  ${c.skills?.length ? `<p style="font-size:11px;color:#6b7280;margin:4px 0;">Skills: ${c.skills.join(', ')}</p>` : ''}
+                  ${c.skills?.length ? `<p style="font-size:11px;color:#6b7280;margin:4px 0;">Skills: ${escapeHtml(c.skills.join(', '))}</p>` : ''}
                   <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">
                     Ingreso: ${new Date(app.appliedAt).toLocaleDateString('es-AR')} · Actualizado: ${new Date(app.updatedAt).toLocaleDateString('es-AR')}
                   </p>
@@ -420,11 +420,11 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
                       <p style="font-size:11px;font-weight:600;color:#a78bfa;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 6px;">Entrevistas</p>
                       ${cInterviews.map(i => `
                         <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:4px;">
-                          <span style="color:#a78bfa;font-weight:600;">${i.type}</span>
-                          <span>·</span><span>${i.meetingPlatform}</span>
+                          <span style="color:#a78bfa;font-weight:600;">${escapeHtml(i.type)}</span>
+                          <span>·</span><span>${escapeHtml(i.meetingPlatform)}</span>
                           <span>·</span><span>${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                          ${i.interviewerName ? `<span>· <strong>${i.interviewerName}</strong></span>` : ''}
-                          ${i.notes ? `<br/><span style="color:#9ca3af;padding-left:4px;">Nota: "${i.notes}"</span>` : ''}
+                          ${i.interviewerName ? `<span>· <strong>${escapeHtml(i.interviewerName)}</strong></span>` : ''}
+                          ${i.notes ? `<br/><span style="color:#9ca3af;padding-left:4px;">Nota: &quot;${escapeHtml(i.notes)}&quot;</span>` : ''}
                         </div>
                       `).join('')}
                     </div>
@@ -440,7 +440,7 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <title>Informe de Proceso — ${vacancy.title}</title>
+  <title>Informe de Proceso — ${escapeHtml(vacancy.title)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
@@ -450,9 +450,9 @@ function VacancyProcessSummaryModal({ vacancy, onClose }: {
 <body>
   <div style="background:linear-gradient(135deg,#5D50D6,#8B7EFF);padding:28px 32px;border-radius:14px;margin-bottom:28px;color:#fff;">
     <p style="font-size:11px;font-weight:600;opacity:0.65;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Informe de Proceso de Selección</p>
-    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${vacancy.title}</h1>
-    ${vacancy.client?.name ? `<p style="font-size:15px;opacity:0.85;margin-bottom:4px;">${vacancy.client.name}</p>` : ''}
-    <p style="font-size:13px;opacity:0.65;">${vacancy.department} · ${vacancy.modality}${vacancy.location ? ' · ' + vacancy.location : ''}</p>
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${escapeHtml(vacancy.title)}</h1>
+    ${vacancy.client?.name ? `<p style="font-size:15px;opacity:0.85;margin-bottom:4px;">${escapeHtml(vacancy.client.name)}</p>` : ''}
+    <p style="font-size:13px;opacity:0.65;">${escapeHtml(vacancy.department)} · ${escapeHtml(vacancy.modality)}${vacancy.location ? ' · ' + escapeHtml(vacancy.location) : ''}</p>
     <div style="display:flex;gap:24px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);">
       <div><p style="font-size:22px;font-weight:800;">${apps.length}</p><p style="font-size:11px;opacity:0.65;">Candidatos totales</p></div>
       <div><p style="font-size:22px;font-weight:800;color:#86efac;">${apps.filter(a => a.status === 'Contratado').length}</p><p style="font-size:11px;opacity:0.65;">Contratados</p></div>

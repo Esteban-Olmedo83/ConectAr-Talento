@@ -7,7 +7,7 @@ import { DraggableModal } from '@/components/ui/draggable-modal'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
-import { getInitials, formatRelativeDate } from '@/lib/utils'
+import { getInitials, formatRelativeDate, escapeHtml } from '@/lib/utils'
 import { StorageImg } from '@/components/ui/storage-img'
 import { StorageLink } from '@/components/ui/storage-link'
 import type { Candidate, Application, Vacancy, Client, VacancyStatus, Interview, RejectionReason } from '@/types'
@@ -188,10 +188,10 @@ function ProcessHistoryModal({
             <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
                 <div>
-                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${vacTitle}</p>
-                  ${vacClientName ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${vacClientName}</p>` : ''}
+                  <p style="font-size:15px;font-weight:700;color:#111827;margin:0;">${escapeHtml(vacTitle)}</p>
+                  ${vacClientName ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${escapeHtml(vacClientName)}</p>` : ''}
                 </div>
-                <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:${stageColor}22;color:${stageColor};white-space:nowrap;flex-shrink:0;border:1px solid ${stageColor}44;">${a.status}</span>
+                <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:${stageColor}22;color:${stageColor};white-space:nowrap;flex-shrink:0;border:1px solid ${stageColor}44;">${escapeHtml(a.status)}</span>
               </div>
               <p style="font-size:11px;color:#9ca3af;margin:0 0 12px;">
                 Ingreso: ${new Date(a.appliedAt).toLocaleDateString('es-AR')} · Última actualización: ${new Date(a.updatedAt).toLocaleDateString('es-AR')}
@@ -201,13 +201,13 @@ function ProcessHistoryModal({
                   <p style="font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Entrevistas</p>
                   ${appInterviews.map(i => `
                     <div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;color:#374151;margin-bottom:6px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;">
-                      <span style="color:#7c3aed;font-weight:600;">${i.type}</span>
+                      <span style="color:#7c3aed;font-weight:600;">${escapeHtml(i.type)}</span>
                       <span style="color:#9ca3af;">|</span>
-                      <span>${i.meetingPlatform}</span>
+                      <span>${escapeHtml(i.meetingPlatform)}</span>
                       <span style="color:#9ca3af;">|</span>
                       <span>${new Date(i.scheduledAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                      ${i.interviewerName ? `<span style="color:#9ca3af;">|</span><span>${i.interviewerName}</span>` : ''}
-                      ${i.notes ? `<br/><span style="color:#9ca3af;font-size:11px;font-style:italic;">Nota: "${i.notes}"</span>` : ''}
+                      ${i.interviewerName ? `<span style="color:#9ca3af;">|</span><span>${escapeHtml(i.interviewerName)}</span>` : ''}
+                      ${i.notes ? `<br/><span style="color:#9ca3af;font-size:11px;font-style:italic;">Nota: &quot;${escapeHtml(i.notes)}&quot;</span>` : ''}
                     </div>
                   `).join('')}
                 </div>
@@ -220,7 +220,7 @@ function ProcessHistoryModal({
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <title>Informe de Proceso — ${candidate.fullName}</title>
+  <title>Informe de Proceso — ${escapeHtml(candidate.fullName)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
@@ -230,8 +230,8 @@ function ProcessHistoryModal({
 <body>
   <div style="background:linear-gradient(135deg,#5D50D6,#8B7EFF);padding:28px 32px;border-radius:14px;margin-bottom:28px;color:#fff;">
     <p style="font-size:11px;font-weight:600;opacity:0.65;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Informe de Proceso de Selección</p>
-    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${candidate.fullName}</h1>
-    <p style="font-size:14px;opacity:0.8;margin-bottom:2px;">${candidate.email}${candidate.phone ? ' · ' + candidate.phone : ''}</p>
+    <h1 style="font-size:26px;font-weight:800;margin-bottom:6px;">${escapeHtml(candidate.fullName)}</h1>
+    <p style="font-size:14px;opacity:0.8;margin-bottom:2px;">${escapeHtml(candidate.email)}${candidate.phone ? ' · ' + escapeHtml(candidate.phone) : ''}</p>
     <div style="display:flex;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);flex-wrap:wrap;">
       ${candidate.atsScore ? `<div><p style="font-size:20px;font-weight:800;color:${scoreColor(candidate.atsScore)};">${candidate.atsScore}</p><p style="font-size:11px;opacity:0.65;">ATS Score</p></div>` : ''}
       <div><p style="font-size:20px;font-weight:800;">${sortedApps.length}</p><p style="font-size:11px;opacity:0.65;">Proceso${sortedApps.length !== 1 ? 's' : ''}</p></div>
@@ -244,7 +244,7 @@ function ProcessHistoryModal({
   <div style="margin-bottom:24px;">
     <p style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Skills</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${candidate.skills.map(s => `<span style="font-size:12px;padding:3px 10px;border-radius:99px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;">${s}</span>`).join('')}
+      ${candidate.skills.map(s => `<span style="font-size:12px;padding:3px 10px;border-radius:99px;background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;">${escapeHtml(s)}</span>`).join('')}
     </div>
   </div>` : ''}
 

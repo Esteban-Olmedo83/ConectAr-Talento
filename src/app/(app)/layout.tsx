@@ -99,7 +99,7 @@ function AppRouteLayoutInner({ children }: { children: React.ReactNode }) {
           googleDriveFolderId: profile.google_drive_folder_id ?? undefined,
           googleSheetsDbId: profile.google_sheets_db_id ?? undefined,
           createdAt: profile.created_at,
-          groqApiKey: profile.groq_api_key ?? undefined,
+          groqApiKey: profile.groq_api_key ? '••••' + profile.groq_api_key.slice(-4) : undefined,
           aiProvider: profile.ai_provider ?? 'groq',
         }
         setUser(loadedUser)

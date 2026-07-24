@@ -797,6 +797,13 @@ function ConexionIAsTab() {
   async function handleSaveKey() {
     setTestResult(null)
 
+    // Don't overwrite with the server-masked placeholder (••••XXXX)
+    if (apiKey.startsWith('••••')) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+      return
+    }
+
     // Save to Supabase
     try {
       const supabase = createClient()
@@ -827,28 +834,9 @@ function ConexionIAsTab() {
     setTestResult(null)
     try {
       if (selected === 'groq') {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: 'Di hola en una palabra.' }],
-            max_tokens: 10,
-          }),
-        })
-        const data = await res.json()
-        if (res.ok && data.choices?.[0]?.message?.content) {
-          setTestResult({ ok: true, message: `Conexión exitosa con Groq · Llama 3.3 70B. Respuesta: "${data.choices[0].message.content.trim()}"` })
-        } else {
-          const msg: string = data.error?.message || 'Respuesta inesperada'
-          if (res.status === 401) {
-            setTestResult({ ok: false, message: 'API key inválida. Verificá en console.groq.com/keys.' })
-          } else if (res.status === 429) {
-            setTestResult({ ok: false, message: 'Límite de rate alcanzado. Esperá unos segundos e intentá de nuevo.' })
-          } else {
-            setTestResult({ ok: false, message: msg })
-          }
-        }
+        const res = await fetch('/api/ai/test-key', { method: 'POST' })
+        const data = await res.json() as { ok: boolean; message: string }
+        setTestResult({ ok: data.ok, message: data.message })
       } else if (selected === 'gemini') {
         const models = ['gemini-1.5-flash', 'gemini-2.0-flash']
         let lastError = ''

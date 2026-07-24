@@ -113,6 +113,16 @@ export function scoreToLabel(score: number): string {
   return 'Bajo'
 }
 
+// Escape user-supplied strings before injecting into HTML (prevents XSS in document.write)
+export function escapeHtml(s: string | null | undefined): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
 // Map ATS score to hex color for charts/inline styles
 export function scoreToHex(score: number): string {
   if (score >= 85) return '#10b981'
