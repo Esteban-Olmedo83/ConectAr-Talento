@@ -1,5 +1,8 @@
 'use client'
 
+// Captured once at module load — stable reference avoids react-hooks/purity errors
+const NOW_MS = Date.now()
+
 import * as React from 'react'
 import {
   ChevronDown,
@@ -20,7 +23,6 @@ import { StorageImg } from '@/components/ui/storage-img'
 type DateRange = 'month' | 'quarter' | 'year'
 type SourceRow = { name: string; value: number }
 type FunnelRow = { stage: string; total: number }
-type ScoreRow = { name: string; score: number }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -409,17 +411,6 @@ export default function ReportsPage() {
     return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
   }, [filteredCandidates])
 
-  const scoreByVacancy = React.useMemo<ScoreRow[]>(() => {
-    return vacancies.slice(0, 8).map(v => {
-      const vacApps = filteredApplications.filter(a => a.vacancyId === v.id)
-      const scores = vacApps
-        .map(a => filteredCandidates.find(c => c.id === a.candidateId)?.atsScore)
-        .filter((s): s is number => typeof s === 'number')
-      const avg = scores.length ? Math.round(scores.reduce((s, x) => s + x, 0) / scores.length) : 0
-      return { name: v.title.slice(0, 22), score: avg }
-    })
-  }, [filteredApplications, filteredCandidates, vacancies])
-
   // Keep interview data available for future charts
   const _interviewsRef = filteredInterviews.length
 
@@ -438,7 +429,7 @@ export default function ReportsPage() {
     const closed = vacancies.filter(v => v.status === 'Contratado')
     if (!closed.length) return 'N/D'
     const sum = closed.reduce((a, v) => {
-      const days = Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000)
+      const days = Math.floor((NOW_MS - new Date(v.createdAt).getTime()) / 86400000)
       return a + Math.min(days, 90)
     }, 0)
     return Math.round(sum / closed.length)
@@ -495,7 +486,7 @@ export default function ReportsPage() {
         .map(a => filteredCandidates.find(c => c.id === a.candidateId)?.atsScore)
         .filter((x): x is number => typeof x === 'number')
       const avgAts = scores.length ? Math.round(scores.reduce((s, x) => s + x, 0) / scores.length) : 0
-      const days = Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000)
+      const days = Math.floor((NOW_MS - new Date(v.createdAt).getTime()) / 86400000)
       return { posicion: v.title, estado: v.status, candidatos: apps.length, ats: avgAts, dias: Math.min(days, 999) }
     })
   }, [vacancies, filteredApplications, filteredCandidates, filterClient])
@@ -731,6 +722,7 @@ export default function ReportsPage() {
               <div style={{ padding: '12px 18px 8px' }}>
                 <ScreenSectionTitle icon="📋">Estado de Vacantes</ScreenSectionTitle>
               </div>
+              <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: S.accent }}>
@@ -751,6 +743,7 @@ export default function ReportsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -762,6 +755,7 @@ export default function ReportsPage() {
                 <div style={{ padding: '12px 18px 8px' }}>
                   <ScreenSectionTitle icon="👤">Top Candidatos ATS</ScreenSectionTitle>
                 </div>
+                <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: S.accentLight }}>
@@ -780,6 +774,7 @@ export default function ReportsPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

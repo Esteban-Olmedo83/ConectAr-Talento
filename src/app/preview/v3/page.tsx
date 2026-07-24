@@ -1,167 +1,167 @@
 'use client'
 
-export default function ReportV3() {
-  // ── Sparkline SVG helper ─────────────────────────────────────────────────
-  const Sparkline = ({ data, color }: { data: number[]; color: string }) => {
-    const max = Math.max(...data)
-    const min = Math.min(...data)
-    const range = max - min || 1
-    const w = 64, h = 24, pad = 2
-    const pts = data
-      .map((v, i) => {
+// ── Sparkline SVG helper ─────────────────────────────────────────────────────
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const w = 64, h = 24, pad = 2
+  const pts = data
+    .map((v, i) => {
+      const x = pad + (i / (data.length - 1)) * (w - pad * 2)
+      const y = h - pad - ((v - min) / range) * (h - pad * 2)
+      return `${x},${y}`
+    })
+    .join(' ')
+  return (
+    <svg width={w} height={h} style={{ overflow: 'visible' }}>
+      <polyline
+        points={pts} fill="none" stroke={color}
+        strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity="0.7"
+      />
+      {data.map((v, i) => {
         const x = pad + (i / (data.length - 1)) * (w - pad * 2)
         const y = h - pad - ((v - min) / range) * (h - pad * 2)
-        return `${x},${y}`
-      })
-      .join(' ')
-    return (
-      <svg width={w} height={h} style={{ overflow: 'visible' }}>
-        <polyline
-          points={pts} fill="none" stroke={color}
-          strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity="0.7"
-        />
-        {data.map((v, i) => {
-          const x = pad + (i / (data.length - 1)) * (w - pad * 2)
-          const y = h - pad - ((v - min) / range) * (h - pad * 2)
-          return <circle key={i} cx={x} cy={y} r="2" fill={color} opacity={i === data.length - 1 ? 1 : 0.4} />
-        })}
-      </svg>
-    )
-  }
+        return <circle key={i} cx={x} cy={y} r="2" fill={color} opacity={i === data.length - 1 ? 1 : 0.4} />
+      })}
+    </svg>
+  )
+}
 
-  // ── Line chart SVG ───────────────────────────────────────────────────────
-  const LineChart = () => {
-    const data = [3, 5, 4, 8, 6, 9, 7, 11]
-    const labels = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']
-    const w = 100, h = 100, padL = 6, padR = 4, padT = 4, padB = 16
-    const maxVal = 12
-    const pts = data
-      .map((v, i) => {
+// ── Line chart SVG ────────────────────────────────────────────────────────────
+function LineChart() {
+  const data = [3, 5, 4, 8, 6, 9, 7, 11]
+  const labels = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']
+  const w = 100, h = 100, padL = 6, padR = 4, padT = 4, padB = 16
+  const maxVal = 12
+  const pts = data
+    .map((v, i) => {
+      const x = padL + (i / (data.length - 1)) * (w - padL - padR)
+      const y = padT + ((maxVal - v) / maxVal) * (h - padT - padB)
+      return `${x},${y}`
+    })
+    .join(' ')
+  const lastX = padL + ((data.length - 1) / (data.length - 1)) * (w - padL - padR)
+  const areaPts = `${padL},${h - padB} ${pts} ${lastX},${h - padB}`
+  const gridLines = [0, 3, 6, 9, 12]
+  return (
+    <svg viewBox="0 0 100 100" width="100%" height="180" style={{ overflow: 'visible' }}>
+      <defs>
+        <linearGradient id="areaGradV3" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5D50D6" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#5D50D6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {gridLines.map(g => {
+        const y = padT + ((maxVal - g) / maxVal) * (h - padT - padB)
+        return (
+          <g key={g}>
+            <line x1={padL} y1={y} x2={w - padR} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+            <text x={padL - 1} y={y + 1} fontSize="4" fill="rgba(255,255,255,0.25)" textAnchor="end">{g}</text>
+          </g>
+        )
+      })}
+      {data.map((_, i) => {
+        const x = padL + (i / (data.length - 1)) * (w - padL - padR)
+        return (
+          <text key={i} x={x} y={h - padB + 6} fontSize="4" fill="rgba(255,255,255,0.3)" textAnchor="middle">
+            {labels[i]}
+          </text>
+        )
+      })}
+      <polygon points={areaPts} fill="url(#areaGradV3)" />
+      <polyline points={pts} fill="none" stroke="#8B7EFF" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      {data.map((v, i) => {
         const x = padL + (i / (data.length - 1)) * (w - padL - padR)
         const y = padT + ((maxVal - v) / maxVal) * (h - padT - padB)
-        return `${x},${y}`
-      })
-      .join(' ')
-    const lastX = padL + ((data.length - 1) / (data.length - 1)) * (w - padL - padR)
-    const areaPts = `${padL},${h - padB} ${pts} ${lastX},${h - padB}`
-    const gridLines = [0, 3, 6, 9, 12]
-    return (
-      <svg viewBox="0 0 100 100" width="100%" height="180" style={{ overflow: 'visible' }}>
-        <defs>
-          <linearGradient id="areaGradV3" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5D50D6" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#5D50D6" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {gridLines.map(g => {
-          const y = padT + ((maxVal - g) / maxVal) * (h - padT - padB)
-          return (
-            <g key={g}>
-              <line x1={padL} y1={y} x2={w - padR} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-              <text x={padL - 1} y={y + 1} fontSize="4" fill="rgba(255,255,255,0.25)" textAnchor="end">{g}</text>
-            </g>
-          )
-        })}
-        {data.map((_, i) => {
-          const x = padL + (i / (data.length - 1)) * (w - padL - padR)
-          return (
-            <text key={i} x={x} y={h - padB + 6} fontSize="4" fill="rgba(255,255,255,0.3)" textAnchor="middle">
-              {labels[i]}
-            </text>
-          )
-        })}
-        <polygon points={areaPts} fill="url(#areaGradV3)" />
-        <polyline points={pts} fill="none" stroke="#8B7EFF" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-        {data.map((v, i) => {
-          const x = padL + (i / (data.length - 1)) * (w - padL - padR)
-          const y = padT + ((maxVal - v) / maxVal) * (h - padT - padB)
-          return (
-            <g key={i}>
-              <circle cx={x} cy={y} r="2" fill="#8B7EFF" stroke="#151525" strokeWidth="0.8" />
-              {i === data.length - 1 && (
-                <text x={x} y={y - 3} fontSize="4" fill="#8B7EFF" textAnchor="middle" fontWeight="bold">{v}</text>
-              )}
-            </g>
-          )
-        })}
-      </svg>
-    )
-  }
+        return (
+          <g key={i}>
+            <circle cx={x} cy={y} r="2" fill="#8B7EFF" stroke="#151525" strokeWidth="0.8" />
+            {i === data.length - 1 && (
+              <text x={x} y={y - 3} fontSize="4" fill="#8B7EFF" textAnchor="middle" fontWeight="bold">{v}</text>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
 
-  // ── Donut chart using conic-gradient ─────────────────────────────────────
-  const DonutChart = () => {
-    const slices = [
-      { label: 'LinkedIn', pct: 35, color: '#5D50D6' },
-      { label: 'Portal', pct: 28, color: '#3b82f6' },
-      { label: 'Referidos', pct: 20, color: '#10b981' },
-      { label: 'Indeed', pct: 12, color: '#f59e0b' },
-      { label: 'Otros', pct: 5, color: '#6b7280' },
-    ]
-    let acc = 0
-    const stops = slices
-      .map(s => {
-        const start = acc
-        acc += s.pct
-        return `${s.color} ${start}% ${acc}%`
-      })
-      .join(', ')
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+// ── Donut chart using conic-gradient ─────────────────────────────────────────
+function DonutChart() {
+  const slices = [
+    { label: 'LinkedIn', pct: 35, color: '#5D50D6' },
+    { label: 'Portal', pct: 28, color: '#3b82f6' },
+    { label: 'Referidos', pct: 20, color: '#10b981' },
+    { label: 'Indeed', pct: 12, color: '#f59e0b' },
+    { label: 'Otros', pct: 5, color: '#6b7280' },
+  ]
+  let acc = 0
+  const stops = slices
+    .map(s => {
+      const start = acc
+      acc += s.pct
+      return `${s.color} ${start}% ${acc}%`
+    })
+    .join(', ')
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+        <div style={{
+          width: 140, height: 140, borderRadius: '50%',
+          background: `conic-gradient(${stops})`,
+          position: 'relative',
+          boxShadow: '0 0 30px rgba(93,80,214,0.3)',
+        }}>
           <div style={{
-            width: 140, height: 140, borderRadius: '50%',
-            background: `conic-gradient(${stops})`,
-            position: 'relative',
-            boxShadow: '0 0 30px rgba(93,80,214,0.3)',
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%,-50%)',
+            width: 80, height: 80, borderRadius: '50%',
+            background: '#151525',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           }}>
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%,-50%)',
-              width: 80, height: 80, borderRadius: '50%',
-              background: '#151525',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>61</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>total</div>
-            </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: 'white' }}>61</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>total</div>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {slices.map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-              <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{s.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>{s.pct}%</div>
-            </div>
-          ))}
-        </div>
       </div>
-    )
-  }
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {slices.map(s => (
+          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{s.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>{s.pct}%</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-  // ── Circular progress ring ────────────────────────────────────────────────
-  const RingScore = ({ score, color }: { score: number; color: string }) => {
-    const r = 26
-    const circ = 2 * Math.PI * r
-    const dash = (score / 100) * circ
-    return (
-      <svg width="72" height="72" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
-        <circle
-          cx="36" cy="36" r={r} fill="none" stroke={color} strokeWidth="5"
-          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        />
-        <text
-          x="36" y="36" textAnchor="middle" dominantBaseline="central"
-          style={{ transform: 'rotate(90deg)', transformOrigin: '36px 36px' }}
-          fontSize="13" fontWeight="900" fill="white"
-        >{score}%</text>
-      </svg>
-    )
-  }
+// ── Circular progress ring ────────────────────────────────────────────────────
+function RingScore({ score, color }: { score: number; color: string }) {
+  const r = 26
+  const circ = 2 * Math.PI * r
+  const dash = (score / 100) * circ
+  return (
+    <svg width="72" height="72" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+      <circle
+        cx="36" cy="36" r={r} fill="none" stroke={color} strokeWidth="5"
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+      />
+      <text
+        x="36" y="36" textAnchor="middle" dominantBaseline="central"
+        style={{ transform: 'rotate(90deg)', transformOrigin: '36px 36px' }}
+        fontSize="13" fontWeight="900" fill="white"
+      >{score}%</text>
+    </svg>
+  )
+}
 
-  // ── Mini progress bar ─────────────────────────────────────────────────────
-  const MiniBar = ({ value, color }: { value: number; color: string }) => (
+// ── Mini progress bar ─────────────────────────────────────────────────────────
+function MiniBar({ value, color }: { value: number; color: string }) {
+  return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <div style={{
         flex: 1, height: 5, borderRadius: 3,
@@ -172,7 +172,9 @@ export default function ReportV3() {
       <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', minWidth: 28, textAlign: 'right' }}>{value}%</span>
     </div>
   )
+}
 
+export default function ReportV3() {
   const printCSS = `
     @media print {
       @page { size: A4 portrait; margin: 1.2cm; }

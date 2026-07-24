@@ -1,5 +1,8 @@
 'use client'
 
+// Captured once at module load — stable reference avoids react-hooks/purity errors
+const NOW_MS = Date.now()
+
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -15,16 +18,11 @@ import {
   X,
   Copy,
   CheckCircle2,
-  XCircle,
   Loader2,
   FileText,
-  ChevronUp,
-  UserX,
-  RotateCcw,
 } from 'lucide-react'
 import { cn, escapeHtml } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useUser } from '@/lib/context/user-context'
@@ -1647,7 +1645,7 @@ function StagePromptDialog({
   )
 }
 
-// ─── Candidate card ───────────────────────────────────────────────────────────
+// ─── Card / row props ─────────────────────────────────────────────────────────
 interface CardProps {
   app: HydratedApplication
   isDragging?: boolean
@@ -1656,22 +1654,18 @@ interface CardProps {
   interviewDate?: string  // ISO string of next scheduled interview
 }
 
-function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: CardProps) {
-  const c = app.candidate
-  if (!c) return null
+function _CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: CardProps) {
   const { t } = useLanguage()
-  const stageLabels: Record<string, string> = {
-    'Nuevas Vacantes': t.stages.newVacancies,
-    'En Proceso': t.stages.inProcess,
-    'Entrevistas': t.stages.interviews,
-    'Oferta Enviada': t.stages.offerSent,
-    'Contratado': t.stages.hired,
-    'Descartado': t.stages.discarded,
-  }
   const [hovered, setHovered] = React.useState(false)
   const pointerStart = React.useRef<{ x: number; y: number } | null>(null)
   const pointerMoved = React.useRef(false)
-  const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
+  // useState init runs once — avoids reading a ref during render
+  const [isTouchDevice] = React.useState(() =>
+    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  )
+
+  const c = app.candidate
+  if (!c) return null
 
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
@@ -1681,7 +1675,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
     '#fbbf24'
 
   const daysSince = Math.floor(
-    (Date.now() - new Date(app.appliedAt).getTime()) / 86400000
+    (NOW_MS - new Date(app.appliedAt).getTime()) / 86400000
   )
 
   const skills = c.skills ?? []
@@ -1700,7 +1694,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
         if (pointerStart.current) {
           const dx = e.clientX - pointerStart.current.x
           const dy = e.clientY - pointerStart.current.y
-          const threshold = isTouchDevice.current ? 900 : 64 // 30px touch, 8px mouse
+          const threshold = isTouchDevice ? 900 : 64 // 30px touch, 8px mouse
           if (dx * dx + dy * dy > threshold) {
             pointerMoved.current = true
           }
@@ -1898,7 +1892,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
           style={{
             display: 'flex',
             gap: 4,
-            opacity: (hovered || isTouchDevice.current) ? 1 : 0,
+            opacity: (hovered || isTouchDevice) ? 1 : 0,
             transition: 'opacity 0.15s',
           }}
         >
@@ -2005,7 +1999,7 @@ function CandidateCard({ app, isDragging, onAction, onDecide, interviewDate }: C
       </div>
 
       {/* Decision buttons — only visible on hover for Entrevistas stage */}
-      {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice.current) && !isDragging && (
+      {app.status === 'Entrevistas' && onDecide && (hovered || isTouchDevice) && !isDragging && (
         <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
           {(Object.entries(DECISION_CONFIG).filter(([a]) => a !== 'avanzar_etapa') as [DecisionAction, typeof DECISION_CONFIG[DecisionAction]][]).map(([action, cfg]) => (
             <button
@@ -2072,7 +2066,7 @@ function ProcessDetailModal({
   interviewDate,
   onClose,
   onAction,
-  onDecide,
+  onDecide: _onDecide,
 }: {
   app: HydratedApplication
   vacancy?: Vacancy
@@ -2097,7 +2091,7 @@ function ProcessDetailModal({
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
   const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
-  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const daysSince = Math.floor((NOW_MS - new Date(app.appliedAt).getTime()) / 86400000)
   const currentStageIdx = STAGES.indexOf(app.status as VacancyStatus)
   const skills = c.skills ?? []
 
@@ -2330,9 +2324,12 @@ function ProcessDetailModal({
 
 // ─── Candidate row (list view) ────────────────────────────────────────────────
 function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
+  const { t } = useLanguage()
+  const [hovered, setHovered] = React.useState(false)
+
   const c = app.candidate
   if (!c) return null
-  const { t } = useLanguage()
+
   const stageLabels: Record<string, string> = {
     'Nuevas Vacantes': t.stages.newVacancies,
     'En Proceso': t.stages.inProcess,
@@ -2341,12 +2338,11 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
     'Contratado': t.stages.hired,
     'Descartado': t.stages.discarded,
   }
-  const [hovered, setHovered] = React.useState(false)
 
   const stageColor = STAGE_COLORS[app.status]
   const score = c.atsScore ?? 0
   const scoreColor = score >= 85 ? '#34d399' : score >= 70 ? 'var(--accent-2)' : '#fbbf24'
-  const daysSince = Math.floor((Date.now() - new Date(app.appliedAt).getTime()) / 86400000)
+  const daysSince = Math.floor((NOW_MS - new Date(app.appliedAt).getTime()) / 86400000)
   const skills = (c.skills ?? []).slice(0, 2)
 
   const iconBtn: React.CSSProperties = {
@@ -2704,7 +2700,7 @@ function RejectReasonDialog({
 
 // ─── Close vacancy remaining dialog ──────────────────────────────────────────
 function CloseVacancyRemainingDialog({
-  vacancyId,
+  vacancyId: _vacancyId,
   vacancyTitle,
   remainingApps,
   provider,
