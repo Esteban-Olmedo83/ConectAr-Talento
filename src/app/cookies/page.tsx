@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 export const metadata = {
   title: 'Política de Cookies — ConectAr Talento',
   description: 'Política de uso de cookies de la plataforma ConectAr Talento.',
+  alternates: { canonical: '/cookies' },
 }
 
 const S = {

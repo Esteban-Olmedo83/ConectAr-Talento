@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 
-export const metadata = { title: 'Términos de servicio — ConectAr Talento' }
+export const metadata = {
+  title: 'Términos de servicio — ConectAr Talento',
+  alternates: { canonical: '/terms' },
+}
 
 export default function TermsPage() {
   return (

@@ -8,37 +8,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: APP_URL,
-      lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
       url: `${APP_URL}/tienda`,
-      lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${APP_URL}/login`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${APP_URL}/signup`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${APP_URL}/privacy`,
-      lastModified: new Date(),
+      url: `${APP_URL}/terminos`,
+      lastModified: new Date('2026-04-01'),
       changeFrequency: 'yearly',
       priority: 0.2,
     },
     {
-      url: `${APP_URL}/terms`,
-      lastModified: new Date(),
+      url: `${APP_URL}/privacidad`,
+      lastModified: new Date('2026-04-01'),
+      changeFrequency: 'yearly',
+      priority: 0.2,
+    },
+    {
+      url: `${APP_URL}/cookies`,
+      lastModified: new Date('2026-04-01'),
       changeFrequency: 'yearly',
       priority: 0.2,
     },

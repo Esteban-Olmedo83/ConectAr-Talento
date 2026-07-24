@@ -27,19 +27,36 @@ export function DraggableModal({
   footer?: React.ReactNode
 }) {
   const { style: dragStyle, headerStyle, onMouseDown, resetPos } = useDraggable()
+  const titleId = React.useId()
+  const contentRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
-    if (!open) resetPos()
+    if (!open) { resetPos(); return }
+    // Focus the modal panel on open
+    contentRef.current?.focus()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escape key closes the modal
+  React.useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
   if (!open) return null
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
     >
       <div
-        style={{ ...dragStyle, width: '90vw', maxWidth, maxHeight: '90vh', background: 'var(--surface)', borderColor: 'var(--border)' }}
+        ref={contentRef}
+        tabIndex={-1}
+        style={{ ...dragStyle, width: '90vw', maxWidth, maxHeight: '90vh', background: 'var(--surface)', borderColor: 'var(--border)', outline: 'none' }}
         className="flex flex-col rounded-xl border shadow-2xl overflow-hidden"
       >
         {/* draggable header */}
@@ -48,10 +65,11 @@ export function DraggableModal({
           onMouseDown={onMouseDown}
           className="flex items-center justify-between px-5 py-3.5 shrink-0"
         >
-          <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>{title}</span>
+          <span id={titleId} className="text-base font-semibold" style={{ color: 'var(--text)' }}>{title}</span>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Cerrar"
             className="rounded-md p-1 transition-colors hover:bg-[var(--accent-soft)]"
             style={{ color: 'var(--muted)' }}
           >

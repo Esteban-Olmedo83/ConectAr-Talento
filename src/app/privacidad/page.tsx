@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 export const metadata = {
   title: 'Política de Privacidad — ConectAr Talento',
   description: 'Política de privacidad y tratamiento de datos personales de ConectAr Talento.',
+  alternates: { canonical: '/privacidad' },
 }
 
 const S = {

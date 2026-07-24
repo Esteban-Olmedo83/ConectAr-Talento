@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 export const metadata = {
   title: 'Términos y Condiciones de Uso — ConectAr Talento',
   description: 'Términos y condiciones de uso de la plataforma ConectAr Talento.',
+  alternates: { canonical: '/terminos' },
 }
 
 const S = {

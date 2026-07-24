@@ -416,7 +416,7 @@ function EmailModal({
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName} · {selectedTemplate?.name ?? 'Sin template'}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -757,7 +757,7 @@ function WhatsAppModal({
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -986,7 +986,7 @@ function ScheduleInterviewModal({
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -1236,7 +1236,7 @@ function NotesModal({
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -1480,7 +1480,7 @@ function ProcessHistoryModal({
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>{candidate.fullName}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ padding: 6, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -1609,7 +1609,7 @@ function StagePromptDialog({
         <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0, flex: 1 }}>
           ¿Querés mover a <span style={{ color: 'var(--accent-2)' }}>{candidateName}</span> a una nueva etapa?
         </p>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 2, flexShrink: 0 }}>
+        <button onClick={onClose} aria-label="Cerrar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 2, flexShrink: 0 }}>
           <X style={{ width: 14, height: 14 }} />
         </button>
       </div>
@@ -2439,9 +2439,9 @@ function CandidateRow({ app, onAction, onDecide, interviewDate }: CardProps) {
           </button>
         ) : (
           <>
-            <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email"><Mail style={{ width: 12, height: 12 }} /></button>
-            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }} style={iconBtn} title="Entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
-            <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'email', candidate: c }) }} style={iconBtn} title="Email" aria-label="Enviar email"><Mail style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'schedule', candidate: c, applicationId: app.id, vacancyId: app.vacancyId ?? '' }) }} style={iconBtn} title="Entrevista" aria-label="Agendar entrevista"><Calendar style={{ width: 12, height: 12 }} /></button>
+            <button onClick={e => { e.stopPropagation(); onAction({ type: 'whatsapp', candidate: c }) }} style={iconBtn} title="WhatsApp" aria-label="Enviar WhatsApp"><MessageCircle style={{ width: 12, height: 12 }} /></button>
           </>
         )}
       </div>
@@ -2636,7 +2636,7 @@ function RejectReasonDialog({
             <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>{t.pipeline.rejectModal.title}</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{candidateName}</p>
           </div>
-          <button onClick={handleSkip} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>✕</button>
+          <button onClick={handleSkip} aria-label="Omitir" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2794,7 +2794,7 @@ function CloseVacancyRemainingDialog({
               <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Candidatos del proceso</p>
               <p style={{ fontSize: 12, color: 'var(--muted)', margin: '3px 0 0' }}>{vacancyTitle} · Definí el motivo de descarte de cada candidato</p>
             </div>
-            <button onClick={onClose} style={{ padding: 5, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
+            <button onClick={onClose} aria-label="Cerrar" style={{ padding: 5, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
               <X style={{ width: 15, height: 15 }} />
             </button>
           </div>

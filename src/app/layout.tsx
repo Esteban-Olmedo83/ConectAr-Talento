@@ -68,9 +68,6 @@ export const metadata: Metadata = {
       follow: true,
     },
   },
-  alternates: {
-    canonical: APP_URL,
-  },
 }
 
 const jsonLd = {
@@ -78,7 +75,7 @@ const jsonLd = {
   '@type': 'SoftwareApplication',
   name: SITE_NAME,
   description:
-    'Plataforma ATS con IA para reclutadores latinoamericanos. Analizá CVs con Gemini, gestioná tu pipeline Kanban y publicá en todos los job boards de LATAM.',
+    'Plataforma ATS con IA para reclutadores latinoamericanos. Analizá CVs con Groq/Llama, gestioná tu pipeline Kanban y publicá en todos los job boards de LATAM.',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   url: APP_URL,
