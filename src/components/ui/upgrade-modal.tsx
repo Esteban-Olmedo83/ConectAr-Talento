@@ -47,6 +47,7 @@ export function UpgradeModal({ isOpen, onClose, featureTitle, featureDescription
           {/* Close */}
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="absolute right-4 top-4 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
           >
             <X size={16} />
@@ -58,7 +59,7 @@ export function UpgradeModal({ isOpen, onClose, featureTitle, featureDescription
               <Zap size={22} className="text-white" />
             </div>
             <div>
-              <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: '#5D50D6/20', color: '#8B7EFF', border: '1px solid #5D50D6' }}>
+              <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: 'rgba(93,80,214,0.12)', color: '#8B7EFF', border: '1px solid rgba(93,80,214,0.3)' }}>
                 Plan {requiredPlan} requerido
               </span>
               <h2 className="mt-1 text-lg font-bold text-white">{featureTitle}</h2>

@@ -247,6 +247,31 @@ function ProductCard({ product }: { product: Product }) {
   )
 }
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.conectartalento.com'
+
+const tiendaJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Tienda de Recursos para Reclutadores — ConectAr Talento',
+  url: `${APP_URL}/tienda`,
+  itemListElement: PRODUCTS.map((p, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    item: {
+      '@type': 'Product',
+      name: p.title,
+      description: p.description,
+      url: `${APP_URL}/tienda#${p.id}`,
+      offers: {
+        '@type': 'Offer',
+        price: p.price.toFixed(2),
+        priceCurrency: 'USD',
+        availability: 'https://schema.org/InStock',
+      },
+    },
+  })),
+}
+
 export default function TiendaPage() {
   return (
     <div style={{ background: '#0B0B14', minHeight: '100vh', color: '#fff' }}>
@@ -455,6 +480,11 @@ export default function TiendaPage() {
           ))}
         </div>
       </main>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(tiendaJsonLd) }}
+      />
 
       {/* Footer */}
       <footer

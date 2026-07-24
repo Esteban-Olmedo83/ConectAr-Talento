@@ -15,6 +15,7 @@ const PROTECTED_PATHS = [
   '/talent-pool',
   '/job-profiles',
   '/admin',
+  '/preview',
 ]
 
 const AUTH_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password']
