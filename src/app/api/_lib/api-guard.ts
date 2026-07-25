@@ -1,26 +1,8 @@
 import { NextResponse } from 'next/server'
+import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { createClient } from '@/lib/supabase/server'
 
-// Upstash Redis client for distributed rate limiting
-let redisClient: Redis | null = null
-
-function getRedisClient(): Redis | null {
-  if (!redisClient) {
-    const url = process.env.UPSTASH_REDIS_REST_URL
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN
-
-    if (!url || !token) {
-      console.warn('UPSTASH_REDIS_REST_URL/TOKEN not configured — rate limiting degraded to fail-open')
-      return null
-    }
-
-    redisClient = new Redis({ url, token })
-  }
-  return redisClient
-}
-
-// Sliding window rate limiter using Upstash Redis.
 const RATE_LIMITS: Record<string, { free: number; paid: number }> = {
   'analyze-cv':      { free: 5,  paid: 20 },
   'generate-jd':     { free: 10, paid: 40 },
@@ -28,40 +10,40 @@ const RATE_LIMITS: Record<string, { free: number; paid: number }> = {
   'generate-message':{ free: 20, paid: 60 },
   default:           { free: 10, paid: 30 },
 }
-const WINDOW_MS = 60_000 // 1 minute
 
-async function isRateLimited(userId: string, endpoint: string, isPaidPlan: boolean): Promise<boolean> {
-  try {
-    const redis = getRedisClient()
-    if (!redis) return false // degraded: allow when Redis not configured
-    const key = `rate-limit:${userId}:${endpoint}`
-    const now = Date.now()
+let redisClient: Redis | null = null
 
-    // Get current timestamps from Redis (stored as string: "ts1,ts2,ts3,...")
-    const stored = await redis.get<string>(key)
-    let timestamps: number[] = stored ? stored.split(',').map(Number) : []
-
-    // Filter out timestamps outside the window
-    const recent = timestamps.filter(t => now - t < WINDOW_MS)
-
-    const limits = RATE_LIMITS[endpoint] ?? RATE_LIMITS.default
-    const max = isPaidPlan ? limits.paid : limits.free
-
-    if (recent.length >= max) return true
-
-    // Add current timestamp
-    recent.push(now)
-
-    // Store updated timestamps with 1-minute TTL (plus buffer)
-    await redis.setex(key, Math.ceil(WINDOW_MS / 1000), recent.join(','))
-
-    return false
-  } catch (error) {
-    console.error('Rate limit check failed:', error)
-    // If Redis is unavailable, fail open (allow the request) to avoid blocking users
-    // In production, consider logging this for monitoring
-    return false
+function getRedis(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) {
+    console.warn('UPSTASH_REDIS_REST_URL/TOKEN not configured — rate limiting degraded to fail-open')
+    return null
   }
+  if (!redisClient) redisClient = new Redis({ url, token })
+  return redisClient
+}
+
+// Ratelimit instances cached per endpoint+plan so they're reused across requests
+// within the same worker. Each uses slidingWindow, which is atomic via Lua script.
+const limiterCache = new Map<string, Ratelimit>()
+
+function getLimiter(endpoint: string, isPaid: boolean): Ratelimit | null {
+  const redis = getRedis()
+  if (!redis) return null
+
+  const cacheKey = `${endpoint}:${isPaid ? 'paid' : 'free'}`
+  if (limiterCache.has(cacheKey)) return limiterCache.get(cacheKey)!
+
+  const limits = RATE_LIMITS[endpoint] ?? RATE_LIMITS.default
+  const max = isPaid ? limits.paid : limits.free
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(max, '60 s'),
+    prefix: 'rl',
+  })
+  limiterCache.set(cacheKey, limiter)
+  return limiter
 }
 
 const PAID_PLANS = new Set(['starter', 'pro', 'business', 'enterprise'])
@@ -75,6 +57,9 @@ export interface AuthContext {
 /**
  * Validates session and enforces per-minute rate limits.
  * Returns AuthContext on success or a NextResponse with the appropriate error.
+ *
+ * Rate limiting uses @upstash/ratelimit slidingWindow, which is atomic (Lua script
+ * on Redis). This prevents the bypass race condition of the prior GET→check→SET pattern.
  */
 export async function requireAuthWithRateLimit(
   endpoint: string
@@ -96,16 +81,25 @@ export async function requireAuthWithRateLimit(
   const plan: string = (profile?.plan as string) ?? 'free'
   const isPaid = PAID_PLANS.has(plan)
 
-  if (await isRateLimited(user.id, endpoint, isPaid)) {
-    const limits = RATE_LIMITS[endpoint] ?? RATE_LIMITS.default
-    const max = isPaid ? limits.paid : limits.free
-    return NextResponse.json(
-      { error: `Límite de ${max} solicitudes por minuto alcanzado. Intente en unos segundos.` },
-      {
-        status: 429,
-        headers: { 'Retry-After': '60', 'X-RateLimit-Limit': String(max) },
+  try {
+    const limiter = getLimiter(endpoint, isPaid)
+    if (limiter) {
+      const { success } = await limiter.limit(user.id)
+      if (!success) {
+        const limits = RATE_LIMITS[endpoint] ?? RATE_LIMITS.default
+        const max = isPaid ? limits.paid : limits.free
+        return NextResponse.json(
+          { error: `Límite de ${max} solicitudes por minuto alcanzado. Intente en unos segundos.` },
+          {
+            status: 429,
+            headers: { 'Retry-After': '60', 'X-RateLimit-Limit': String(max) },
+          }
+        )
       }
-    )
+    }
+  } catch (error) {
+    console.error('Rate limit check failed:', error)
+    // Fail-open: allow the request when Redis is unavailable to avoid blocking users
   }
 
   return { userId: user.id, tenantId, plan }
