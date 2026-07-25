@@ -40,20 +40,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  // Idempotency check — skip already-processed events
-  const supabase = createAdminClient()
-  const { data: existing } = await supabase
-    .from('stripe_events')
-    .select('id')
-    .eq('id', event.id)
-    .maybeSingle()
-
-  if (existing) {
-    return NextResponse.json({ ok: true, skipped: true })
-  }
-
   if (!HANDLED_EVENTS.has(event.type)) {
     return NextResponse.json({ ok: true, ignored: true })
+  }
+
+  // Atomic idempotency claim — INSERT first, process only if we own the row.
+  // A unique constraint on stripe_events.id makes this race-free: the first
+  // request wins; concurrent retries get 23505 and are skipped immediately.
+  const supabase = createAdminClient()
+  const { error: claimError } = await supabase
+    .from('stripe_events')
+    .insert({ id: event.id, type: event.type })
+
+  if (claimError) {
+    if (claimError.code === '23505') {
+      return NextResponse.json({ ok: true, skipped: true })
+    }
+    console.error('[stripe-webhook] claim insert error:', claimError)
+    // Proceed anyway — better to risk double-processing than to drop an event
   }
 
   try {
@@ -94,12 +98,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Mark event as processed
-    await supabase.from('stripe_events').insert({ id: event.id, type: event.type })
-
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error(`Error processing webhook ${event.type}:`, error)
+    // Release the claim so Stripe can retry this event
+    await supabase.from('stripe_events').delete().eq('id', event.id)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }
 }

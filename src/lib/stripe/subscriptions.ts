@@ -24,23 +24,30 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   const priceId = process.env[`STRIPE_PRICE_${params.plan.toUpperCase()}`]
   if (!priceId) throw new Error(`STRIPE_PRICE_${params.plan.toUpperCase()} not configured`)
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: [{ price: priceId, quantity: 1 }],
-    customer: sub?.stripe_customer_id ?? undefined,
-    customer_email: sub?.stripe_customer_id ? undefined : params.customerEmail,
-    success_url: params.successUrl,
-    cancel_url: params.cancelUrl,
-    metadata: {
-      user_id: params.userId,
-      tenant_id: params.tenantId,
-      plan: params.plan,
+  // Idempotency key scoped to a 5-minute window — deduplicates rapid double-clicks
+  // without permanently blocking future sessions for the same plan.
+  const idempotencyKey = `checkout-${params.tenantId}-${params.plan}-${Math.floor(Date.now() / 300_000)}`
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: priceId, quantity: 1 }],
+      customer: sub?.stripe_customer_id ?? undefined,
+      customer_email: sub?.stripe_customer_id ? undefined : params.customerEmail,
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+      metadata: {
+        user_id: params.userId,
+        tenant_id: params.tenantId,
+        plan: params.plan,
+      },
+      subscription_data: {
+        metadata: { tenant_id: params.tenantId, plan: params.plan },
+      },
     },
-    subscription_data: {
-      metadata: { tenant_id: params.tenantId, plan: params.plan },
-    },
-  })
+    { idempotencyKey },
+  )
 
   return session
 }
