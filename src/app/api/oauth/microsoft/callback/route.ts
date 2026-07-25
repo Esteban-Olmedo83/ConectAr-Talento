@@ -5,6 +5,7 @@ import { encryptToken } from '@/lib/crypto/token-encrypt'
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin
+  try {
   const { searchParams } = requestUrl
   const code = searchParams.get('code')
   const state = searchParams.get('state')
@@ -107,4 +108,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.redirect(new URL('/integrations?connected=outlook', appUrl))
   response.cookies.delete('oauth_state_microsoft')
   return response
+  } catch (err) {
+    console.error('[OAuth Microsoft] unexpected error:', err)
+    return NextResponse.redirect(new URL('/integrations?error=microsoft_error', appUrl))
+  }
 }

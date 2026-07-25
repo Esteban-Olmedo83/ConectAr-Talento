@@ -53,6 +53,7 @@ async function refreshZoomToken(
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -136,4 +137,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const meeting = await zoomRes.json() as { join_url: string; id: number }
   return NextResponse.json({ joinUrl: meeting.join_url, meetingId: meeting.id })
+  } catch (err) {
+    console.error('[zoom/create-meeting] unexpected error:', err)
+    return NextResponse.json({ error: 'Error interno al crear la reunión.' }, { status: 500 })
+  }
 }

@@ -133,6 +133,7 @@ async function createSheetsFile(accessToken: string, name: string, folderId: str
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin
+  try {
   const { searchParams } = requestUrl
 
   const code = searchParams.get('code')
@@ -331,4 +332,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.redirect(new URL('/integrations?connected=gmail', appUrl))
   response.cookies.delete('oauth_state_google')
   return response
+  } catch (err) {
+    console.error('[OAuth Google] unexpected error:', err)
+    return NextResponse.redirect(new URL('/integrations?error=google_error', appUrl))
+  }
 }

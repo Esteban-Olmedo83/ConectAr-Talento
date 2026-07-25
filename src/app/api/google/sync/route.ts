@@ -70,6 +70,7 @@ async function ensureSheet(accessToken: string, spreadsheetId: string, title: st
 }
 
 export async function POST(): Promise<NextResponse> {
+  try {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -231,4 +232,8 @@ export async function POST(): Promise<NextResponse> {
       applications: (applications ?? []).length,
     },
   })
+  } catch (err) {
+    console.error('[google/sync] unexpected error:', err)
+    return NextResponse.json({ error: 'Error interno al sincronizar con Google Sheets.' }, { status: 500 })
+  }
 }
