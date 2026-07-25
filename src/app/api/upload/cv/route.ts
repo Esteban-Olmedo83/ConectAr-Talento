@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { extractCvText, CvExtractionError } from '@/lib/cv/extract-text'
 import { getPlanLimits } from '@/lib/plan-limits'
 import { checkAiDailyLimit } from '@/lib/rate-limit'
+import { groqFetch } from '@/lib/ai/groq-fetch'
 
 export const runtime = 'nodejs'
 
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'API key de Groq no configurada en el servidor.' }, { status: 500 })
     }
 
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const groqResult = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -252,7 +253,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         temperature: 0.1,
         max_tokens: 1024,
       }),
-    })
+    }, 30_000)
+    if (groqResult.timedOut) {
+      return NextResponse.json({ error: 'La IA tardó demasiado al analizar el CV. El archivo fue guardado — podés analizarlo desde la ficha del candidato.' }, { status: 504 })
+    }
+    const groqRes = groqResult.response
 
     if (!groqRes.ok) {
       const errText = await groqRes.text()

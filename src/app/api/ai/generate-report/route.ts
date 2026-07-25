@@ -4,6 +4,7 @@ import type { Recommendation } from '@/types'
 import { checkAiRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { logAiUsage } from '@/lib/ai/log-usage'
 import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
+import { groqFetch } from '@/lib/ai/groq-fetch'
 
 interface GenerateReportRequest {
   overallRating: 1 | 2 | 3 | 4 | 5
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const groqStart = Date.now()
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const groqResult = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +110,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         temperature: 0.6,
         max_tokens: 1024,
       }),
-    })
+    }, 30_000)
+    if (groqResult.timedOut) {
+      logAiUsage({ userId: user.id, tenantId, route: 'generate-report', latencyMs: Date.now() - groqStart, success: false, errorCode: 'timeout', plan })
+      return NextResponse.json({ error: 'La IA tardó demasiado en responder. Intentá de nuevo en unos minutos.' }, { status: 504 })
+    }
+    const groqRes = groqResult.response
 
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
