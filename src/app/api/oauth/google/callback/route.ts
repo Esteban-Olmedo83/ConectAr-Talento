@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
 import { logError } from '@/app/api/_lib/error-logger'
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export const runtime = 'nodejs'
 
@@ -165,7 +166,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
   const redirectUri = `${appUrl}/api/oauth/google/callback`
 
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -175,7 +176,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       client_id: clientId,
       client_secret: clientSecret,
     }),
-  })
+  }, 10_000)
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(new URL('/integrations?error=google_token_failed', appUrl))
@@ -194,17 +195,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL('/login', appUrl))
   }
 
-  const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-
   let accountName = 'Google Account'
   let accountEmail: string | undefined
-  if (profileRes.ok) {
-    const profile = await profileRes.json() as { name?: string; email?: string }
-    accountName = profile.name ?? accountName
-    accountEmail = profile.email
-  }
+  try {
+    const profileRes = await fetchWithTimeout('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    }, 5_000)
+    if (profileRes.ok) {
+      const profile = await profileRes.json() as { name?: string; email?: string }
+      accountName = profile.name ?? accountName
+      accountEmail = profile.email
+    }
+  } catch { /* non-fatal — continue with defaults */ }
 
   const { data: tenantProfile, error: profileError } = await supabase
     .from('profiles')

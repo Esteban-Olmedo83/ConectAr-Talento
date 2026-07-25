@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Exchange code for tokens using Basic Auth
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  const tokenRes = await fetch('https://zoom.us/oauth/token', {
+  const tokenRes = await fetchWithTimeout('https://zoom.us/oauth/token', {
     method: 'POST',
     headers: {
       Authorization: `Basic ${credentials}`,
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       code,
       redirect_uri: redirectUri,
     }),
-  })
+  }, 10_000)
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(new URL('/integrations?error=zoom_token_failed', appUrl))
@@ -68,24 +69,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user profile
-  const profileRes = await fetch('https://api.zoom.us/v2/users/me', {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-
   let accountName = 'Zoom Account'
   let accountEmail: string | undefined
 
-  if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      first_name?: string
-      last_name?: string
-      email?: string
-      display_name?: string
+  // Fetch user profile (non-critical — fall back to defaults on error)
+  try {
+    const profileRes = await fetchWithTimeout('https://api.zoom.us/v2/users/me', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    }, 5_000)
+    if (profileRes.ok) {
+      const profile = await profileRes.json() as {
+        first_name?: string
+        last_name?: string
+        email?: string
+        display_name?: string
+      }
+      accountName = profile.display_name ?? (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || accountName)
+      accountEmail = profile.email
     }
-    accountName = profile.display_name ?? (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || accountName)
-    accountEmail = profile.email
-  }
+  } catch { /* non-fatal — continue with defaults */ }
 
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   const tenantId = tenantProfile?.tenant_id ?? user.id

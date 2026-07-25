@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const redirectUri = `${appUrl}/api/oauth/linkedin/callback`
 
   // Exchange code for tokens
-  const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+  const tokenRes = await fetchWithTimeout('https://www.linkedin.com/oauth/v2/accessToken', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       client_id: clientId,
       client_secret: clientSecret,
     }),
-  })
+  }, 10_000)
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(new URL('/integrations?error=linkedin_token_failed', appUrl))
@@ -65,31 +66,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user profile
-  const profileRes = await fetch('https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)', {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-  const emailRes = await fetch('https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-
   let accountName = 'LinkedIn Account'
   let accountEmail: string | undefined
 
-  if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      localizedFirstName?: string
-      localizedLastName?: string
+  // Fetch user profile (non-critical — fall back to defaults on error)
+  try {
+    const [profileRes, emailRes] = await Promise.all([
+      fetchWithTimeout('https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      }, 5_000),
+      fetchWithTimeout('https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      }, 5_000),
+    ])
+    if (profileRes.ok) {
+      const profile = await profileRes.json() as {
+        localizedFirstName?: string
+        localizedLastName?: string
+      }
+      accountName = `${profile.localizedFirstName ?? ''} ${profile.localizedLastName ?? ''}`.trim() || accountName
     }
-    accountName = `${profile.localizedFirstName ?? ''} ${profile.localizedLastName ?? ''}`.trim() || accountName
-  }
-
-  if (emailRes.ok) {
-    const emailData = await emailRes.json() as {
-      elements?: Array<{ 'handle~'?: { emailAddress?: string } }>
+    if (emailRes.ok) {
+      const emailData = await emailRes.json() as {
+        elements?: Array<{ 'handle~'?: { emailAddress?: string } }>
+      }
+      accountEmail = emailData.elements?.[0]?.['handle~']?.emailAddress
     }
-    accountEmail = emailData.elements?.[0]?.['handle~']?.emailAddress
-  }
+  } catch { /* non-fatal — continue with defaults */ }
 
   // Get tenant_id from profile lookup
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()

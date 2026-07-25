@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
@@ -44,14 +45,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const redirectUri = `${appUrl}/api/oauth/meta/callback`
 
   // Exchange code for tokens
-  const tokenRes = await fetch(
+  const tokenRes = await fetchWithTimeout(
     `https://graph.facebook.com/v18.0/oauth/access_token?` +
     new URLSearchParams({
       client_id: appId,
       client_secret: appSecret,
       redirect_uri: redirectUri,
       code,
-    }).toString()
+    }).toString(),
+    {},
+    10_000
   )
 
   if (!tokenRes.ok) {
@@ -63,22 +66,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user/business info
-  const profileRes = await fetch(
-    `https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${tokens.access_token}`
-  )
-
   let accountName = 'WhatsApp Business Account'
   let accountEmail: string | undefined
 
-  if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      name?: string
-      email?: string
+  // Fetch user/business info (non-critical — fall back to defaults on error)
+  try {
+    const profileRes = await fetchWithTimeout(
+      `https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${tokens.access_token}`,
+      {},
+      5_000
+    )
+    if (profileRes.ok) {
+      const profile = await profileRes.json() as {
+        name?: string
+        email?: string
+      }
+      accountName = profile.name ?? accountName
+      accountEmail = profile.email
     }
-    accountName = profile.name ?? accountName
-    accountEmail = profile.email
-  }
+  } catch { /* non-fatal — continue with defaults */ }
 
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   const tenantId = tenantProfile?.tenant_id ?? user.id

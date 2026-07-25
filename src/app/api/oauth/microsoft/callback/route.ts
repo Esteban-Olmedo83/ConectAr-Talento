@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto/token-encrypt'
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url)
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const redirectUri = `${appUrl}/api/oauth/microsoft/callback`
 
   // Exchange code for tokens
-  const tokenRes = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+  const tokenRes = await fetchWithTimeout('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       client_secret: clientSecret,
       scope: 'openid email profile User.Read Mail.Send Calendars.ReadWrite offline_access',
     }),
-  })
+  }, 10_000)
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(new URL('/integrations?error=microsoft_token_failed', appUrl))
@@ -67,23 +68,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     expires_in?: number
   }
 
-  // Fetch user profile
-  const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-
   let accountName = 'Microsoft Account'
   let accountEmail: string | undefined
 
-  if (profileRes.ok) {
-    const profile = await profileRes.json() as {
-      displayName?: string
-      mail?: string
-      userPrincipalName?: string
+  // Fetch user profile (non-critical — fall back to defaults on error)
+  try {
+    const profileRes = await fetchWithTimeout('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    }, 5_000)
+    if (profileRes.ok) {
+      const profile = await profileRes.json() as {
+        displayName?: string
+        mail?: string
+        userPrincipalName?: string
+      }
+      accountName = profile.displayName ?? accountName
+      accountEmail = profile.mail ?? profile.userPrincipalName
     }
-    accountName = profile.displayName ?? accountName
-    accountEmail = profile.mail ?? profile.userPrincipalName
-  }
+  } catch { /* non-fatal — continue with defaults */ }
 
   const { data: tenantProfile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
   const tenantId = tenantProfile?.tenant_id ?? user.id
