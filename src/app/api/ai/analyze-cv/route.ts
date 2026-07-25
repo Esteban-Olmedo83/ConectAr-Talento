@@ -4,6 +4,7 @@ import { requireAuthWithRateLimit } from '@/app/api/_lib/api-guard'
 import { logError } from '@/app/api/_lib/error-logger'
 import { createClient } from '@/lib/supabase/server'
 import { groqFetch } from '@/lib/ai/groq-fetch'
+import { logAiUsage } from '@/lib/ai/log-usage'
 
 export const runtime = 'nodejs'
 
@@ -337,6 +338,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
 
+    const groqStart = Date.now()
     const groqResult = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -355,6 +357,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }),
     }, 30_000)
     if (groqResult.timedOut) {
+      logAiUsage({ userId: auth.userId, tenantId: auth.tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'timeout', plan: auth.plan })
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
     const groqRes = groqResult.response
@@ -362,13 +365,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errorText = await groqRes.text()
       console.error('Groq API error:', errorText)
+      logAiUsage({ userId: auth.userId, tenantId: auth.tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan: auth.plan })
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
 
-    const groqData = await groqRes.json()
+    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
     const rawText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     if (!rawText) {
+      logAiUsage({ userId: auth.userId, tenantId: auth.tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'empty_response', plan: auth.plan })
       return NextResponse.json({ error: 'Respuesta vacía de Groq.' }, { status: 502 })
     }
 
@@ -380,9 +385,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parsed = JSON.parse(jsonText) as AnalyzeCvResponse
     } catch {
       console.error('JSON parse error. Raw text:', rawText)
+      logAiUsage({ userId: auth.userId, tenantId: auth.tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'json_parse_error', plan: auth.plan })
       return NextResponse.json(buildFallbackAnalysis(cvText, vacancyRequirements, sourceFileName))
     }
 
+    logAiUsage({
+      userId: auth.userId, tenantId: auth.tenantId, route: 'analyze-cv',
+      promptTokens: groqData.usage?.prompt_tokens ?? null,
+      completionTokens: groqData.usage?.completion_tokens ?? null,
+      latencyMs: Date.now() - groqStart,
+      success: true, plan: auth.plan,
+    })
     return NextResponse.json({
       fullName: String(parsed.fullName ?? '').trim() || 'Nombre no identificado',
       email: String(parsed.email ?? '').trim(),

@@ -4,6 +4,7 @@ import { extractCvText, CvExtractionError } from '@/lib/cv/extract-text'
 import { getPlanLimits } from '@/lib/plan-limits'
 import { checkAiDailyLimit } from '@/lib/rate-limit'
 import { groqFetch } from '@/lib/ai/groq-fetch'
+import { logAiUsage } from '@/lib/ai/log-usage'
 
 export const runtime = 'nodejs'
 
@@ -241,6 +242,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'API key de Groq no configurada en el servidor.' }, { status: 500 })
     }
 
+    const groqStart = Date.now()
     const groqResult = await groqFetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -255,6 +257,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }),
     }, 30_000)
     if (groqResult.timedOut) {
+      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'timeout', plan })
       return NextResponse.json({ error: 'La IA tardó demasiado al analizar el CV. El archivo fue guardado — podés analizarlo desde la ficha del candidato.' }, { status: 504 })
     }
     const groqRes = groqResult.response
@@ -262,10 +265,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!groqRes.ok) {
       const errText = await groqRes.text()
       console.error('[upload-cv] Groq error:', errText)
+      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: String(groqRes.status), plan })
       return NextResponse.json({ error: 'Error al analizar el CV con IA. Intentá de nuevo.' }, { status: 502 })
     }
 
-    const groqData = await groqRes.json()
+    const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } }
     const rawText: string = groqData.choices?.[0]?.message?.content ?? ''
 
     const jsonMatch = rawText.match(/\{[\s\S]*\}/)
@@ -277,9 +281,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parsed = JSON.parse(jsonStr)
     } catch {
       console.error('[upload-cv] JSON parse error. Raw:', rawText)
+      logAiUsage({ userId: user.id, tenantId, route: 'analyze-cv', latencyMs: Date.now() - groqStart, success: false, errorCode: 'json_parse_error', plan })
       return NextResponse.json({ error: 'La IA no devolvió un resultado válido. Intentá de nuevo.' }, { status: 502 })
     }
 
+    logAiUsage({
+      userId: user.id, tenantId, route: 'analyze-cv',
+      promptTokens: groqData.usage?.prompt_tokens ?? null,
+      completionTokens: groqData.usage?.completion_tokens ?? null,
+      latencyMs: Date.now() - groqStart,
+      success: true, plan,
+    })
     return NextResponse.json({
       ok: true,
       cvUrl,
