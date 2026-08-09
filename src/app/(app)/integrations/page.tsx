@@ -33,6 +33,7 @@ import { SupabaseProvider } from '@/lib/providers/supabase-provider'
 import { useUser } from '@/lib/context/user-context'
 import { useLanguage } from '@/lib/context/language-context'
 import { getPlanLimits } from '@/lib/plan-limits'
+import { GoogleSetupWizard } from '@/components/integrations/google-setup-wizard'
 import type { Integration, IntegrationPlatform, IntegrationStatus } from '@/types'
 
 /* ─── status config ──────────────────────────────────────────── */
@@ -480,12 +481,14 @@ export default function IntegrationsPage() {
   const [backupLoading, setBackupLoading] = React.useState(false)
   const [backupResult, setBackupResult] = React.useState<{ syncedAt: string; candidates: number; vacancies: number; applications: number } | null>(null)
   const [backupError, setBackupError] = React.useState<string | null>(null)
+  const [showGoogleSetupWizard, setShowGoogleSetupWizard] = React.useState(false)
   const provider = React.useMemo(() => new SupabaseProvider(), [])
 
   // Handle ?connected= and ?error= query params
   React.useEffect(() => {
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
+    const setup = searchParams.get('setup')
     const url = new URL(window.location.href)
 
     if (connected) {
@@ -498,6 +501,12 @@ export default function IntegrationsPage() {
       const msg = ERROR_MESSAGES[error] ?? `Error al conectar: ${error}. Verificá la configuración del servidor.`
       setErrorBanner(msg)
       url.searchParams.delete('error')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    if (setup === 'google_drive') {
+      setShowGoogleSetupWizard(true)
+      url.searchParams.delete('setup')
       window.history.replaceState({}, '', url.toString())
     }
   }, [searchParams])
@@ -668,6 +677,17 @@ export default function IntegrationsPage() {
       {limitToast && <PlanLimitToast message={limitToast} onClose={() => setLimitToast(null)} />}
       {/* error banner */}
       {errorBanner && <ErrorBanner message={errorBanner} onClose={() => setErrorBanner(null)} />}
+
+      {/* Google Setup Wizard */}
+      {showGoogleSetupWizard && (
+        <GoogleSetupWizard
+          onClose={() => setShowGoogleSetupWizard(false)}
+          onComplete={() => {
+            setShowGoogleSetupWizard(false)
+            setToast('gmail')
+          }}
+        />
+      )}
 
       {/* header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">

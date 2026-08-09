@@ -328,7 +328,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.warn(`[OAuth] No Google Drive/Sheets resources were successfully created`)
   }
 
-  const response = NextResponse.redirect(new URL('/integrations?connected=gmail', appUrl))
+  // Determine redirect based on setup completion
+  const setupComplete = sheetsId !== null && Object.keys(updatePayload).length > 0
+  const redirectUrl = setupComplete
+    ? '/integrations?connected=gmail'
+    : '/integrations?setup=google_drive'
+
+  const response = NextResponse.redirect(new URL(redirectUrl, appUrl))
   response.cookies.delete('oauth_state_google')
   return response
 }
