@@ -59,6 +59,43 @@ async function clearAndWrite(accessToken: string, spreadsheetId: string, sheetNa
   return res
 }
 
+async function createSheetsFileIfMissing(
+  accessToken: string,
+  folderId: string,
+  fileName: string,
+  supabase: SupabaseClient,
+  userId: string
+): Promise<string | null> {
+  try {
+    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: fileName,
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        parents: [folderId],
+      }),
+    })
+
+    const data = await res.json() as { id?: string; error?: { message: string } }
+
+    if (!res.ok || !data.id) {
+      console.error('[Google Sync] Failed to create Sheets file:', data.error?.message || `HTTP ${res.status}`)
+      return null
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ google_sheets_db_id: data.id })
+      .eq('id', userId)
+
+    return data.id
+  } catch (err) {
+    console.error('[Google Sync] Exception creating Sheets file:', err)
+    return null
+  }
+}
+
 async function ensureSheet(accessToken: string, spreadsheetId: string, title: string) {
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
@@ -78,14 +115,15 @@ export async function POST(): Promise<NextResponse> {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('tenant_id, google_sheets_db_id')
+    .select('tenant_id, google_sheets_db_id, google_drive_folder_id')
     .eq('id', user.id)
     .single()
 
   const tenantId = profile?.tenant_id ?? user.id
-  const sheetsId = profile?.google_sheets_db_id as string | null
+  let sheetsId = profile?.google_sheets_db_id as string | null
+  const folderId = profile?.google_drive_folder_id as string | null
 
-  if (!sheetsId) {
+  if (!folderId) {
     return NextResponse.json(
       { error: 'Google Drive no está configurado. Conectá Google en Integraciones.' },
       { status: 400 }
@@ -141,6 +179,25 @@ export async function POST(): Promise<NextResponse> {
   }
 
   const token = accessToken!
+
+  // If Sheets DB doesn't exist, create it now (handles case where OAuth callback failed to create it)
+  if (!sheetsId) {
+    console.log('[Google Sync] Sheets DB missing, attempting to create...')
+    const newSheetsId = await createSheetsFileIfMissing(
+      token,
+      folderId,
+      'Base de Datos - ConectAr Talento',
+      supabase,
+      user.id
+    )
+    if (!newSheetsId) {
+      return NextResponse.json(
+        { error: 'No se pudo crear la base de datos en Google Sheets. Verificá que tu cuenta de Google tenga permisos de escritura en Google Drive.' },
+        { status: 500 }
+      )
+    }
+    sheetsId = newSheetsId
+  }
 
   // Fetch tenant data (applications filtered via candidate_id to respect tenant isolation)
   const [{ data: candidates }, { data: vacancies }] = await Promise.all([
