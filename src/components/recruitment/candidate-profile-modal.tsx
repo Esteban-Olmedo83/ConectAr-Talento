@@ -142,6 +142,10 @@ export function CandidateProfileModal({
   const [editExperience, setEditExperience] = React.useState(String(initialCandidate.experienceYears ?? ''))
   const [editEducation, setEditEducation] = React.useState(initialCandidate.education ?? '')
   const [editSkills, setEditSkills] = React.useState(initialCandidate.skills.join(', '))
+  const [editHireDate, setEditHireDate] = React.useState(initialCandidate.hireDate ?? '')
+  const [editTerminationDate, setEditTerminationDate] = React.useState(initialCandidate.terminationDate ?? '')
+  const [editGender, setEditGender] = React.useState(initialCandidate.genderOptional ?? '')
+  const [editAgeRange, setEditAgeRange] = React.useState(initialCandidate.ageRangeOptional ?? '')
   const [isSavingEdit, setIsSavingEdit] = React.useState(false)
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false)
@@ -202,6 +206,10 @@ export function CandidateProfileModal({
         experienceYears: editExperience ? Number(editExperience) : candidate.experienceYears,
         education: editEducation.trim() || candidate.education,
         skills: editSkills.split(',').map(s => s.trim()).filter(Boolean),
+        hireDate: editHireDate || null,
+        terminationDate: editTerminationDate || null,
+        genderOptional: editGender || null,
+        ageRangeOptional: editAgeRange || null,
       })
       if (result.data) {
         setCandidate(result.data)
@@ -411,7 +419,63 @@ export function CandidateProfileModal({
                     />
                   </div>
                 </div>
-                <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="w-full">
+                <div className="border-t pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Información de contratación (opcional)</p>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">Fecha de contratación</label>
+                      <input
+                        type="date"
+                        value={editHireDate}
+                        onChange={e => setEditHireDate(e.target.value)}
+                        className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">Fecha de término</label>
+                      <input
+                        type="date"
+                        value={editTerminationDate}
+                        onChange={e => setEditTerminationDate(e.target.value)}
+                        className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Datos demográficos (opcional - para análisis de diversidad)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">Género</label>
+                      <select
+                        value={editGender}
+                        onChange={e => setEditGender(e.target.value)}
+                        className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="">Sin especificar</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Femenino">Femenino</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">Rango de edad</label>
+                      <select
+                        value={editAgeRange}
+                        onChange={e => setEditAgeRange(e.target.value)}
+                        className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="">Sin especificar</option>
+                        <option value="18-25">18-25 años</option>
+                        <option value="26-35">26-35 años</option>
+                        <option value="36-45">36-45 años</option>
+                        <option value="46-55">46-55 años</option>
+                        <option value="56+">56+ años</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="w-full mt-4">
                   {isSavingEdit && <Loader2 className="h-4 w-4 animate-spin" />}
                   Guardar cambios
                 </Button>
