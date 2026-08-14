@@ -77,6 +77,8 @@ function VacancyFormDialog({
     requirements: vacancy?.requirements.join(', ') ?? '',
     description: vacancy?.description ?? '',
     closingDate: vacancy?.closingDate?.slice(0, 10) ?? '',
+    postingCost: vacancy?.postingCost?.toString() ?? '',
+    internalHours: vacancy?.internalHours?.toString() ?? '',
   })
   const [generating, setGenerating] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
@@ -118,6 +120,8 @@ function VacancyFormDialog({
       requirements: vacancy?.requirements?.join(', ') ?? '',
       description: vacancy?.description ?? '',
       closingDate: vacancy?.closingDate?.slice(0, 10) ?? '',
+      postingCost: vacancy?.postingCost?.toString() ?? '',
+      internalHours: vacancy?.internalHours?.toString() ?? '',
     })
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,6 +187,8 @@ function VacancyFormDialog({
       closingDate: form.closingDate || undefined,
       rubro: form.rubro,
       perfil: form.perfil,
+      postingCost: form.postingCost ? Number(form.postingCost) : undefined,
+      internalHours: form.internalHours ? Number(form.internalHours) : undefined,
     }
     const result = vacancy
       ? await provider.updateVacancy(vacancy.id, input)
@@ -307,6 +313,20 @@ function VacancyFormDialog({
             <div>
               <label className={labelCls}>Salario máximo</label>
               <input type="number" value={form.salaryMax} onChange={e => setForm(f => ({...f, salaryMax: e.target.value}))} className={inputCls} placeholder="1200000" />
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Costos de reclutamiento (opcional - para ISO 30414)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Costo de publicación (USD)</label>
+                <input type="number" step="0.01" value={form.postingCost} onChange={e => setForm(f => ({...f, postingCost: e.target.value}))} className={inputCls} placeholder="Ej: 500" />
+              </div>
+              <div>
+                <label className={labelCls}>Horas internas dedicadas</label>
+                <input type="number" step="0.5" value={form.internalHours} onChange={e => setForm(f => ({...f, internalHours: e.target.value}))} className={inputCls} placeholder="Ej: 20" />
+              </div>
             </div>
           </div>
 

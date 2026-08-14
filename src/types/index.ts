@@ -144,6 +144,10 @@ export interface Candidate {
   appliedAt: string
   createdAt: string
   archived?: boolean
+  hireDate?: string | null
+  terminationDate?: string | null
+  genderOptional?: string | null
+  ageRangeOptional?: string | null
 }
 
 export interface Application {
@@ -220,6 +224,8 @@ export interface Vacancy {
   applications: Application[]
   rubro: string
   perfil: string
+  postingCost?: number | null
+  internalHours?: number | null
 }
 
 export interface SkillProfile {
