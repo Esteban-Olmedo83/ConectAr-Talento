@@ -21,7 +21,7 @@ export function logAiUsage(params: LogAiUsageParams): void {
       user_id: params.userId,
       tenant_id: params.tenantId ?? null,
       route: params.route,
-      model: params.model ?? 'llama-3.3-70b-versatile',
+      model: params.model ?? 'qwen/qwen3.6-27b',
       prompt_tokens: params.promptTokens ?? null,
       completion_tokens: params.completionTokens ?? null,
       latency_ms: params.latencyMs ?? null,

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.6-27b',
         messages: [
           { role: 'system', content: systemMsg },
           { role: 'user', content: `<context>${context}</context>` },

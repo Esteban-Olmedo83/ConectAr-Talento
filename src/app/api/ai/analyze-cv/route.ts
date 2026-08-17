@@ -343,7 +343,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.6-27b',
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: 'Responde siempre con JSON valido y sin markdown.' },
