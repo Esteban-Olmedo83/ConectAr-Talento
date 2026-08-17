@@ -247,7 +247,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.6-27b',
         messages: [{ role: 'user', content: buildPrompt(cvText, vacancyRequirements) }],
         temperature: 0.1,
         max_tokens: 1024,

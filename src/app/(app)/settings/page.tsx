@@ -831,14 +831,14 @@ function ConexionIAsTab() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'qwen/qwen3.6-27b',
             messages: [{ role: 'user', content: 'Di hola en una palabra.' }],
             max_tokens: 10,
           }),
         })
         const data = await res.json()
         if (res.ok && data.choices?.[0]?.message?.content) {
-          setTestResult({ ok: true, message: `Conexión exitosa con Groq · Llama 3.3 70B. Respuesta: "${data.choices[0].message.content.trim()}"` })
+          setTestResult({ ok: true, message: `Conexión exitosa con Groq · Qwen 3.6 27B. Respuesta: "${data.choices[0].message.content.trim()}"` })
         } else {
           const msg: string = data.error?.message || 'Respuesta inesperada'
           if (res.status === 401) {
