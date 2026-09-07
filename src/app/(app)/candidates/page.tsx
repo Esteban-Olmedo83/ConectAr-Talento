@@ -983,6 +983,10 @@ function AddCandidateDialog({
     cvUrl: prefill?.cvUrl ?? '',
     cvFileName: prefill?.cvFileName ?? '',
     avatarUrl: prefill?.avatarUrl ?? '',
+    hireDate: prefill?.hireDate ?? '',
+    terminationDate: prefill?.terminationDate ?? '',
+    genderOptional: prefill?.genderOptional ?? '',
+    ageRangeOptional: prefill?.ageRangeOptional ?? '',
   })
   const [saving, setSaving] = React.useState(false)
 
@@ -1000,6 +1004,10 @@ function AddCandidateDialog({
         cvUrl: prefill.cvUrl ?? f.cvUrl,
         cvFileName: prefill.cvFileName ?? f.cvFileName,
         avatarUrl: prefill.avatarUrl ?? f.avatarUrl,
+        hireDate: prefill.hireDate ?? f.hireDate,
+        terminationDate: prefill.terminationDate ?? f.terminationDate,
+        genderOptional: prefill.genderOptional ?? f.genderOptional,
+        ageRangeOptional: prefill.ageRangeOptional ?? f.ageRangeOptional,
       }))
     }
   }, [prefill])
@@ -1073,6 +1081,10 @@ function AddCandidateDialog({
       cvUrl: form.cvUrl || undefined,
       cvFileName: form.cvFileName || undefined,
       avatarUrl: form.avatarUrl || undefined,
+      hireDate: form.hireDate ? new Date(form.hireDate).toISOString() : undefined,
+      terminationDate: form.terminationDate ? new Date(form.terminationDate).toISOString() : undefined,
+      genderOptional: form.genderOptional || undefined,
+      ageRangeOptional: form.ageRangeOptional || undefined,
     })
     setSaving(false)
     if (result.data) {
@@ -1214,6 +1226,49 @@ function AddCandidateDialog({
             <label className={labelCls}>{t.candidates.addDialog.notes}</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} className={cn(inputCls, 'resize-none h-16')} placeholder={t.candidates.addDialog.notesPlaceholder} />
           </div>
+
+          {/* Información de contratación (ISO 30414) */}
+          <div className="border-t pt-3">
+            <h4 className="text-xs font-semibold text-muted-foreground mb-3">Información de contratación</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Fecha de contratación</label>
+                <input type="date" value={form.hireDate} onChange={e => setForm(f => ({...f, hireDate: e.target.value}))} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Fecha de término</label>
+                <input type="date" value={form.terminationDate} onChange={e => setForm(f => ({...f, terminationDate: e.target.value}))} className={inputCls} />
+              </div>
+            </div>
+          </div>
+
+          {/* Datos demográficos (opcional) */}
+          <div className="border-t pt-3">
+            <h4 className="text-xs font-semibold text-muted-foreground mb-3">Datos demográficos (opcional)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Género</label>
+                <select value={form.genderOptional} onChange={e => setForm(f => ({...f, genderOptional: e.target.value}))} className={inputCls}>
+                  <option value="">No especificar</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Rango de edad</label>
+                <select value={form.ageRangeOptional} onChange={e => setForm(f => ({...f, ageRangeOptional: e.target.value}))} className={inputCls}>
+                  <option value="">No especificar</option>
+                  <option value="18-25">18-25</option>
+                  <option value="26-35">26-35</option>
+                  <option value="36-45">36-45</option>
+                  <option value="46-55">46-55</option>
+                  <option value="56+">56+</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* CV upload */}
           <div>
             <label className={labelCls}>CV (PDF, DOC, DOCX)</label>

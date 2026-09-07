@@ -122,6 +122,10 @@ function mapCandidate(row: Record<string, unknown>): Candidate {
     appliedAt: row.applied_at as string,
     createdAt: row.created_at as string,
     archived: (row.archived as boolean) ?? false,
+    hireDate: (row.hire_date as string) ?? null,
+    terminationDate: (row.termination_date as string) ?? null,
+    genderOptional: (row.gender_optional as string) ?? null,
+    ageRangeOptional: (row.age_range_optional as string) ?? null,
   }
 }
 
@@ -502,6 +506,10 @@ export class SupabaseProvider implements DataProvider {
         applied_at: input.appliedAt,
         cv_url: input.cvUrl ?? null,
         cv_file_name: input.cvFileName ?? null,
+        hire_date: input.hireDate ?? null,
+        termination_date: input.terminationDate ?? null,
+        gender_optional: input.genderOptional ?? null,
+        age_range_optional: input.ageRangeOptional ?? null,
       })
       .select('*, client:clients(*)')
       .single()
@@ -524,6 +532,10 @@ export class SupabaseProvider implements DataProvider {
     if (input.cvFileName !== undefined) patch.cv_file_name = input.cvFileName
     if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl
     if (input.clientId !== undefined) patch.client_id = input.clientId ?? null
+    if (input.hireDate !== undefined) patch.hire_date = input.hireDate ?? null
+    if (input.terminationDate !== undefined) patch.termination_date = input.terminationDate ?? null
+    if (input.genderOptional !== undefined) patch.gender_optional = input.genderOptional ?? null
+    if (input.ageRangeOptional !== undefined) patch.age_range_optional = input.ageRangeOptional ?? null
     const { data, error } = await this.sb
       .from('candidates')
       .update(patch)

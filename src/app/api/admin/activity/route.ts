@@ -8,15 +8,20 @@ export async function GET(request: NextRequest) {
 
   const adminClient = createAdminClient()
   const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
+  let tenantId = searchParams.get('tenantId')
   const entityType = searchParams.get('entityType')
   const days = parseInt(searchParams.get('days') ?? '30')
 
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: profiles } = await adminClient
+  // Security: filter profiles by tenantId if specified, otherwise load all (admin only)
+  let profileQuery = adminClient
     .from('profiles')
     .select('id, tenant_id, full_name, company_name')
+
+  if (tenantId) profileQuery = profileQuery.eq('tenant_id', tenantId)
+
+  const { data: profiles } = await profileQuery
 
   type Profile = { id: string; tenant_id: string; full_name: string; company_name: string }
   const profileList: Profile[] = profiles ?? []
