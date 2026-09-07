@@ -11,6 +11,7 @@ interface LogErrorParams {
 
 /**
  * Sends errors to Sentry and persists them to error_logs table.
+ * tenant_id is required for proper multi-tenant isolation via RLS.
  * Never throws — logging must not break the request handler.
  */
 export async function logError(params: LogErrorParams): Promise<void> {
@@ -28,11 +29,15 @@ export async function logError(params: LogErrorParams): Promise<void> {
   // Persist to Supabase for in-app visibility
   try {
     const supabase = createAdminClient()
+    // Security: tenant_id is required for RLS isolation
+    // If missing, use 'unknown' to ensure it's logged but isolated
+    const tenantIdForLog = params.tenantId || 'unknown'
+
     await supabase.from('error_logs').insert({
       endpoint: params.endpoint,
       error_message: message,
       error_stack: stack ?? null,
-      tenant_id: params.tenantId ?? null,
+      tenant_id: tenantIdForLog,
       user_id: params.userId ?? null,
       request_body: params.requestBody ? JSON.parse(JSON.stringify(params.requestBody)) : null,
     })

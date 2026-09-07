@@ -33,7 +33,7 @@ const WINDOW_MS = 60_000 // 1 minute
 async function isRateLimited(userId: string, endpoint: string, isPaidPlan: boolean): Promise<boolean> {
   try {
     const redis = getRedisClient()
-    if (!redis) return false // degraded: allow when Redis not configured
+    if (!redis) return true // fail-closed: reject if Redis unavailable (security > UX)
     const key = `rate-limit:${userId}:${endpoint}`
     const now = Date.now()
 
